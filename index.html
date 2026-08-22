@@ -110,6 +110,21 @@
 
   .hint{font-size:11px;color:var(--text-dim);margin:-5px 0 0;line-height:1.4;}
 
+  .upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .upload-btn{
+    background:var(--panel-2);
+    border:1px dashed var(--accent);
+    color:var(--accent-2);
+    border-radius:8px;
+    padding:9px 14px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .upload-btn:hover{background:#152a25;}
+  .upload-btn:disabled{opacity:0.5;cursor:default;}
+  .upload-status{font-size:12px;color:var(--text-dim);}
+
   .shift-row{display:flex;gap:6px;align-items:center;margin-top:6px;}
   .shift-btn{
     background:var(--panel-2);
@@ -268,6 +283,17 @@
     <!-- FORM -->
     <div class="panel">
       <h2>Input Kandidat</h2>
+
+      <div class="field">
+        <label>Isi Otomatis dari Screenshot (opsional)</label>
+        <div class="upload-row">
+          <input type="file" id="screenshotInput" accept="image/*" style="display:none;">
+          <button type="button" class="upload-btn" id="uploadBtn">📷 Upload Screenshot Data</button>
+          <span class="upload-status" id="uploadStatus"></span>
+        </div>
+        <div class="hint">Upload screenshot data kandidat (WA, Excel, HRIS, dll), field di bawah otomatis keisi. Cek & koreksi dulu sebelum submit.</div>
+      </div>
+
       <div class="field">
         <label>Nama Kamu (PIC Recruitment)</label>
         <input type="text" id="picName" placeholder="mis. Arul HR">
@@ -359,6 +385,9 @@ const statusAktivasiEl = document.getElementById('statusAktivasi');
 const onbHintEl = document.getElementById('onbHint');
 const combinedListEl = document.getElementById('combinedList');
 const previewEl = document.getElementById('preview');
+const screenshotInputEl = document.getElementById('screenshotInput');
+const uploadBtnEl = document.getElementById('uploadBtn');
+const uploadStatusEl = document.getElementById('uploadStatus');
 
 function fmtID(dateStr){
   if(!dateStr) return '';
@@ -367,6 +396,16 @@ function fmtID(dateStr){
   const d = new Date(datePart + 'T00:00:00');
   if(isNaN(d)) return dateStr;
   return d.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+}
+
+function fmtShortID(dateStr){
+  if(!dateStr) return '';
+  const datePart = String(dateStr).slice(0, 10);
+  const d = new Date(datePart + 'T00:00:00');
+  if(isNaN(d)) return dateStr;
+  const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const hari = d.toLocaleDateString('id-ID', {weekday:'long'});
+  return `${hari}, ${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function nearestTueFri(dateStr){
@@ -401,6 +440,68 @@ function shiftOnboarding(delta){
   tglOnboardingEl.value = d.toISOString().slice(0,10);
   tglOnboardingEl.dataset.manual = '1';
   onbHintEl.textContent = 'digeser manual (cek hari libur)';
+}
+
+uploadBtnEl.addEventListener('click', () => screenshotInputEl.click());
+screenshotInputEl.addEventListener('change', handleScreenshotUpload);
+
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleScreenshotUpload(e){
+  const file = e.target.files[0];
+  screenshotInputEl.value = ''; // reset supaya bisa upload file yg sama lagi
+  if(!file) return;
+  if(!checkConfig()){
+    showToast('API_URL belum diset di file HTML', true);
+    return;
+  }
+  uploadBtnEl.disabled = true;
+  uploadStatusEl.textContent = '⏳ Membaca gambar...';
+  try{
+    const base64 = await fileToBase64(file);
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'extractCandidate',
+        mimeType: file.type || 'image/png',
+        imageBase64: base64
+      })
+    });
+    const json = await res.json();
+    if(!json.success) throw new Error(json.error || 'Gagal membaca gambar');
+    fillFormFromExtracted(json.data || {});
+    uploadStatusEl.textContent = '✅ Terisi otomatis, cek dulu ya sebelum submit';
+    showToast('Field terisi otomatis dari screenshot!');
+  }catch(err){
+    uploadStatusEl.textContent = '';
+    showToast('Gagal baca screenshot: ' + err.message, true);
+  }finally{
+    uploadBtnEl.disabled = false;
+  }
+}
+
+function fillFormFromExtracted(data){
+  if(data.nama) namaEl.value = data.nama;
+  if(data.departemen) departemenEl.value = data.departemen;
+  if(data.designation) designationEl.value = data.designation;
+  if(data.atasan) atasanEl.value = data.atasan;
+  if(data.tglJoin){
+    tglJoinEl.value = data.tglJoin;
+    if(!tglOnboardingEl.dataset.manual){
+      tglOnboardingEl.value = nearestTueFri(data.tglJoin);
+    }
+  }
+  if(data.statusAktivasi === 'Sudah' || data.statusAktivasi === 'Belum'){
+    statusAktivasiEl.value = data.statusAktivasi;
+  }
 }
 
 function checkConfig(){
@@ -506,21 +607,30 @@ function buildText(){
     groups[key].push(c);
   });
 
-  let lines = ['*Info Karyawan Baru Join & Onboarding*', ''];
-  let counter = 0;
+  // jadwal onboarding di header = tanggal onboarding terdekat dari semua kandidat
+  const onbDates = candidates.map(c => c.tglOnboarding).filter(Boolean).sort();
+  const jadwalOnboarding = onbDates.length ? fmtShortID(onbDates[0]) : '-';
+
+  let lines = ['📝 *Info Karyawan Baru Join & Onboarding* 📢', ''];
+  lines.push(`jadwal onboarding : ${jadwalOnboarding}`);
+  lines.push(`Total Plan Peserta : ${candidates.length} Orang`);
+  lines.push('');
+
   order.forEach(pic => {
     lines.push(`*PIC Recruitment: ${pic}*`);
+    let counter = 0;
     groups[pic].forEach(c => {
       counter++;
-      lines.push(`${counter}.\u200b ${c.nama || '(nama belum diisi)'}`);
-      if(c.departemen) lines.push(`   Departemen: ${c.departemen}`);
-      if(c.designation) lines.push(`   Designation: ${c.designation}`);
-      if(c.atasan) lines.push(`   Atasan Langsung: ${c.atasan}`);
-      if(c.tglJoin) lines.push(`   Tgl Join: ${fmtID(c.tglJoin)}`);
-      if(c.tglOnboarding) lines.push(`   Rencana Onboarding: ${fmtID(c.tglOnboarding)}`);
-      if(c.statusAktivasi) lines.push(`   Status Aktivasi: ${c.statusAktivasi}`);
+      lines.push(`${counter}. *${c.nama || '(nama belum diisi)'}*`);
+      if(c.departemen) lines.push(`· Departemen: ${c.departemen}`);
+      if(c.designation) lines.push(`· Designation: ${c.designation}`);
+      if(c.atasan) lines.push(`· Atasan Langsung: ${c.atasan}`);
+      if(c.tglJoin) lines.push(`· Tgl Join: ${fmtID(c.tglJoin)}`);
+      if(c.tglOnboarding) lines.push(`· Rencana Onboarding: ${fmtID(c.tglOnboarding)}`);
+      if(c.statusAktivasi) lines.push(`· Status Aktivasi: *${c.statusAktivasi}*`);
       lines.push('');
     });
+    lines.push(''); // jeda ekstra antar PIC recruitment
   });
   return lines.join('\n').trim();
 }
