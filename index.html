@@ -283,7 +283,8 @@
   .field label{
     display:block;
     font-size:11px;
-    color:var(--text-dim);
+    color:var(--text);
+    font-weight:600;
     margin-bottom:3px;
   }
   .field input, .field textarea, .field select{
@@ -297,6 +298,10 @@
     outline:none;
     font-family:inherit;
     transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .field input::placeholder, .field textarea::placeholder{
+    color:var(--text-dim);
+    opacity:0.55;
   }
   .field input[type="date"]{color-scheme:light;}
   .field input:focus, .field textarea:focus, .field select:focus{
@@ -937,7 +942,7 @@
     background:var(--bubble);
     border-radius:10px 10px 10px 2px;
     padding:12px 14px;
-    font-size:12px;
+    font-size:11px;
     line-height:1.55;
     white-space:pre-wrap;
     word-break:break-word;
@@ -1038,13 +1043,15 @@
         <pre class="debug-box" id="debugBox" style="display:none;"></pre>
       </div>
 
-      <div class="field">
-        <label>Nama Kamu (PIC Recruitment)<span class="required-star">*</span></label>
-        <input type="text" id="picName" class="field-special" placeholder="mis. Arul HR">
-      </div>
-      <div class="field">
-        <label>Nama Kandidat<span class="required-star">*</span></label>
-        <input type="text" id="nama" placeholder="Nama kandidat">
+      <div class="row2">
+        <div class="field">
+          <label>Nama Kamu (PIC Recruitment)<span class="required-star">*</span></label>
+          <input type="text" id="picName" class="field-special" placeholder="mis. Arul HR">
+        </div>
+        <div class="field">
+          <label>Nama Kandidat<span class="required-star">*</span></label>
+          <input type="text" id="nama" placeholder="Nama kandidat">
+        </div>
       </div>
       <div class="field">
         <label>Nomor HP<span class="required-star">*</span></label>
@@ -1139,7 +1146,7 @@
         <span class="h2-icon">📋</span>
         <div class="chart-heading-text">
           <span>Detail &amp; Kelola Kandidat</span>
-          <span class="chart-sub" id="tableSub">Klik nama kolom buat sort, klik ikon ⏷ di header buat filter (bisa pilih beberapa nilai sekaligus). Kehadiran ditampung dulu — klik ikon 💾 di header kolom Kehadiran buat commit semuanya sekaligus.</span>
+          <span class="chart-sub" id="tableSub">Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</span>
         </div>
       </div>
     </h2>
@@ -2108,6 +2115,9 @@ const TABLE_COLUMNS = [
   { key:'nama', label:'Nama', sortable:true, filterable:true,
     sortValue: c => (c.nama||'').toLowerCase(),
     filterValue: c => c.nama || '', filterLabel: v => v || '(Kosong)' },
+  { key:'pic', label:'PIC', sortable:true, filterable:true,
+    sortValue: c => (c.pic||'').toLowerCase(),
+    filterValue: c => c.pic || '', filterLabel: v => v || '(Belum diisi)' },
   { key:'departemen', label:'Departemen', sortable:true, filterable:true,
     sortValue: c => (c.departemen||'').toLowerCase(),
     filterValue: c => c.departemen || '', filterLabel: v => v || '(Kosong)' },
@@ -2117,9 +2127,6 @@ const TABLE_COLUMNS = [
   { key:'atasan', label:'Atasan', sortable:true, filterable:true,
     sortValue: c => (c.atasan||'').toLowerCase(),
     filterValue: c => c.atasan || '', filterLabel: v => v || '(Kosong)' },
-  { key:'pic', label:'PIC', sortable:true, filterable:true,
-    sortValue: c => (c.pic||'').toLowerCase(),
-    filterValue: c => c.pic || '', filterLabel: v => v || '(Belum diisi)' },
   { key:'tglJoin', label:'Tgl Join', sortable:true, filterable:true,
     sortValue: c => c.tglJoin || '',
     filterValue: c => c.tglJoin || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
