@@ -108,6 +108,7 @@
   .stats-row{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
+    grid-auto-rows:1fr;
     gap:16px;
     margin-bottom:20px;
   }
@@ -126,8 +127,22 @@
     overflow:hidden;
     box-shadow:var(--shadow-sm);
     transition:transform .18s, box-shadow .18s;
+    cursor:pointer;
+    min-height:96px;
   }
   .stat-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+  .stat-tile-loading{cursor:default;}
+  .stat-tile-loading:hover{transform:none;box-shadow:var(--shadow-sm);}
+  .spinner{
+    width:20px;height:20px;border-radius:50%;
+    border:2.5px solid rgba(255,255,255,0.3);
+    border-top-color:#fff;
+    animation:spin .7s linear infinite;
+    display:inline-block;
+  }
+  .spinner-dim{border-color:rgba(107,124,133,0.25);border-top-color:var(--text-dim);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-line{display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:13px;font-style:italic;padding:10px 0;}
   .stat-badge{
     flex:0 0 76px;
     display:flex;align-items:center;justify-content:center;
@@ -139,9 +154,17 @@
     line-height:1.1;
     padding:8px;
   }
+  .stat-badge-ring{position:relative;}
+  .ring-svg{width:52px;height:52px;display:block;}
+  .ring-svg .ring-track{fill:none;stroke:rgba(255,255,255,0.16);}
+  .ring-svg .ring-progress{fill:none;stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
+  .ring-value{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-size:13px;font-weight:800;color:#fff;line-height:1;white-space:nowrap;
+  }
   .stat-info{
     flex:1;
-    display:flex;align-items:center;gap:10px;
+    display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;
     padding:12px 14px;
     min-width:0;
   }
@@ -150,8 +173,8 @@
     display:flex;align-items:center;justify-content:center;
     font-size:16px;flex-shrink:0;
   }
-  .stat-title{font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .stat-sub{font-size:11px;color:var(--text-dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat-title{font-size:12.5px;font-weight:700;color:var(--text);white-space:normal;word-break:break-word;line-height:1.3;}
+  .stat-sub{font-size:11px;color:var(--text-dim);margin-top:1px;white-space:normal;word-break:break-word;line-height:1.3;}
 
   .grid{
     display:grid;
@@ -217,14 +240,14 @@
 
   .hint{font-size:11px;color:var(--text-dim);margin:-5px 0 0;line-height:1.4;}
 
-  .upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
   .upload-btn{
     background:linear-gradient(135deg, rgba(23,185,120,0.10), rgba(77,107,255,0.08));
     border:1.5px dashed var(--accent);
     color:var(--accent);
     border-radius:999px;
-    padding:9px 16px;
-    font-size:13px;
+    padding:6px 13px;
+    font-size:12px;
     font-weight:700;
     cursor:pointer;
     transition:background .15s, transform .1s;
@@ -324,6 +347,11 @@
 
   .pic-group{margin-bottom:16px;}
   .pic-group:last-child{margin-bottom:0;}
+  .week-group{margin-bottom:20px;}
+  .week-group:last-child{margin-bottom:0;}
+  .week-group > .week-header{margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--border);}
+  .week-group .pic-group{margin-bottom:14px;}
+  .week-group .pic-group:last-child{margin-bottom:0;}
   .pic-title{
     font-size:12px;
     color:var(--accent-2);
@@ -345,6 +373,15 @@
   }
   .cand-card .info b{display:block;font-size:13.5px;margin-bottom:2px;}
   .cand-card .info span{display:block;color:var(--text-dim);font-size:12px;}
+  .week-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+  .week-pill{
+    display:inline-block;background:var(--navy-2);color:#fff;
+    font-size:10.5px;font-weight:800;letter-spacing:0.2px;
+    border-radius:999px;padding:2px 9px;white-space:nowrap;
+  }
+  .week-date{font-size:11.5px;color:var(--text-dim);}
+  .week-group > .week-header .week-pill{font-size:11px;padding:3px 11px;}
+  .week-group > .week-header .week-date{font-size:12px;font-weight:600;color:var(--text);}
   .status-badge{
     display:inline-block;
     font-size:11px;
@@ -355,12 +392,78 @@
   }
   .status-sudah{background:rgba(37,211,102,0.15);color:var(--accent-2);}
   .status-belum{background:rgba(224,90,78,0.15);color:var(--danger);}
+  .status-hadir{background:rgba(37,211,102,0.15);color:var(--accent-2);}
+  .status-tidak-hadir{background:rgba(224,90,78,0.15);color:var(--danger);}
+  .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
+  .badge-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+  .cand-card .info{min-width:0;flex:1;}
+  .cand-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;}
   .cand-card .del{
     background:none;border:none;color:var(--danger);
     font-size:11px;cursor:pointer;white-space:nowrap;height:fit-content;
   }
   .cand-card .del:hover{text-decoration:underline;}
+  .cand-card .edit{
+    background:none;border:none;color:var(--blue);
+    font-size:11px;cursor:pointer;white-space:nowrap;height:fit-content;
+  }
+  .cand-card .edit:hover{text-decoration:underline;}
+  .verify-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .verify-select{
+    background:var(--panel);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;
+    cursor:pointer;outline:none;transition:border-color .15s, box-shadow .15s;
+  }
+  .verify-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(23,185,120,0.12);}
+  .verify-select:disabled{opacity:0.55;cursor:default;}
+  .verify-select.val-hadir{border-color:var(--accent);color:var(--accent);background:rgba(23,185,120,0.08);}
+  .verify-select.val-tidak{border-color:var(--danger);color:var(--danger);background:rgba(224,90,78,0.08);}
+  .cand-card-edit{display:block;}
+  .cand-card-edit .field{margin-bottom:8px;}
+  .btn-save-edit{
+    background:var(--accent-2);color:#062f22;border:none;border-radius:8px;
+    padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+  .btn-save-edit:disabled{opacity:0.6;cursor:default;}
+  .btn-cancel-edit{
+    background:var(--panel-2);color:var(--text-dim);border:1px solid var(--border);
+    border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;
+  }
   .empty-state{color:var(--text-dim);font-size:13px;font-style:italic;padding:10px 0;}
+  .pic-summary-section{margin-bottom:20px;padding-bottom:16px;border-bottom:1px dashed var(--border);}
+  .pic-summary-total-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(23,185,120,0.08);border:1px solid rgba(23,185,120,0.25);border-radius:10px;
+    padding:9px 12px;margin-bottom:14px;
+  }
+  .pic-summary-total-label{font-size:12.5px;font-weight:800;color:var(--accent);}
+  .pic-summary-total-count{font-size:13.5px;font-weight:800;color:var(--accent);}
+  .pic-summary-heading, .pic-breakdown-heading{
+    font-size:12px;color:var(--text-dim);font-weight:800;
+    text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;
+  }
+  .pic-breakdown-heading{margin-top:4px;}
+  .pic-summary-item{margin-bottom:6px;}
+  .pic-summary-item:last-child{margin-bottom:0;}
+  .pic-summary-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px;
+    padding:8px 12px;font-size:13px;
+  }
+  .pic-summary-name{font-weight:700;color:var(--text);}
+  .pic-summary-count{
+    background:var(--navy);color:#fff;font-size:11px;font-weight:800;
+    border-radius:999px;padding:4px 10px;flex-shrink:0;
+    border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+    transition:background .15s;
+  }
+  .pic-summary-count:hover{background:var(--navy-2);}
+  .pic-summary-count .toggle-arrow{font-size:9px;transition:transform .2s;display:inline-block;}
+  .pic-summary-count.open .toggle-arrow{transform:rotate(180deg);}
+  .pic-summary-detail{
+    padding:10px 4px 4px;margin-top:6px;
+    border-left:2px solid var(--border);padding-left:12px;
+  }
 
   /* chart panel */
   .chart-panel h2{align-items:flex-start;}
@@ -380,6 +483,124 @@
     padding:6px 12px;margin-bottom:14px;
   }
 
+  /* detail table */
+  .table-scroll{
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:12px;
+  }
+  .cand-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+    min-width:1000px;
+  }
+  .week-chip{
+    display:inline-block;background:var(--navy-2);color:#fff;
+    font-size:10.5px;font-weight:800;letter-spacing:0.2px;
+    border-radius:999px;padding:2px 9px;white-space:nowrap;
+  }
+  .cand-table thead th{
+    background:var(--panel-2);
+    color:var(--text-dim);
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.3px;
+    text-align:left;
+    padding:9px 10px;
+    white-space:nowrap;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+  }
+  .th-head{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+  .th-head-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+  .th-sort{
+    display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;
+    padding:2px 0;border-radius:4px;transition:color .15s;
+    min-width:0;
+  }
+  .th-sort:hover{color:var(--accent);}
+  .th-sort .sort-arrow{font-size:9px;opacity:0.35;flex-shrink:0;}
+  .th-sort.active .sort-arrow{opacity:1;color:var(--accent);}
+  .th-filter-btn{
+    flex:0 0 auto;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:21px;height:21px;border-radius:6px;
+    background:transparent;border:1px solid transparent;color:var(--text-dim);
+    cursor:pointer;padding:0;transition:background .15s,color .15s,border-color .15s;
+  }
+  .th-filter-btn:hover{background:var(--panel);color:var(--accent);border-color:var(--border);}
+  .th-filter-btn svg{width:11px;height:11px;display:block;}
+  .th-filter-btn.active-filter{color:var(--accent);background:#eafaf3;border-color:var(--accent);}
+  .filter-dropdown{
+    position:fixed;z-index:400;
+    width:222px;max-height:320px;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    box-shadow:var(--shadow);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+    font-size:12.5px;
+    text-transform:none;letter-spacing:0;font-weight:500;
+  }
+  .fd-search{padding:8px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .fd-search input{
+    width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:7px;
+    font-size:12px;font-family:inherit;outline:none;color:var(--text);background:var(--panel);
+    box-sizing:border-box;
+  }
+  .fd-search input:focus{border-color:var(--accent);}
+  .fd-select-all{padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .fd-list{overflow-y:auto;padding:4px 0;flex:1;min-height:36px;}
+  .fd-option, .fd-select-all label{
+    display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;
+    color:var(--text);font-weight:500;
+  }
+  .fd-option:hover{background:var(--panel-2);}
+  .fd-option input, .fd-select-all input{accent-color:var(--accent-2);width:14px;height:14px;flex-shrink:0;cursor:pointer;}
+  .fd-option span, .fd-select-all span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fd-empty{padding:12px 10px;color:var(--text-dim);text-align:center;font-size:12px;}
+  .fd-actions{display:flex;gap:8px;padding:8px;border-top:1px solid var(--border);flex-shrink:0;}
+  .fd-actions button{
+    flex:1;border:none;border-radius:8px;padding:7px 0;font-size:12px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .fd-clear{background:var(--panel-2);color:var(--text-dim);}
+  .fd-clear:hover{background:var(--border);}
+  .fd-apply{background:linear-gradient(135deg, var(--accent-2), var(--accent));color:#fff;}
+  .fd-apply:hover{filter:brightness(1.06);}
+  .table-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .th-save-btn{
+    flex:0 0 auto;position:relative;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:21px;height:21px;border-radius:6px;
+    background:linear-gradient(135deg, var(--accent-2), #12a86b);
+    border:none;color:#fff;font-size:11px;cursor:pointer;padding:0;
+    box-shadow:0 4px 12px -5px rgba(23,185,120,0.6);
+    transition:transform .12s, opacity .12s;
+  }
+  .th-save-btn:hover{transform:translateY(-1px);opacity:0.92;}
+  .th-save-btn:disabled{opacity:0.6;cursor:default;transform:none;}
+  .th-save-count{
+    position:absolute;top:-6px;right:-6px;
+    background:var(--danger);color:#fff;
+    font-size:9px;font-weight:800;line-height:1;
+    min-width:14px;height:14px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    padding:0 3px;box-shadow:0 0 0 2px var(--panel-2);
+  }
+  .verify-select.dirty{border-color:var(--warn);box-shadow:0 0 0 2px rgba(201,134,28,0.18);}
+  .cand-table tbody td{
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+    white-space:nowrap;
+  }
+  .cand-table tbody tr:last-child td{border-bottom:none;}
+  .cand-table tbody tr:hover{background:var(--panel-2);}
+  .cand-table td.wrap{white-space:normal;}
+  .table-actions-cell{display:flex;gap:8px;}
+
   /* detail popup */
   .modal-overlay{
     position:fixed;inset:0;background:rgba(20,27,46,0.55);
@@ -392,7 +613,7 @@
   .modal-overlay.show{opacity:1;pointer-events:auto;}
   .modal-panel{
     background:var(--panel);border:1px solid var(--border);border-radius:14px;
-    width:100%;max-width:440px;max-height:80vh;
+    width:100%;max-width:460px;max-height:80vh;
     display:flex;flex-direction:column;
     transform:translateY(10px) scale(0.98);
     transition:transform .2s;
@@ -411,6 +632,10 @@
   }
   .modal-close:hover{color:var(--danger);}
   .modal-body{padding:14px 16px;overflow-y:auto;}
+  .edit-modal-panel{max-width:560px;}
+  .edit-modal-actions{display:flex;gap:8px;margin-top:6px;}
+  .edit-modal-actions .btn-save-edit{flex:1;}
+  .edit-modal-actions .btn-cancel-edit{flex:0 0 auto;}
 
   /* preview / chat bubble */
   .chat-bg{
@@ -421,6 +646,10 @@
     display:flex;
     flex-direction:column;
     height:100%;
+    max-height:600px;
+  }
+  @media (max-width:860px){
+    .chat-bg{max-height:420px;}
   }
   .chat-header{
     background:var(--panel-2);
@@ -493,14 +722,15 @@
     </div>
     <div class="month-chip"><span class="month-badge" id="headerMonthBadge">•</span><span id="headerMonthLabel">Memuat...</span></div>
   </header>
-  <div class="notice">⚠️ List di bawah bersifat <b>bersama (shared)</b> — semua orang yang buka link ini bisa lihat dan menambah data yang sama. Data disimpan di Google Sheet.</div>
   <div class="notice" id="configWarning" style="display:none;">⚙️ Belum diset: buka file HTML ini, cari <code>API_URL</code> di bagian script, ganti dengan Web App URL dari Apps Script kamu.</div>
 
   <div class="stats-row" id="statsRow"></div>
 
+  <div class="notice">⚠️ List di bawah bersifat <b>bersama (shared)</b> — semua orang yang buka link ini bisa lihat dan menambah data yang sama. Data disimpan di Google Sheet.</div>
+
   <div class="grid">
     <!-- FORM -->
-    <div class="panel">
+    <div class="panel" id="formPanel">
       <h2><span class="h2-title"><span class="h2-icon">📝</span>Input Kandidat</span></h2>
 
       <div class="field">
@@ -521,6 +751,10 @@
       <div class="field">
         <label>Nama Kandidat</label>
         <input type="text" id="nama" placeholder="Nama kandidat">
+      </div>
+      <div class="field">
+        <label>Nomor HP</label>
+        <input type="tel" id="noHp" placeholder="mis. 081234567890">
       </div>
       <div class="row2">
         <div class="field">
@@ -551,7 +785,7 @@
           </div>
         </div>
       </div>
-      <div class="hint">Onboarding default disarankan ke Selasa/Jumat terdekat setelah tgl join. Geser pakai tombol atau tanggal manual kalau kena hari libur.</div>
+      <div class="hint">Isi tanggal berapa aja di Rencana Onboarding, otomatis digenapkan ke Selasa (kalau Senin/Selasa) atau Jumat (kalau Rabu-Jumat) minggu itu. Geser pakai tombol kalau kena hari libur.</div>
 
       <div class="field">
         <label>Status Aktivasi</label>
@@ -566,11 +800,12 @@
     </div>
 
     <!-- PREVIEW -->
-    <div class="chat-bg">
+    <div class="chat-bg" id="previewPanel">
       <div class="chat-header">
         <h2><span class="h2-title"><span class="h2-icon">💬</span>Preview Pesan Gabungan</span></h2>
         <select id="onboardingFilter" class="onboarding-filter"></select>
       </div>
+      <div class="hint" style="margin:0 0 8px;">Filter di atas untuk memilih jadwal onboarding (tanggal) yang ditampilkan di preview pesan ini.</div>
       <div class="chat-body">
         <div class="bubble" id="preview"><span class="empty">Belum ada data...</span></div>
       </div>
@@ -581,7 +816,7 @@
     </div>
   </div>
 
-  <!-- CHART -->
+  <!-- CHART PETA SEBARAN -->
   <div class="list-panel chart-panel">
     <h2>
       <div class="chart-heading">
@@ -591,24 +826,96 @@
           <span class="chart-sub" id="chartSub">Tiap gelembung = kandidat pada PIC &amp; tanggal onboarding tsb</span>
         </div>
       </div>
-      <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
+      <button class="refresh-btn" id="chartRefreshBtn">↻ Refresh</button>
     </h2>
     <div id="chartEmptyState" class="empty-state" style="display:none;">Belum ada data buat statistik.</div>
-    <div class="chart-hint" id="chartHint" style="display:none;">💡 Klik gelembung untuk lihat &amp; kelola detail kandidat</div>
+    <div class="chart-hint" id="chartHint" style="display:none;">💡 Klik gelembung untuk lihat, edit &amp; kelola detail kandidat</div>
     <div style="position:relative;height:320px;">
       <canvas id="picChart"></canvas>
     </div>
   </div>
+
+  <!-- TABEL DETAIL KANDIDAT -->
+  <div class="list-panel chart-panel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">📋</span>
+        <div class="chart-heading-text">
+          <span>Detail &amp; Kelola Kandidat</span>
+          <span class="chart-sub" id="tableSub">Klik nama kolom buat sort, klik ikon ⏷ di header buat filter (bisa pilih beberapa nilai sekaligus). Kehadiran ditampung dulu — klik ikon 💾 di header kolom Kehadiran buat commit semuanya sekaligus.</span>
+        </div>
+      </div>
+    </h2>
+    <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
+    <div class="table-scroll" id="tableScrollWrap">
+      <table class="cand-table">
+        <thead id="candTableHead"></thead>
+        <tbody id="candTableBody"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
-<!-- DETAIL POPUP -->
-<div class="modal-overlay" id="modalOverlay">
+<!-- POPUP DETAIL GELEMBUNG CHART -->
+<div class="modal-overlay" id="chartModalOverlay">
   <div class="modal-panel">
     <div class="modal-header">
-      <h3 id="modalTitle">Detail</h3>
-      <button class="modal-close" id="modalClose">✕</button>
+      <h3 id="chartModalTitle">Detail</h3>
+      <button class="modal-close" id="chartModalClose">✕</button>
     </div>
-    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-body" id="chartModalBody"></div>
+  </div>
+</div>
+
+<!-- POPUP DETAIL STAT CARD -->
+<div class="modal-overlay" id="statModalOverlay">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h3 id="statModalTitle">Detail</h3>
+      <button class="modal-close" id="statModalClose">✕</button>
+    </div>
+    <div class="modal-body" id="statModalBody"></div>
+  </div>
+</div>
+
+<!-- POPUP EDIT KANDIDAT -->
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal-panel edit-modal-panel">
+    <div class="modal-header">
+      <h3>✏️ Edit Kandidat</h3>
+      <button class="modal-close" id="editModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>Nama</label><input type="text" id="efNama"></div>
+        <div class="field"><label>Nomor HP</label><input type="tel" id="efNoHp"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>PIC Recruitment</label><input type="text" id="efPic"></div>
+        <div class="field"><label>Departemen</label><input type="text" id="efDepartemen"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Designation</label><input type="text" id="efDesignation"></div>
+        <div class="field"><label>Atasan Langsung</label><input type="text" id="efAtasan"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Status Aktivasi</label>
+          <select id="efStatusAktivasi">
+            <option value="">— pilih status —</option>
+            <option value="Sudah">Sudah</option>
+            <option value="Belum">Belum</option>
+          </select>
+        </div>
+        <div class="field"><label>Tgl Join</label><input type="date" id="efTglJoin"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Rencana Onboarding</label><input type="date" id="efTglOnboarding"></div>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-save-edit" id="editModalSave">💾 Simpan</button>
+        <button class="btn-cancel-edit" id="editModalCancel">Batal</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -619,11 +926,16 @@
 // ==== GANTI INI dengan Web App URL dari Apps Script deployment kamu ====
 const API_URL = 'https://script.google.com/macros/s/AKfycbx2SUQr5jih5-Zd7-C9lrmWfBzc7WFxUG2V-AzvtGxtYyUbA2koxEPrjrgLz533XwgE/exec';
 // =========================================================================
+// PENTING: fitur Edit & Verifikasi Kehadiran di popup detail memanggil
+// action: 'update' ke Apps Script backend, dan butuh kolom "kehadiran" di
+// Google Sheet. Pastikan backend Apps Script kamu sudah diupdate untuk
+// menangani action ini (lihat contoh kode yang diberikan terpisah).
 
-let candidates = []; // {id, pic, nama, departemen, designation, atasan, tglJoin, tglOnboarding}
+let candidates = []; // {id, pic, nama, noHp, departemen, designation, atasan, tglJoin, tglOnboarding}
 
 const picNameEl = document.getElementById('picName');
 const namaEl = document.getElementById('nama');
+const noHpEl = document.getElementById('noHp');
 const departemenEl = document.getElementById('departemen');
 const designationEl = document.getElementById('designation');
 const atasanEl = document.getElementById('atasan');
@@ -674,6 +986,16 @@ function fmtWeekLabel(dateStr){
   return `${d.getDate()} ${BULAN_SHORT[d.getMonth()]} (W${weekOfMonth(d.getDate())})`;
 }
 
+// Minggu ke- dihitung sesuai jadwal onboarding (Selasa & Jumat): minggu ke-1 = tgl 1-7
+// bulan berjalan, minggu ke-2 = tgl 8-14, dst — pakai weekOfMonth berdasarkan tglOnboarding.
+function onboardingWeekNumber(dateStr){
+  if(!dateStr) return null;
+  const datePart = String(dateStr).slice(0, 10);
+  const d = new Date(datePart + 'T00:00:00');
+  if(isNaN(d)) return null;
+  return weekOfMonth(d.getDate());
+}
+
 function isCurrentMonth(dateStr){
   if(!dateStr) return false;
   const datePart = String(dateStr).slice(0, 10);
@@ -688,28 +1010,47 @@ function currentMonthLabel(){
   return `${BULAN_LONG[now.getMonth()]} ${now.getFullYear()}`;
 }
 
-function nearestTueFri(dateStr){
-  if(!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  for(let i=0;i<7;i++){
-    const c = new Date(d);
-    c.setDate(c.getDate()+i);
-    const day = c.getDay(); // 0=Sun,2=Tue,5=Fri
-    if(day===2 || day===5){
-      return c.toISOString().slice(0,10);
-    }
-  }
-  return dateStr;
+function toDateStr(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-tglJoinEl.addEventListener('change', () => {
-  if(tglJoinEl.value && !tglOnboardingEl.dataset.manual){
-    tglOnboardingEl.value = nearestTueFri(tglJoinEl.value);
+function snapToTueFri(dateStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Minggu,1=Senin,2=Selasa,3=Rabu,4=Kamis,5=Jumat,6=Sabtu
+  const diffToMonday = (day === 0) ? -6 : (1 - day);
+  const monday = new Date(d);
+  monday.setDate(monday.getDate() + diffToMonday);
+
+  const target = new Date(monday);
+  if(day === 1 || day === 2){
+    // Senin/Selasa -> Selasa minggu ini
+    target.setDate(monday.getDate() + 1);
+  } else if(day >= 3 && day <= 5){
+    // Rabu-Jumat -> Jumat minggu ini
+    target.setDate(monday.getDate() + 4);
+  } else {
+    // Sabtu/Minggu -> Selasa minggu berikutnya
+    target.setDate(monday.getDate() + 8);
   }
-});
-tglOnboardingEl.addEventListener('input', () => {
-  tglOnboardingEl.dataset.manual = '1';
-  onbHintEl.textContent = 'diatur manual';
+  return toDateStr(target);
+}
+
+function setDefaultOnboarding(){
+  const todayStr = toDateStr(new Date());
+  tglOnboardingEl.value = snapToTueFri(todayStr);
+  delete tglOnboardingEl.dataset.manual;
+  onbHintEl.textContent = 'auto: Selasa/Jumat terdekat';
+}
+
+tglOnboardingEl.addEventListener('change', () => {
+  if(!tglOnboardingEl.value) return;
+  const snapped = snapToTueFri(tglOnboardingEl.value);
+  if(snapped !== tglOnboardingEl.value){
+    tglOnboardingEl.value = snapped;
+  }
+  delete tglOnboardingEl.dataset.manual;
+  onbHintEl.textContent = 'auto: Selasa/Jumat terdekat';
 });
 document.getElementById('shiftMinus').addEventListener('click', () => shiftOnboarding(-1));
 document.getElementById('shiftPlus').addEventListener('click', () => shiftOnboarding(1));
@@ -717,7 +1058,7 @@ function shiftOnboarding(delta){
   if(!tglOnboardingEl.value) return;
   const d = new Date(tglOnboardingEl.value + 'T00:00:00');
   d.setDate(d.getDate()+delta);
-  tglOnboardingEl.value = d.toISOString().slice(0,10);
+  tglOnboardingEl.value = toDateStr(d);
   tglOnboardingEl.dataset.manual = '1';
   onbHintEl.textContent = 'digeser manual (cek hari libur)';
 }
@@ -797,6 +1138,7 @@ function formatExtractPreview(items){
     if(it.atasan) lines.push(`   Atasan: ${it.atasan}`);
     if(it.tglJoin) lines.push(`   Tgl Join: ${it.tglJoin}`);
     if(it.statusAktivasi) lines.push(`   Status: ${it.statusAktivasi}`);
+    if(it.noHp) lines.push(`   No HP: ${it.noHp}`);
     return lines.join('\n');
   }).join('\n\n');
 }
@@ -814,18 +1156,15 @@ function hideDebug(){
 
 function fillFormFromExtracted(data, resetOnboardingFlag){
   if(resetOnboardingFlag){
-    delete tglOnboardingEl.dataset.manual;
-    onbHintEl.textContent = 'auto: Selasa/Jumat terdekat';
+    setDefaultOnboarding();
   }
   if(data.nama) namaEl.value = data.nama;
+  if(data.noHp) noHpEl.value = data.noHp;
   if(data.departemen) departemenEl.value = data.departemen;
   if(data.designation) designationEl.value = data.designation;
   if(data.atasan) atasanEl.value = data.atasan;
   if(data.tglJoin){
     tglJoinEl.value = data.tglJoin;
-    if(!tglOnboardingEl.dataset.manual){
-      tglOnboardingEl.value = nearestTueFri(data.tglJoin);
-    }
   }
   if(data.statusAktivasi === 'Sudah' || data.statusAktivasi === 'Belum'){
     statusAktivasiEl.value = data.statusAktivasi;
@@ -840,10 +1179,56 @@ function checkConfig(){
   return true;
 }
 
+function renderLoadingState(){
+  // Stat cards
+  const statsRowEl = document.getElementById('statsRow');
+  if(statsRowEl){
+    statsRowEl.innerHTML = Array.from({length:4}).map(() => `
+      <div class="stat-tile stat-tile-loading">
+        <div class="stat-badge"><span class="spinner"></span></div>
+        <div class="stat-info">
+          <div class="stat-icon" style="background:rgba(107,124,133,0.12);color:var(--text-dim);">⏳</div>
+          <div style="min-width:0;">
+            <div class="stat-title">Memuat...</div>
+            <div class="stat-sub">Sedang memuat data...</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Preview pesan
+  if(previewEl){
+    previewEl.innerHTML = '<span class="loading-line"><span class="spinner spinner-dim"></span> Sedang memuat data...</span>';
+  }
+
+  // Tabel kandidat
+  const tableEmptyEl = document.getElementById('tableEmptyState');
+  const tableWrapEl = document.getElementById('tableScrollWrap');
+  if(tableEmptyEl && tableWrapEl){
+    tableEmptyEl.innerHTML = '<span class="loading-line"><span class="spinner spinner-dim"></span> Sedang memuat data...</span>';
+    tableEmptyEl.style.display = 'block';
+    tableWrapEl.style.display = 'none';
+  }
+
+  // Chart peta sebaran
+  const chartEmptyEl = document.getElementById('chartEmptyState');
+  const chartHintEl = document.getElementById('chartHint');
+  const chartCanvasEl = document.getElementById('picChart');
+  if(chartEmptyEl && chartCanvasEl){
+    chartEmptyEl.innerHTML = '<span class="loading-line"><span class="spinner spinner-dim"></span> Sedang memuat data...</span>';
+    chartEmptyEl.style.display = 'block';
+    if(chartHintEl) chartHintEl.style.display = 'none';
+    chartCanvasEl.style.display = 'none';
+    if(onboardingChart){ onboardingChart.destroy(); onboardingChart = null; }
+  }
+}
+
 async function loadCandidates(){
   if(!checkConfig()){
     return;
   }
+  renderLoadingState();
   try{
     const res = await fetch(API_URL + '?action=list');
     const json = await res.json();
@@ -852,19 +1237,22 @@ async function loadCandidates(){
       _id: row.id,
       pic: row.pic,
       nama: row.nama,
+      noHp: row.noHp,
       departemen: row.departemen,
       designation: row.designation,
       atasan: row.atasan,
       tglJoin: row.tglJoin,
       tglOnboarding: row.tglOnboarding,
-      statusAktivasi: row.statusAktivasi
+      statusAktivasi: row.statusAktivasi,
+      kehadiran: row.kehadiran || ''
     }));
     items.sort((a,b) => (a.tglJoin||'').localeCompare(b.tglJoin||''));
     candidates = items;
     populateOnboardingFilter();
     renderPreview();
-    renderChart();
+    renderTable();
     renderStats();
+    renderChart();
   }catch(e){
     showToast('Gagal memuat list', true);
   }
@@ -876,6 +1264,8 @@ function initHeaderChip(){
   document.getElementById('headerMonthLabel').textContent = currentMonthLabel();
 }
 
+let statDetailsCache = {};
+
 function renderStats(){
   const statsRowEl = document.getElementById('statsRow');
 
@@ -884,51 +1274,82 @@ function renderStats(){
 
   const picSet = new Set(candidatesThisMonth.map(c => c.pic || '(Belum diisi)'));
   const totalPic = picSet.size;
+  const picList = Array.from(picSet).map(p => ({
+    pic: p,
+    list: candidatesThisMonth.filter(c => (c.pic || '(Belum diisi)') === p)
+  }));
 
-  const withStatus = candidates.filter(c => c.statusAktivasi);
-  const sudahCount = candidates.filter(c => c.statusAktivasi === 'Sudah').length;
-  const pctSudah = withStatus.length ? Math.round((sudahCount / withStatus.length) * 100) : 0;
+  // % Jadi Onboarding dihitung dari total kandidat (bukan hanya yang sudah terverifikasi)
+  const hadirList = candidates.filter(c => c.kehadiran === 'Hadir');
+  const tidakList = candidates.filter(c => c.kehadiran === 'Tidak Hadir');
+  const belumList = candidates.filter(c => !c.kehadiran);
+  const totalCandidateCount = candidates.length;
+  const pctOnboarding = totalCandidateCount ? Math.round((hadirList.length / totalCandidateCount) * 100) : 0;
 
-  // minggu tersibuk bulan ini berdasarkan tanggal onboarding
-  const weekCounts = {};
-  candidates.forEach(c => {
-    if(c.tglOnboarding && isCurrentMonth(c.tglOnboarding)){
-      const d = new Date(String(c.tglOnboarding).slice(0,10) + 'T00:00:00');
-      const w = weekOfMonth(d.getDate());
-      weekCounts[w] = (weekCounts[w] || 0) + 1;
-    }
-  });
-  let busiestWeek = null, busiestCount = 0;
-  Object.entries(weekCounts).forEach(([w, cnt]) => {
-    if(cnt > busiestCount){ busiestCount = cnt; busiestWeek = w; }
-  });
+  // % Aktivasi Akun Selesai (statusAktivasi === 'Sudah') dari seluruh kandidat yang ditrack
+  const aktivasiSudahList = candidates.filter(c => c.statusAktivasi === 'Sudah');
+  const pctAktivasi = totalCandidateCount ? Math.round((aktivasiSudahList.length / totalCandidateCount) * 100) : 0;
+
+  statDetailsCache = {
+    total: candidatesThisMonth,
+    picList: picList,
+    onboarding: { hadir: hadirList, tidak: tidakList, belum: belumList },
+    aktivasi: candidates
+  };
 
   const tiles = [
     {
+      type: 'total',
+      variant: 'number',
       badge: String(totalBulanIni), badgeBg: 'var(--navy)',
       icon: '📋', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
       title: 'Total Kandidat', sub: `Join ${currentMonthLabel()}`
     },
     {
+      type: 'pic',
+      variant: 'number',
       badge: String(totalPic), badgeBg: 'var(--navy-2)',
       icon: '👥', iconBg: 'rgba(77,107,255,0.12)', iconColor: 'var(--blue)',
       title: 'PIC Aktif', sub: 'Recruiter bulan ini'
     },
     {
-      badge: pctSudah + '%', badgeBg: 'var(--navy)',
-      icon: '✅', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
-      title: 'Aktivasi Selesai', sub: `${sudahCount} dari ${withStatus.length} kandidat`
+      type: 'onboarding',
+      variant: 'ring',
+      pct: pctOnboarding, badgeBg: 'var(--navy)', ringColor: 'var(--accent-2)',
+      icon: '🎯', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
+      title: 'Jadi Onboarding', sub: `${hadirList.length} dari ${totalCandidateCount} kandidat`
     },
     {
-      badge: busiestWeek ? 'W' + busiestWeek : '-', badgeBg: 'var(--navy-2)',
-      icon: '📅', iconBg: 'rgba(139,92,246,0.12)', iconColor: 'var(--purple)',
-      title: 'Minggu Tersibuk', sub: busiestCount ? `${busiestCount} kandidat onboarding` : 'Belum ada jadwal'
+      type: 'aktivasi',
+      variant: 'ring',
+      pct: pctAktivasi, badgeBg: 'var(--navy-2)', ringColor: 'var(--blue)',
+      icon: '🔑', iconBg: 'rgba(77,107,255,0.12)', iconColor: 'var(--blue)',
+      title: 'Aktivasi sebelum Onboarding', sub: `${aktivasiSudahList.length} dari ${totalCandidateCount} selesai`
     }
   ];
 
+  const RING_R = 22;
+  const RING_C = 2 * Math.PI * RING_R;
+  function renderStatBadge(t){
+    if(t.variant === 'ring'){
+      const pct = Math.max(0, Math.min(100, t.pct || 0));
+      const offset = RING_C * (1 - pct / 100);
+      return `
+        <div class="stat-badge stat-badge-ring" style="background:${t.badgeBg};">
+          <svg viewBox="0 0 52 52" class="ring-svg">
+            <circle class="ring-track" cx="26" cy="26" r="${RING_R}" stroke-width="6"/>
+            <circle class="ring-progress" cx="26" cy="26" r="${RING_R}" stroke-width="6" stroke="${t.ringColor}"
+              stroke-dasharray="${RING_C}" stroke-dashoffset="${offset}" transform="rotate(-90 26 26)"/>
+          </svg>
+          <span class="ring-value">${pct}%</span>
+        </div>`;
+    }
+    return `<div class="stat-badge" style="background:${t.badgeBg};">${escapeHtml(t.badge)}</div>`;
+  }
+
   statsRowEl.innerHTML = tiles.map(t => `
-    <div class="stat-tile">
-      <div class="stat-badge" style="background:${t.badgeBg};">${escapeHtml(t.badge)}</div>
+    <div class="stat-tile" data-stat="${t.type}">
+      ${renderStatBadge(t)}
       <div class="stat-info">
         <div class="stat-icon" style="background:${t.iconBg};color:${t.iconColor};">${t.icon}</div>
         <div style="min-width:0;">
@@ -938,6 +1359,296 @@ function renderStats(){
       </div>
     </div>
   `).join('');
+
+  bindStatTileEvents();
+}
+
+function kehadiranBadgeClass(k){
+  if(k === 'Hadir') return 'status-hadir';
+  if(k === 'Tidak Hadir') return 'status-tidak-hadir';
+  return 'status-belum-verif';
+}
+
+function renderSimpleCandList(list, showWeekHeader){
+  if(showWeekHeader === undefined) showWeekHeader = true;
+  if(!list || list.length === 0) return '<div class="empty-state">Tidak ada data.</div>';
+  return list.map(c => {
+    const wk = onboardingWeekNumber(c.tglOnboarding);
+    return `
+    <div class="cand-card">
+      <div class="info">
+        ${showWeekHeader ? `
+        <div class="week-header">
+          <span class="week-pill">${wk ? 'Minggu ke-' + wk : 'Minggu ke-?'}</span>
+          <span class="week-date">${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : 'Tgl onboarding belum diisi'}</span>
+        </div>` : ''}
+        <b>${escapeHtml(c.nama||'(nama belum diisi)')}</b>
+        <span>${escapeHtml(c.designation||'')}${c.departemen ? ' · '+escapeHtml(c.departemen) : ''}</span>
+        <span>PIC: ${escapeHtml(c.pic||'(Belum diisi)')} · Join: ${escapeHtml(fmtID(c.tglJoin))}</span>
+        <span>No HP: ${escapeHtml(c.noHp||'-')}</span>
+        <div class="badge-row">
+          ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
+          <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Konsep umum: dikelompokkan per jadwal onboarding (tanggal), badge Minggu ke- muncul
+// sekali per jadwal, lalu di bawahnya dipecah per recruiter, baru daftar kandidatnya.
+// Diurutkan ascending berdasarkan tanggal onboarding. `picLabelFn(picCands, picName)`
+// menentukan teks judul tiap grup recruiter sesuai konteks card (jumlah kandidat, %, dll).
+function renderGroupedByWeekHtml(list, picLabelFn){
+  if(!list || list.length === 0) return '<div class="empty-state">Tidak ada data.</div>';
+
+  const withDate = list.filter(c => c.tglOnboarding);
+  const withoutDate = list.filter(c => !c.tglOnboarding);
+  const dates = Array.from(new Set(withDate.map(c => c.tglOnboarding))).sort();
+
+  let html = '';
+  dates.forEach(date => {
+    const dayCandidates = withDate.filter(c => c.tglOnboarding === date);
+    const wk = onboardingWeekNumber(date);
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">Minggu ke-${wk}</span>
+        <span class="week-date">${escapeHtml(fmtShortID(date))}</span>
+      </div>`;
+    const picsOnDate = Array.from(new Set(dayCandidates.map(c => c.pic || '(Belum diisi)')));
+    picsOnDate.forEach(pic => {
+      const picCands = dayCandidates.filter(c => (c.pic || '(Belum diisi)') === pic);
+      html += `
+      <div class="pic-group">
+        <div class="pic-title">${escapeHtml(picLabelFn(picCands, pic))}</div>
+        ${renderSimpleCandList(picCands, false)}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  if(withoutDate.length){
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">Minggu ke-?</span>
+        <span class="week-date">Tgl onboarding belum diisi</span>
+      </div>
+      <div class="pic-group">
+        <div class="pic-title">${escapeHtml(picLabelFn(withoutDate, null))}</div>
+        ${renderSimpleCandList(withoutDate, false)}
+      </div>
+    </div>`;
+  }
+
+  return html;
+}
+
+function renderPicWeeklyDetailHtml(list){
+  if(!list || list.length === 0) return '<div class="empty-state">Tidak ada data.</div>';
+  const withDate = list.filter(c => c.tglOnboarding);
+  const withoutDate = list.filter(c => !c.tglOnboarding);
+  const dates = Array.from(new Set(withDate.map(c => c.tglOnboarding))).sort();
+
+  let html = '';
+  dates.forEach(date => {
+    const dayCandidates = withDate.filter(c => c.tglOnboarding === date);
+    const wk = onboardingWeekNumber(date);
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">Minggu ke-${wk}</span>
+        <span class="week-date">${escapeHtml(fmtShortID(date))} · ${dayCandidates.length} kandidat</span>
+      </div>
+      ${renderSimpleCandList(dayCandidates, false)}
+    </div>`;
+  });
+
+  if(withoutDate.length){
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">Minggu ke-?</span>
+        <span class="week-date">Tgl onboarding belum diisi · ${withoutDate.length} kandidat</span>
+      </div>
+      ${renderSimpleCandList(withoutDate, false)}
+    </div>`;
+  }
+
+  return html;
+}
+
+function renderTotalPicSummaryHtml(picList){
+  if(!picList || picList.length === 0) return '';
+  const sorted = [...picList].sort((a,b) => b.list.length - a.list.length);
+  const totalCount = picList.reduce((sum, p) => sum + p.list.length, 0);
+  return `
+    <div class="pic-summary-section">
+      <div class="pic-summary-total-row">
+        <span class="pic-summary-total-label">Total Kandidat Bulan Ini</span>
+        <span class="pic-summary-total-count">${totalCount} kandidat</span>
+      </div>
+      <div class="pic-summary-heading">Total per PIC (Bulan Ini)</div>
+      ${sorted.map(({pic, list}, idx) => `
+        <div class="pic-summary-item">
+          <div class="pic-summary-row">
+            <span class="pic-summary-name">${escapeHtml(pic)}</span>
+            <button type="button" class="pic-summary-count pic-summary-toggle" data-target="picDetail-${idx}">${list.length} kandidat <span class="toggle-arrow">▾</span></button>
+          </div>
+          <div class="pic-summary-detail" id="picDetail-${idx}" style="display:none;">
+            ${renderPicWeeklyDetailHtml(list)}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderPicBreakdownByWeekHtml(list){
+  return renderGroupedByWeekHtml(list, (picCands, pic) =>
+    pic ? `${pic} · ${picCands.length} kandidat` : `${picCands.length} kandidat`
+  );
+}
+
+// Popup "Jadi Onboarding": sama konsepnya (per jadwal onboarding, urut tanggal), tapi tiap
+// recruiter ditampilkan sebagai % Jadi Onboarding (Hadir / Total kandidat recruiter tsb di jadwal itu).
+function renderOnboardingByWeekHtml(list){
+  return renderGroupedByWeekHtml(list, (picCands, pic) => {
+    const hadir = picCands.filter(c => c.kehadiran === 'Hadir').length;
+    const total = picCands.length;
+    const pct = total ? Math.round((hadir / total) * 100) : 0;
+    const name = pic || 'PIC lainnya';
+    return `${name} · ${hadir}/${total} Jadi Onboarding (${pct}%)`;
+  });
+}
+
+function groupByPic(list){
+  const picSet = Array.from(new Set(list.map(c => c.pic || '(Belum diisi)')));
+  return picSet.map(pic => ({ pic, list: list.filter(c => (c.pic || '(Belum diisi)') === pic) }));
+}
+
+function renderAktivasiBreakdownHtml(list){
+  if(!list || list.length === 0) return '<div class="empty-state">Tidak ada data.</div>';
+  const picGroups = groupByPic(list);
+  return picGroups.map(({pic, list}) => {
+    const sudah = list.filter(c => c.statusAktivasi === 'Sudah').length;
+    const total = list.length;
+    const pct = total ? Math.round((sudah / total) * 100) : 0;
+    return `
+    <div class="pic-group">
+      <div class="pic-title">${escapeHtml(pic)} · ${sudah}/${total} Aktivasi Selesai (${pct}%)</div>
+      ${renderSimpleCandList(list, false)}
+    </div>`;
+  }).join('');
+}
+
+function openStatModal(title, bodyHtml){
+  document.getElementById('statModalTitle').textContent = title;
+  document.getElementById('statModalBody').innerHTML = bodyHtml;
+  document.getElementById('statModalOverlay').classList.add('show');
+}
+function closeStatModal(){
+  document.getElementById('statModalOverlay').classList.remove('show');
+}
+document.getElementById('statModalClose').addEventListener('click', closeStatModal);
+document.getElementById('statModalOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'statModalOverlay') closeStatModal();
+});
+document.getElementById('statModalBody').addEventListener('click', (e) => {
+  const toggleBtn = e.target.closest('.pic-summary-toggle');
+  if(!toggleBtn) return;
+  const detailEl = document.getElementById(toggleBtn.dataset.target);
+  if(!detailEl) return;
+  const isOpen = detailEl.style.display !== 'none';
+  detailEl.style.display = isOpen ? 'none' : 'block';
+  toggleBtn.classList.toggle('open', !isOpen);
+});
+
+// ---- Popup Edit Kandidat ----
+const editModalOverlayEl = document.getElementById('editModalOverlay');
+const efNamaEl = document.getElementById('efNama');
+const efNoHpEl = document.getElementById('efNoHp');
+const efPicEl = document.getElementById('efPic');
+const efDepartemenEl = document.getElementById('efDepartemen');
+const efDesignationEl = document.getElementById('efDesignation');
+const efAtasanEl = document.getElementById('efAtasan');
+const efStatusAktivasiEl = document.getElementById('efStatusAktivasi');
+const efTglJoinEl = document.getElementById('efTglJoin');
+const efTglOnboardingEl = document.getElementById('efTglOnboarding');
+const editModalSaveBtn = document.getElementById('editModalSave');
+
+function openEditModal(c){
+  editingCandId = c._id;
+  efNamaEl.value = c.nama || '';
+  efNoHpEl.value = c.noHp || '';
+  efPicEl.value = c.pic || '';
+  efDepartemenEl.value = c.departemen || '';
+  efDesignationEl.value = c.designation || '';
+  efAtasanEl.value = c.atasan || '';
+  efStatusAktivasiEl.value = c.statusAktivasi || '';
+  efTglJoinEl.value = String(c.tglJoin || '').slice(0,10);
+  efTglOnboardingEl.value = String(c.tglOnboarding || '').slice(0,10);
+  editModalSaveBtn.disabled = false;
+  editModalSaveBtn.textContent = '💾 Simpan';
+  editModalOverlayEl.classList.add('show');
+}
+
+function closeEditModal(){
+  editModalOverlayEl.classList.remove('show');
+  editingCandId = null;
+}
+
+document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+document.getElementById('editModalCancel').addEventListener('click', closeEditModal);
+editModalOverlayEl.addEventListener('click', (e) => {
+  if(e.target.id === 'editModalOverlay') closeEditModal();
+});
+
+editModalSaveBtn.addEventListener('click', async () => {
+  if(!editingCandId) return;
+  const fields = {
+    nama: efNamaEl.value.trim(),
+    noHp: efNoHpEl.value.trim(),
+    pic: efPicEl.value.trim(),
+    departemen: efDepartemenEl.value.trim(),
+    designation: efDesignationEl.value.trim(),
+    atasan: efAtasanEl.value.trim(),
+    tglJoin: efTglJoinEl.value,
+    tglOnboarding: efTglOnboardingEl.value,
+    statusAktivasi: efStatusAktivasiEl.value
+  };
+  if(!fields.nama || !fields.noHp){
+    showToast('Nama & Nomor HP wajib diisi', true);
+    return;
+  }
+  const id = editingCandId;
+  editModalSaveBtn.disabled = true;
+  editModalSaveBtn.textContent = 'Menyimpan...';
+  const ok = await updateCandidate(id, fields);
+  if(ok){
+    showToast('Perubahan disimpan');
+    closeEditModal();
+    await loadCandidates();
+  }else{
+    editModalSaveBtn.disabled = false;
+    editModalSaveBtn.textContent = '💾 Simpan';
+  }
+});
+
+function bindStatTileEvents(){
+  document.querySelectorAll('.stat-tile').forEach(el => {
+    el.addEventListener('click', () => {
+      const type = el.dataset.stat;
+      if(type === 'total'){
+        openStatModal(`Kandidat Join ${currentMonthLabel()} (${statDetailsCache.total.length})`, renderPicBreakdownByWeekHtml(statDetailsCache.total));
+      }else if(type === 'pic'){
+        openStatModal(`PIC Aktif — ${currentMonthLabel()} (${statDetailsCache.picList.length})`, renderTotalPicSummaryHtml(statDetailsCache.picList));
+      }else if(type === 'onboarding'){
+        openStatModal('% Jadi Onboarding per PIC', renderOnboardingByWeekHtml(candidates));
+      }else if(type === 'aktivasi'){
+        openStatModal('Aktivasi sebelum Onboarding per PIC', renderAktivasiBreakdownHtml(statDetailsCache.aktivasi));
+      }
+    });
+  });
 }
 
 function getOnboardingDates(){
@@ -958,7 +1669,7 @@ function populateOnboardingFilter(){
   if(dates.indexOf(prevValue) !== -1){
     onboardingFilterEl.value = prevValue;
   }else{
-    const today = new Date().toISOString().slice(0,10);
+    const today = toDateStr(new Date());
     const upcoming = dates.find(d => d >= today);
     onboardingFilterEl.value = upcoming || dates[dates.length-1] || '';
   }
@@ -974,6 +1685,461 @@ onboardingFilterEl.addEventListener('change', () => {
   renderPreview();
 });
 
+let editingCandId = null;
+let pendingKehadiran = {}; // { id: value } perubahan kehadiran yang belum disimpan ke server
+let sortState = { column: null, dir: 'asc' }; // sort a-z / z-a per kolom tabel
+let columnFilters = {}; // { columnKey: [selectedValue, ...] } filter multi-pilihan per kolom tabel (kalau key ga ada = semua nilai tampil)
+
+function effectiveKehadiran(c){
+  return pendingKehadiran[c._id] !== undefined ? pendingKehadiran[c._id] : (c.kehadiran || '');
+}
+
+// Definisi tiap kolom tabel: dipakai bareng buat render header, sort, dan filter
+// biar konsisten & satu sumber kebenaran.
+const TABLE_COLUMNS = [
+  { key:'nama', label:'Nama', sortable:true, filterable:true,
+    sortValue: c => (c.nama||'').toLowerCase(),
+    filterValue: c => c.nama || '', filterLabel: v => v || '(Kosong)' },
+  { key:'noHp', label:'No HP', sortable:true, filterable:true,
+    sortValue: c => (c.noHp||'').toLowerCase(),
+    filterValue: c => c.noHp || '', filterLabel: v => v || '(Kosong)' },
+  { key:'departemen', label:'Departemen', sortable:true, filterable:true,
+    sortValue: c => (c.departemen||'').toLowerCase(),
+    filterValue: c => c.departemen || '', filterLabel: v => v || '(Kosong)' },
+  { key:'designation', label:'Designation', sortable:true, filterable:true,
+    sortValue: c => (c.designation||'').toLowerCase(),
+    filterValue: c => c.designation || '', filterLabel: v => v || '(Kosong)' },
+  { key:'atasan', label:'Atasan', sortable:true, filterable:true,
+    sortValue: c => (c.atasan||'').toLowerCase(),
+    filterValue: c => c.atasan || '', filterLabel: v => v || '(Kosong)' },
+  { key:'pic', label:'PIC', sortable:true, filterable:true,
+    sortValue: c => (c.pic||'').toLowerCase(),
+    filterValue: c => c.pic || '', filterLabel: v => v || '(Belum diisi)' },
+  { key:'tglJoin', label:'Tgl Join', sortable:true, filterable:true,
+    sortValue: c => c.tglJoin || '',
+    filterValue: c => c.tglJoin || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
+    sortAsDate:true },
+  { key:'tglOnboarding', label:'Tgl Onboarding', sortable:true, filterable:true,
+    sortValue: c => c.tglOnboarding || '',
+    filterValue: c => c.tglOnboarding || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
+    sortAsDate:true },
+  { key:'minggu', label:'Minggu Ke-', sortable:true, filterable:true,
+    sortValue: c => c.tglOnboarding ? onboardingWeekNumber(c.tglOnboarding) : -1,
+    filterValue: c => c.tglOnboarding ? String(onboardingWeekNumber(c.tglOnboarding)) : '',
+    filterLabel: v => v ? 'Minggu ke-'+v : '(Kosong)', sortAsNumber:true },
+  { key:'statusAktivasi', label:'Aktivasi', sortable:true, filterable:true,
+    sortValue: c => (c.statusAktivasi||'').toLowerCase(),
+    filterValue: c => c.statusAktivasi || '', filterLabel: v => v || '(Kosong)' },
+  { key:'kehadiran', label:'Kehadiran', sortable:true, filterable:true,
+    sortValue: c => effectiveKehadiran(c).toLowerCase(),
+    filterValue: c => effectiveKehadiran(c),
+    filterLabel: v => v === 'Hadir' ? '✅ Hadir' : v === 'Tidak Hadir' ? '❌ Tidak Hadir' : '⏳ Belum' },
+  { key:'aksi', label:'Aksi', sortable:false, filterable:false }
+];
+
+const FILTER_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 2.5h13l-5 6v4.2l-3 1.3V8.5l-5-6z" fill="currentColor"/></svg>';
+
+function getFilterColumnOptions(col){
+  const uniqueVals = Array.from(new Set(candidates.map(c => col.filterValue(c))));
+  let sortedVals;
+  if(col.sortAsNumber){
+    sortedVals = uniqueVals.filter(v=>v!=='').sort((a,b)=>Number(a)-Number(b));
+  }else if(col.sortAsDate){
+    sortedVals = uniqueVals.filter(v=>v!=='').sort();
+  }else{
+    sortedVals = uniqueVals.filter(v=>v!=='').sort((a,b)=>a.localeCompare(b));
+  }
+  const hasEmpty = uniqueVals.includes('');
+  return hasEmpty ? [...sortedVals, ''] : sortedVals;
+}
+
+function renderTableHeader(){
+  closeFilterDropdown();
+  const theadEl = document.getElementById('candTableHead');
+  const ths = TABLE_COLUMNS.map(col => {
+    const labelHtml = col.sortable
+      ? `<div class="th-sort ${sortState.column===col.key?'active':''}" data-col="${col.key}">${escapeHtml(col.label)}<span class="sort-arrow">${sortState.column===col.key ? (sortState.dir==='asc'?'▲':'▼') : '⇅'}</span></div>`
+      : `<div>${escapeHtml(col.label)}</div>`;
+
+    let filterBtnHtml = '';
+    if(col.filterable){
+      const isActive = !!columnFilters[col.key];
+      filterBtnHtml = `<button type="button" class="th-filter-btn ${isActive?'active-filter':''}" data-col="${col.key}" title="Filter ${escapeAttr(col.label)}">${FILTER_ICON_SVG}</button>`;
+    }
+
+    let saveBtnHtml = '';
+    if(col.key === 'kehadiran'){
+      saveBtnHtml = `<button type="button" class="th-save-btn" id="saveKehadiranBtn" style="display:none;" title="Simpan Kehadiran">💾<span class="th-save-count" id="saveKehadiranCount"></span></button>`;
+    }
+
+    return `<th><div class="th-head">${labelHtml}<div class="th-head-actions">${saveBtnHtml}${filterBtnHtml}</div></div></th>`;
+  }).join('');
+  theadEl.innerHTML = `<tr>${ths}</tr>`;
+  bindTableHeaderEvents();
+}
+
+function bindTableHeaderEvents(){
+  document.querySelectorAll('.th-sort').forEach(el => {
+    el.addEventListener('click', () => {
+      const col = el.dataset.col;
+      if(sortState.column === col){
+        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      }else{
+        sortState.column = col;
+        sortState.dir = 'asc';
+      }
+      renderTable();
+    });
+  });
+  const saveBtn = document.getElementById('saveKehadiranBtn');
+  if(saveBtn){
+    saveBtn.addEventListener('click', handleSaveKehadiranClick);
+  }
+  document.querySelectorAll('.th-filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const colKey = btn.dataset.col;
+      if(activeFilterDropdown && activeFilterDropdown.colKey === colKey){
+        closeFilterDropdown();
+      }else{
+        openFilterDropdown(colKey, btn);
+      }
+    });
+  });
+}
+
+// ---- Dropdown filter multi-pilihan gaya Excel (nempel di header, panel di-append ke body) ----
+let activeFilterDropdown = null; // { colKey, panelEl }
+
+function closeFilterDropdown(){
+  if(activeFilterDropdown){
+    activeFilterDropdown.panelEl.remove();
+    activeFilterDropdown = null;
+  }
+  document.removeEventListener('mousedown', handleOutsideFilterClick, true);
+  window.removeEventListener('resize', closeFilterDropdown);
+  window.removeEventListener('scroll', handleScrollFilterClose, true);
+}
+
+function handleOutsideFilterClick(e){
+  if(activeFilterDropdown && !activeFilterDropdown.panelEl.contains(e.target)){
+    closeFilterDropdown();
+  }
+}
+
+function handleScrollFilterClose(e){
+  if(activeFilterDropdown && !activeFilterDropdown.panelEl.contains(e.target)){
+    closeFilterDropdown();
+  }
+}
+
+function openFilterDropdown(colKey, btnEl){
+  closeFilterDropdown();
+  const col = TABLE_COLUMNS.find(c => c.key === colKey);
+  if(!col) return;
+
+  const optionValues = getFilterColumnOptions(col);
+  const currentFilter = columnFilters[colKey];
+  const pendingSet = new Set(currentFilter ? currentFilter : optionValues);
+
+  const panel = document.createElement('div');
+  panel.className = 'filter-dropdown';
+  panel.innerHTML = `
+    <div class="fd-search"><input type="text" placeholder="Cari nilai..." class="fd-search-input" /></div>
+    <div class="fd-select-all"><label><input type="checkbox" class="fd-all"><span>(Pilih Semua)</span></label></div>
+    <div class="fd-list"></div>
+    <div class="fd-actions">
+      <button type="button" class="fd-clear">Reset</button>
+      <button type="button" class="fd-apply">Terapkan</button>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  const rect = btnEl.getBoundingClientRect();
+  const panelWidth = 222;
+  let left = rect.right - panelWidth;
+  if(left < 8) left = 8;
+  if(left + panelWidth > window.innerWidth - 8) left = Math.max(8, window.innerWidth - panelWidth - 8);
+  panel.style.left = left + 'px';
+  panel.style.top = (rect.bottom + 6) + 'px';
+
+  const listEl = panel.querySelector('.fd-list');
+  const searchInput = panel.querySelector('.fd-search-input');
+  const allCheckbox = panel.querySelector('.fd-all');
+
+  function getVisibleVals(q){
+    const query = (q||'').toLowerCase();
+    return optionValues.filter(v => col.filterLabel(v).toLowerCase().includes(query));
+  }
+
+  function updateAllCheckboxState(visibleVals){
+    const allChecked = visibleVals.length>0 && visibleVals.every(v => pendingSet.has(v));
+    const someChecked = visibleVals.some(v => pendingSet.has(v));
+    allCheckbox.checked = allChecked;
+    allCheckbox.indeterminate = !allChecked && someChecked;
+  }
+
+  function renderOptions(q){
+    const visibleVals = getVisibleVals(q);
+    if(visibleVals.length === 0){
+      listEl.innerHTML = `<div class="fd-empty">Tidak ada hasil</div>`;
+    }else{
+      listEl.innerHTML = visibleVals.map(v => {
+        const checked = pendingSet.has(v) ? 'checked' : '';
+        return `<label class="fd-option"><input type="checkbox" data-val="${escapeAttr(v)}" ${checked}><span>${escapeHtml(col.filterLabel(v))}</span></label>`;
+      }).join('');
+      listEl.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const v = cb.dataset.val;
+          if(cb.checked){ pendingSet.add(v); } else { pendingSet.delete(v); }
+          updateAllCheckboxState(visibleVals);
+        });
+      });
+    }
+    updateAllCheckboxState(visibleVals);
+  }
+
+  allCheckbox.addEventListener('change', () => {
+    const visibleVals = getVisibleVals(searchInput.value);
+    if(allCheckbox.checked){
+      visibleVals.forEach(v => pendingSet.add(v));
+    }else{
+      visibleVals.forEach(v => pendingSet.delete(v));
+    }
+    renderOptions(searchInput.value);
+  });
+
+  searchInput.addEventListener('input', () => renderOptions(searchInput.value));
+
+  panel.querySelector('.fd-clear').addEventListener('click', () => {
+    delete columnFilters[colKey];
+    closeFilterDropdown();
+    renderTable();
+  });
+
+  panel.querySelector('.fd-apply').addEventListener('click', () => {
+    if(pendingSet.size === 0){
+      columnFilters[colKey] = [];
+    }else if(pendingSet.size === optionValues.length){
+      delete columnFilters[colKey];
+    }else{
+      columnFilters[colKey] = Array.from(pendingSet);
+    }
+    closeFilterDropdown();
+    renderTable();
+  });
+
+  renderOptions('');
+  searchInput.focus();
+
+  activeFilterDropdown = { colKey, panelEl: panel };
+  setTimeout(() => {
+    document.addEventListener('mousedown', handleOutsideFilterClick, true);
+    window.addEventListener('resize', closeFilterDropdown);
+    window.addEventListener('scroll', handleScrollFilterClose, true);
+  }, 0);
+}
+
+function getTableCandidates(){
+  let list = candidates.filter(c => {
+    return TABLE_COLUMNS.every(col => {
+      if(!col.filterable) return true;
+      const filterVal = columnFilters[col.key];
+      if(!filterVal) return true;
+      return filterVal.includes(String(col.filterValue(c)));
+    });
+  });
+  if(sortState.column){
+    const col = TABLE_COLUMNS.find(c => c.key === sortState.column);
+    if(col && col.sortValue){
+      const dir = sortState.dir === 'asc' ? 1 : -1;
+      list = [...list].sort((a,b) => {
+        const va = col.sortValue(a), vb = col.sortValue(b);
+        if(va < vb) return -1*dir;
+        if(va > vb) return 1*dir;
+        return 0;
+      });
+    }
+  }
+  return list;
+}
+
+function updateSaveKehadiranBtn(){
+  const btn = document.getElementById('saveKehadiranBtn');
+  if(!btn) return;
+  const countEl = document.getElementById('saveKehadiranCount');
+  const count = Object.keys(pendingKehadiran).length;
+  if(count > 0){
+    btn.style.display = 'inline-flex';
+    btn.disabled = false;
+    btn.title = `Simpan Kehadiran (${count})`;
+    if(countEl) countEl.textContent = count;
+  }else{
+    btn.style.display = 'none';
+  }
+}
+
+async function handleSaveKehadiranClick(){
+  const ids = Object.keys(pendingKehadiran);
+  if(ids.length === 0) return;
+  const btn = document.getElementById('saveKehadiranBtn');
+  if(btn){
+    btn.disabled = true;
+    btn.title = 'Menyimpan...';
+  }
+  try{
+    const results = await Promise.all(ids.map(id => updateCandidate(id, { kehadiran: pendingKehadiran[id] })));
+    const allOk = results.every(r => r);
+    if(allOk){
+      showToast(`Kehadiran ${ids.length} kandidat disimpan`);
+      pendingKehadiran = {};
+      await loadCandidates();
+    }else{
+      showToast('Sebagian gagal disimpan, coba lagi', true);
+    }
+  }finally{
+    updateSaveKehadiranBtn();
+  }
+}
+
+function renderCandRow(c){
+  const kehadiran = effectiveKehadiran(c);
+  const isDirty = pendingKehadiran[c._id] !== undefined;
+  return `
+    <tr>
+      <td class="wrap">${escapeHtml(c.nama||'(nama belum diisi)')}</td>
+      <td class="wrap">${escapeHtml(c.noHp||'-')}</td>
+      <td class="wrap">${escapeHtml(c.departemen||'-')}</td>
+      <td class="wrap">${escapeHtml(c.designation||'-')}</td>
+      <td class="wrap">${escapeHtml(c.atasan||'-')}</td>
+      <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
+      <td>${c.tglJoin ? escapeHtml(fmtShortID(c.tglJoin)) : '-'}</td>
+      <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
+      <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
+      <td>${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">${escapeHtml(c.statusAktivasi)}</span>` : `<span class="status-badge status-belum-verif">-</span>`}</td>
+      <td>
+        <div class="verify-row">
+          <select class="verify-select ${kehadiran==='Hadir'?'val-hadir':kehadiran==='Tidak Hadir'?'val-tidak':''} ${isDirty?'dirty':''}" data-id="${escapeAttr(c._id)}" title="${isDirty?'Belum disimpan':''}">
+            <option value="" ${kehadiran===''?'selected':''}>⏳ Belum</option>
+            <option value="Hadir" ${kehadiran==='Hadir'?'selected':''}>✅ Hadir</option>
+            <option value="Tidak Hadir" ${kehadiran==='Tidak Hadir'?'selected':''}>❌ Tidak Hadir</option>
+          </select>
+        </div>
+      </td>
+      <td>
+        <div class="table-actions-cell">
+          <button class="edit" data-id="${escapeAttr(c._id)}">✏️ Edit</button>
+          <button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function renderTable(){
+  const tbodyEl = document.getElementById('candTableBody');
+  const emptyEl = document.getElementById('tableEmptyState');
+  const wrapEl = document.getElementById('tableScrollWrap');
+
+  renderTableHeader();
+
+  if(candidates.length === 0){
+    emptyEl.textContent = 'Belum ada kandidat di list bersama.';
+    emptyEl.style.display = 'block';
+    wrapEl.style.display = 'none';
+    tbodyEl.innerHTML = '';
+    updateSaveKehadiranBtn();
+    return;
+  }
+
+  const view = getTableCandidates();
+  if(view.length === 0){
+    emptyEl.textContent = 'Tidak ada kandidat yang cocok dengan filter di atas.';
+    emptyEl.style.display = 'block';
+    wrapEl.style.display = 'none';
+    tbodyEl.innerHTML = '';
+    updateSaveKehadiranBtn();
+    return;
+  }
+  emptyEl.style.display = 'none';
+  wrapEl.style.display = 'block';
+
+  tbodyEl.innerHTML = view.map(c => renderCandRow(c)).join('');
+
+  bindTableEvents();
+  updateSaveKehadiranBtn();
+}
+
+function bindTableEvents(){
+  const tbodyEl = document.getElementById('candTableBody');
+
+  tbodyEl.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', (e) => onDelete(e));
+  });
+
+  tbodyEl.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const c = candidates.find(x => x._id === id);
+      if(c) openEditModal(c);
+    });
+  });
+
+  // Perubahan kehadiran ditampung dulu (tidak langsung simpan satu-satu), biar gak
+  // reload berkali-kali. Klik tombol "Simpan Kehadiran" di header buat commit semuanya sekaligus.
+  tbodyEl.querySelectorAll('.verify-select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const val = e.currentTarget.value;
+      const original = (candidates.find(c => c._id === id) || {}).kehadiran || '';
+      if(val === original){
+        delete pendingKehadiran[id];
+      }else{
+        pendingKehadiran[id] = val;
+      }
+      e.currentTarget.classList.toggle('dirty', pendingKehadiran[id] !== undefined);
+      e.currentTarget.classList.remove('val-hadir','val-tidak');
+      if(val === 'Hadir') e.currentTarget.classList.add('val-hadir');
+      if(val === 'Tidak Hadir') e.currentTarget.classList.add('val-tidak');
+      updateSaveKehadiranBtn();
+    });
+  });
+}
+
+async function updateCandidate(id, fields){
+  try{
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'update', id, ...fields })
+    });
+    const json = await res.json();
+    if(!json.success) throw new Error(json.error || 'unknown error');
+    return true;
+  }catch(err){
+    showToast('Gagal menyimpan: ' + err.message, true);
+    return false;
+  }
+}
+
+async function onDelete(e){
+  const id = e.currentTarget.dataset.id;
+  if(!confirm('Hapus kandidat ini dari list bersama?')) return;
+  try{
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'delete', id })
+    });
+    const json = await res.json();
+    if(!json.success) throw new Error(json.error || 'unknown error');
+    showToast('Terhapus');
+    await loadCandidates();
+  }catch(err){
+    showToast('Gagal menghapus', true);
+  }
+}
+
+// ==== Chart Peta Sebaran Karyawan Baru ====
 let onboardingChart = null;
 const PIC_COLORS = ['#25d366','#00a884','#e0a53a','#5aa9e6','#e05a4e','#b388ff','#ffb74d','#4dd0e1','#f06292','#a1887f'];
 
@@ -1000,10 +2166,11 @@ const bubbleCountPlugin = {
     });
   }
 };
-Chart.register(bubbleCountPlugin);
+if(window.Chart) Chart.register(bubbleCountPlugin);
 
 function renderChart(){
   const chartCanvas = document.getElementById('picChart');
+  if(!chartCanvas) return;
   const emptyStateEl = document.getElementById('chartEmptyState');
   const chartHintEl = document.getElementById('chartHint');
   const chartSubEl = document.getElementById('chartSub');
@@ -1080,7 +2247,7 @@ function renderChart(){
         if(!elements.length) return;
         const el = elements[0];
         const point = onboardingChart.data.datasets[el.datasetIndex].data[el.index];
-        openDetailModal(point._group, point._pic, point._date);
+        openChartModal(point._group, point._pic, point._date);
       },
       onHover: (evt, elements) => {
         evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
@@ -1117,9 +2284,9 @@ function renderChart(){
   });
 }
 
-function openDetailModal(group, pic, date){
-  const modalTitleEl = document.getElementById('modalTitle');
-  const modalBodyEl = document.getElementById('modalBody');
+function openChartModal(group, pic, date){
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
   modalTitleEl.textContent = `${pic} · ${fmtShortID(date)}`;
 
   let html = '';
@@ -1129,48 +2296,46 @@ function openDetailModal(group, pic, date){
         <div class="info">
           <b>${escapeHtml(c.nama||'(nama belum diisi)')}</b>
           <span>${escapeHtml(c.designation||'')}${c.departemen ? ' · '+escapeHtml(c.departemen) : ''}</span>
+          <span>No HP: ${escapeHtml(c.noHp||'-')}</span>
           <span>Join: ${escapeHtml(fmtID(c.tglJoin))}${c.tglOnboarding ? ' · Onboarding: '+escapeHtml(fmtID(c.tglOnboarding)) : ''}</span>
           ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
         </div>
-        <button class="del" data-id="${escapeAttr(c._id)}">Hapus</button>
+        <div class="cand-actions">
+          <button class="edit" data-id="${escapeAttr(c._id)}">✏️ Edit</button>
+          <button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>
+        </div>
       </div>`;
   });
   modalBodyEl.innerHTML = html;
+
+  modalBodyEl.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const c = candidates.find(x => x._id === id);
+      if(c){
+        closeChartModal();
+        openEditModal(c);
+      }
+    });
+  });
   modalBodyEl.querySelectorAll('.del').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       await onDelete(e);
-      closeModal();
+      closeChartModal();
     });
   });
 
-  document.getElementById('modalOverlay').classList.add('show');
+  document.getElementById('chartModalOverlay').classList.add('show');
 }
 
-function closeModal(){
-  document.getElementById('modalOverlay').classList.remove('show');
+function closeChartModal(){
+  document.getElementById('chartModalOverlay').classList.remove('show');
 }
-document.getElementById('modalClose').addEventListener('click', closeModal);
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
-  if(e.target.id === 'modalOverlay') closeModal();
+document.getElementById('chartModalClose').addEventListener('click', closeChartModal);
+document.getElementById('chartModalOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'chartModalOverlay') closeChartModal();
 });
-
-async function onDelete(e){
-  const id = e.target.dataset.id;
-  if(!confirm('Hapus kandidat ini dari list bersama?')) return;
-  try{
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action: 'delete', id })
-    });
-    const json = await res.json();
-    if(!json.success) throw new Error(json.error || 'unknown error');
-    showToast('Terhapus');
-    loadCandidates();
-  }catch(err){
-    showToast('Gagal menghapus', true);
-  }
-}
+document.getElementById('chartRefreshBtn').addEventListener('click', loadCandidates);
 
 function buildText(){
   const filtered = getFilteredCandidates();
@@ -1202,8 +2367,8 @@ function buildText(){
       if(c.designation) lines.push(`· Designation: ${c.designation}`);
       if(c.atasan) lines.push(`· Atasan Langsung: ${c.atasan}`);
       if(c.tglJoin) lines.push(`· Tgl Join: ${fmtID(c.tglJoin)}`);
-      if(c.tglOnboarding) lines.push(`· Rencana Onboarding: ${fmtID(c.tglOnboarding)}`);
       if(c.statusAktivasi) lines.push(`· Status Aktivasi: *${c.statusAktivasi}*`);
+      if(c.noHp) lines.push(`· No HP: ${c.noHp}`);
       lines.push('');
     });
     lines.push(''); // jeda ekstra antar PIC recruitment
@@ -1240,8 +2405,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   }
   const pic = picNameEl.value.trim();
   const nama = namaEl.value.trim();
-  if(!pic || !nama){
-    showToast('Isi minimal nama kamu & nama kandidat', true);
+  const noHp = noHpEl.value.trim();
+  if(!pic || !nama || !noHp){
+    showToast('Isi minimal nama kamu, nama kandidat & nomor HP', true);
     return;
   }
   const btn = document.getElementById('submitBtn');
@@ -1252,6 +2418,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     action: 'add',
     pic,
     nama,
+    noHp,
     departemen: departemenEl.value.trim(),
     designation: designationEl.value.trim(),
     atasan: atasanEl.value.trim(),
@@ -1278,14 +2445,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     }else{
       // reset candidate fields, keep pic name for convenience
       namaEl.value = '';
+      noHpEl.value = '';
       departemenEl.value = '';
       designationEl.value = '';
       atasanEl.value = '';
       tglJoinEl.value = '';
-      tglOnboardingEl.value = '';
       statusAktivasiEl.value = '';
-      delete tglOnboardingEl.dataset.manual;
-      onbHintEl.textContent = 'auto: Selasa/Jumat terdekat';
+      setDefaultOnboarding();
       uploadStatusEl.textContent = '';
       hideDebug();
     }
@@ -1298,7 +2464,6 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('refreshBtn').addEventListener('click', loadCandidates);
 
 document.getElementById('copyBtn').addEventListener('click', () => {
   const text = buildText();
@@ -1330,7 +2495,30 @@ function showToast(msg, isErr=false){
   setTimeout(() => { t.classList.remove('show'); }, 2000);
 }
 
+function syncPreviewHeight(){
+  const formPanel = document.getElementById('formPanel');
+  const previewPanel = document.getElementById('previewPanel');
+  if(!formPanel || !previewPanel) return;
+  if(window.innerWidth <= 860){
+    previewPanel.style.maxHeight = ''; // biarkan CSS mobile yang atur
+    return;
+  }
+  const h = formPanel.offsetHeight;
+  if(h > 0){
+    previewPanel.style.maxHeight = h + 'px';
+  }
+}
+window.addEventListener('resize', syncPreviewHeight);
+if(window.ResizeObserver){
+  const formPanelEl = document.getElementById('formPanel');
+  if(formPanelEl){
+    new ResizeObserver(() => syncPreviewHeight()).observe(formPanelEl);
+  }
+}
+syncPreviewHeight();
+
 initHeaderChip();
+setDefaultOnboarding();
 loadCandidates();
 </script>
 </body>
