@@ -1043,19 +1043,19 @@
         <pre class="debug-box" id="debugBox" style="display:none;"></pre>
       </div>
 
+      <div class="field">
+        <label>Nama Kamu (PIC Recruitment)<span class="required-star">*</span></label>
+        <input type="text" id="picName" class="field-special" placeholder="mis. Arul HR">
+      </div>
       <div class="row2">
-        <div class="field">
-          <label>Nama Kamu (PIC Recruitment)<span class="required-star">*</span></label>
-          <input type="text" id="picName" class="field-special" placeholder="mis. Arul HR">
-        </div>
         <div class="field">
           <label>Nama Kandidat<span class="required-star">*</span></label>
           <input type="text" id="nama" placeholder="Nama kandidat">
         </div>
-      </div>
-      <div class="field">
-        <label>Nomor HP<span class="required-star">*</span></label>
-        <input type="tel" id="noHp" placeholder="mis. 081234567890">
+        <div class="field">
+          <label>Nomor HP<span class="required-star">*</span></label>
+          <input type="tel" id="noHp" placeholder="mis. 081234567890">
+        </div>
       </div>
       <div class="row2">
         <div class="field">
@@ -1110,7 +1110,7 @@
           <button class="refresh-btn" id="chartRefreshBtn">↻ Refresh</button>
         </div>
       </div>
-      <div class="hint" style="margin:0 0 8px;">Filter di atas untuk memilih jadwal onboarding (tanggal) yang ditampilkan di preview pesan ini.</div>
+      <div class="hint" style="margin:0 0 8px;">  Filter di atas untuk memilih jadwal onboarding (tanggal) yang ditampilkan di preview pesan ini.</div>
       <div class="chat-body">
         <div class="bubble" id="preview"><span class="empty">Belum ada data...</span></div>
       </div>
@@ -1146,7 +1146,7 @@
         <span class="h2-icon">📋</span>
         <div class="chart-heading-text">
           <span>Detail &amp; Kelola Kandidat</span>
-          <span class="chart-sub" id="tableSub">Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</span>
+          <span class="chart-sub" id="tableSub" style="font-size:10.5px;">Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</span>
         </div>
       </div>
     </h2>
@@ -2423,10 +2423,10 @@ function renderCandRow(c){
   return `
     <tr>
       <td class="wrap">${escapeHtml(c.nama||'(nama belum diisi)')}</td>
+      <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
       <td class="wrap">${escapeHtml(c.departemen||'-')}</td>
       <td class="wrap">${escapeHtml(c.designation||'-')}</td>
       <td class="wrap">${escapeHtml(c.atasan||'-')}</td>
-      <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
       <td>${c.tglJoin ? escapeHtml(fmtShortID(c.tglJoin)) : '-'}</td>
       <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
