@@ -1844,7 +1844,9 @@ function renderSimpleCandList(list, showWeekHeader){
 // sekali per jadwal, lalu di bawahnya dipecah per recruiter, baru daftar kandidatnya.
 // Diurutkan ascending berdasarkan tanggal onboarding. `picLabelFn(picCands, picName)`
 // menentukan teks judul tiap grup recruiter sesuai konteks card (jumlah kandidat, %, dll).
-function renderGroupedByWeekHtml(list, picLabelFn){
+// `weekExtraFn(dayCandidates)` opsional: kalau diisi, hasilnya (string HTML) ditaruh
+// di header jadwal (dipakai buat nampilin % Jadi Onboarding per jadwal onboarding).
+function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn){
   if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
 
   const withDate = list.filter(c => c.tglOnboarding);
@@ -1861,6 +1863,7 @@ function renderGroupedByWeekHtml(list, picLabelFn){
         <span class="week-pill">📅 Minggu ke-${wk}</span>
         <span class="week-date">${escapeHtml(fmtShortID(date))}</span>
         <span class="week-count">${dayCandidates.length} kandidat</span>
+        ${weekExtraFn ? weekExtraFn(dayCandidates) : ''}
       </div>`;
     const picsOnDate = Array.from(new Set(dayCandidates.map(c => c.pic || '(Belum diisi)')));
     picsOnDate.forEach(pic => {
@@ -1881,6 +1884,7 @@ function renderGroupedByWeekHtml(list, picLabelFn){
         <span class="week-pill">📅 Minggu ke-?</span>
         <span class="week-date">Tgl onboarding belum diisi</span>
         <span class="week-count">${withoutDate.length} kandidat</span>
+        ${weekExtraFn ? weekExtraFn(withoutDate) : ''}
       </div>
       <div class="pic-group">
         <div class="pic-title">${escapeHtml(picLabelFn(withoutDate, null))}</div>
@@ -1974,6 +1978,7 @@ function renderPicBreakdownByWeekHtml(list){
 
 // Popup "Jadi Onboarding": sama konsepnya (per jadwal onboarding, urut tanggal), tapi tiap
 // recruiter ditampilkan sebagai % Jadi Onboarding (Hadir / Total kandidat recruiter tsb di jadwal itu).
+// Header tiap jadwal juga dikasih % Jadi Onboarding keseluruhan buat jadwal itu.
 function renderOnboardingByWeekHtml(list){
   return renderGroupedByWeekHtml(list, (picCands, pic) => {
     const hadir = picCands.filter(c => c.kehadiran === 'Hadir').length;
@@ -1981,6 +1986,11 @@ function renderOnboardingByWeekHtml(list){
     const pct = total ? Math.round((hadir / total) * 100) : 0;
     const name = pic || 'PIC lainnya';
     return `${name} · ${hadir}/${total} Jadi Onboarding (${pct}%)`;
+  }, (dayCandidates) => {
+    const hadir = dayCandidates.filter(c => c.kehadiran === 'Hadir').length;
+    const total = dayCandidates.length;
+    const pct = total ? Math.round((hadir / total) * 100) : 0;
+    return `<span class="week-count">${hadir}/${total} Jadi Onboarding (${pct}%)</span>`;
   });
 }
 
@@ -2174,7 +2184,7 @@ onboardingFilterEl.addEventListener('change', () => {
 let editingCandId = null;
 let editingCandOriginal = null;
 let pendingKehadiran = {}; // { id: value } perubahan kehadiran yang belum disimpan ke server
-let sortState = { column: null, dir: 'asc' }; // sort a-z / z-a per kolom tabel
+let sortState = { column: 'tglOnboarding', dir: 'asc' }; // default urut sesuai Tgl Onboarding (terdekat dulu); klik header buat ganti sort a-z / z-a per kolom
 let columnFilters = {}; // { columnKey: [selectedValue, ...] } filter multi-pilihan per kolom tabel (kalau key ga ada = semua nilai tampil)
 
 function effectiveKehadiran(c){
@@ -3011,6 +3021,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     tglOnboarding: tglOnboardingEl.value,
     statusAktivasi: statusAktivasiEl.value
   };
+  // Kalau pas nambah kandidat baru statusnya langsung diisi "Sudah", catat hari
+  // ini sebagai tglAktivasi -- biar langsung kehitung timing-nya (sebelum/hari-H/
+  // setelah onboarding) tanpa nunggu di-edit ulang.
+  if(obj.statusAktivasi === 'Sudah'){
+    obj.tglAktivasi = todayISO();
+  }
 
   try{
     const res = await fetch(API_URL, {
