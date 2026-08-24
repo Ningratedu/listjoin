@@ -330,6 +330,17 @@
     border:1.5px dashed var(--danger) !important;
     background:rgba(224,87,74,0.08);
   }
+  /* Sama kayak .field-special di form, tapi buat elemen di luar .field (misal filter
+     jadwal onboarding di header preview chat) supaya konsisten gaya garis putus-putusnya. */
+  select.field-special.onboarding-filter{
+    background:rgba(255,153,0,0.08);
+    border:1.5px dashed #ff9800;
+  }
+  select.field-special.onboarding-filter:focus{
+    border-color:#ff9800;
+    background:rgba(255,153,0,0.12);
+    box-shadow:0 0 0 3px rgba(255,153,0,0.16);
+  }
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 
   .hint{font-size:11px;color:var(--text-dim);margin:-5px 0 0;line-height:1.4;}
@@ -1107,7 +1118,7 @@
       <div class="chat-header">
         <h2><span class="h2-title"><span class="h2-icon">💬</span>Preview Pesan Gabungan</span></h2>
         <div class="chat-header-actions">
-          <select id="onboardingFilter" class="onboarding-filter"></select>
+          <select id="onboardingFilter" class="onboarding-filter field-special"></select>
           <button class="refresh-btn" id="chartRefreshBtn">↻ Refresh</button>
         </div>
       </div>
