@@ -1664,39 +1664,87 @@ function renderLoadingState(){
   }
 }
 
+const CANDIDATES_CACHE_KEY = 'ningrat_candidates_cache_v1';
+
+function mapCandidateRows(rawRows){
+  const items = (rawRows || []).map(row => ({
+    _id: row.id,
+    pic: row.pic,
+    nama: row.nama,
+    noHp: row.noHp,
+    departemen: row.departemen,
+    designation: row.designation,
+    atasan: row.atasan,
+    tglJoin: row.tglJoin,
+    tglOnboarding: row.tglOnboarding,
+    statusAktivasi: row.statusAktivasi,
+    tglAktivasi: row.tglAktivasi || '',
+    kehadiran: row.kehadiran || ''
+  }));
+  items.sort((a,b) => (a.tglJoin||'').localeCompare(b.tglJoin||''));
+  return items;
+}
+
+function applyCandidates(items){
+  candidates = items;
+  populateOnboardingFilter();
+  renderPreview();
+  renderTable();
+  renderStats();
+  renderChart();
+  renderDeptChart();
+}
+
+function readCandidatesCache(){
+  try{
+    const raw = localStorage.getItem(CANDIDATES_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || !Array.isArray(parsed.data)) return null;
+    return parsed.data;
+  }catch(e){
+    return null;
+  }
+}
+
+function writeCandidatesCache(rawRows){
+  try{
+    localStorage.setItem(CANDIDATES_CACHE_KEY, JSON.stringify({ data: rawRows, ts: Date.now() }));
+  }catch(e){
+    // localStorage penuh/diblok -> abaikan, gak fatal
+  }
+}
+
 async function loadCandidates(){
   if(!checkConfig()){
     return;
   }
-  renderLoadingState();
+
+  // 1) Kalau ada data lama di cache, tampilin dulu instan biar gak keliatan blank/loading lama.
+  //    Ini cuma tampilan sementara; data fresh dari server tetap di-fetch di background (langkah 2).
+  const cachedRows = readCandidatesCache();
+  let hasCachedView = false;
+  if(cachedRows){
+    applyCandidates(mapCandidateRows(cachedRows));
+    hasCachedView = true;
+  } else {
+    renderLoadingState();
+  }
+
+  // 2) Fetch data terbaru dari server (di-cache 60 detik di sisi Apps Script juga,
+  //    jadi request yang beruntun dalam 1 menit bakal jauh lebih cepat).
   try{
     const res = await fetch(API_URL + '?action=list');
     const json = await res.json();
     if(!json.success) throw new Error(json.error || 'unknown error');
-    const items = (json.data || []).map(row => ({
-      _id: row.id,
-      pic: row.pic,
-      nama: row.nama,
-      noHp: row.noHp,
-      departemen: row.departemen,
-      designation: row.designation,
-      atasan: row.atasan,
-      tglJoin: row.tglJoin,
-      tglOnboarding: row.tglOnboarding,
-      statusAktivasi: row.statusAktivasi,
-      tglAktivasi: row.tglAktivasi || '',
-      kehadiran: row.kehadiran || ''
-    }));
-    items.sort((a,b) => (a.tglJoin||'').localeCompare(b.tglJoin||''));
-    candidates = items;
-    populateOnboardingFilter();
-    renderPreview();
-    renderTable();
-    renderStats();
-    renderChart();
-    renderDeptChart();
+    const rawRows = json.data || [];
+    applyCandidates(mapCandidateRows(rawRows));
+    writeCandidatesCache(rawRows);
   }catch(e){
-    showToast('Gagal memuat list', true);
+    if(!hasCachedView){
+      showToast('Gagal memuat list', true);
+    }
+    // kalau udah ada cached view yang ketampil, gagal refresh diem2 aja -> user masih liat data lama, gak error mengganggu
   }
 }
 
