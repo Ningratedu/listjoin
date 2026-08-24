@@ -503,18 +503,18 @@
   }
   .pic-title{
     display:flex;align-items:center;gap:6px;
-    font-size:11.5px;
+    font-size:10.5px;
     color:var(--text);
     font-weight:800;
     margin-bottom:10px;
     letter-spacing:0.1px;
   }
-  .pic-title::before{content:'👤';font-size:11px;}
+  .pic-title::before{content:'👤';font-size:10px;}
   .pic-title-with-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
   .pic-title-with-bar::before{display:none;}
   .pic-title-text{display:flex;align-items:center;gap:6px;}
-  .pic-title-text::before{content:'👤';font-size:11px;}
-  .pic-title-pct{font-size:11.5px;font-weight:800;color:var(--accent);flex-shrink:0;}
+  .pic-title-text::before{content:'👤';font-size:10px;}
+  .pic-title-pct{font-size:10.5px;font-weight:800;color:var(--accent);flex-shrink:0;}
   .pic-title-bar-wrap{margin-bottom:12px;}
 
   .cand-card{
@@ -523,7 +523,7 @@
     border-radius:12px;
     padding:12px;
     margin-bottom:8px;
-    font-size:13px;
+    font-size:12px;
     transition:border-color .15s, box-shadow .15s, transform .12s;
   }
   .cand-card:last-child{margin-bottom:0;}
@@ -545,36 +545,36 @@
     .cand-badges .status-badge{width:auto;text-align:left;}
   }
   .cand-avatar{
-    width:36px;height:36px;border-radius:10px;flex-shrink:0;
+    width:34px;height:34px;border-radius:10px;flex-shrink:0;
     background:linear-gradient(135deg,var(--accent-2),var(--blue));
-    color:#fff;font-weight:800;font-size:13px;letter-spacing:0.2px;
+    color:#fff;font-weight:800;font-size:12px;letter-spacing:0.2px;
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 4px 10px -4px rgba(23,185,120,0.5);
   }
   .cand-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-  .cand-card .info b{display:block;font-size:13.5px;}
-  .cand-card .info span{display:block;color:var(--text-dim);font-size:12px;}
-  .cand-role{color:var(--text-dim);font-size:11.5px;margin:2px 0 8px;}
+  .cand-card .info b{display:block;font-size:12.5px;}
+  .cand-card .info span{display:block;color:var(--text-dim);font-size:11px;}
+  .cand-role{color:var(--text-dim);font-size:10.5px;margin:2px 0 8px;}
   .cand-meta-grid{display:flex;flex-direction:column;gap:4px;}
-  .meta-item{font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
+  .meta-item{font-size:10.5px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
   .meta-item b{color:var(--text);font-weight:700;margin-right:1px;}
   .week-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
   .week-pill{
     display:inline-block;background:var(--navy-2);color:#fff;
-    font-size:10.5px;font-weight:800;letter-spacing:0.2px;
+    font-size:9.5px;font-weight:800;letter-spacing:0.2px;
     border-radius:999px;padding:2px 9px;white-space:nowrap;
   }
-  .week-date{font-size:11.5px;color:var(--text-dim);}
+  .week-date{font-size:10.5px;color:var(--text-dim);}
   .week-count{
-    margin-left:auto;font-size:10.5px;font-weight:700;color:var(--text-dim);
+    margin-left:auto;font-size:9.5px;font-weight:700;color:var(--text-dim);
     background:var(--panel-2);border:1px solid var(--border);
     padding:2px 9px;border-radius:999px;white-space:nowrap;
   }
-  .week-group > .week-header .week-pill{font-size:11px;padding:3px 11px;}
-  .week-group > .week-header .week-date{font-size:12px;font-weight:600;color:var(--text);}
+  .week-group > .week-header .week-pill{font-size:10px;padding:3px 11px;}
+  .week-group > .week-header .week-date{font-size:11px;font-weight:600;color:var(--text);}
   .status-badge{
     display:inline-block;
-    font-size:10.5px;
+    font-size:9.5px;
     font-weight:700;
     padding:3px 9px;
     border-radius:999px;
@@ -593,7 +593,7 @@
   }
   .cand-card .edit, .cand-card .del{
     flex:1;border:none;border-radius:8px;padding:6px 0;
-    font-size:11px;font-weight:700;font-family:inherit;
+    font-size:10px;font-weight:700;font-family:inherit;
     cursor:pointer;text-align:center;transition:background .15s;
   }
   .cand-card .edit{background:rgba(77,107,255,0.12);color:var(--blue);}
@@ -1760,6 +1760,12 @@ function kehadiranBadgeClass(k){
   return 'status-belum-verif';
 }
 
+function kehadiranEmoji(k){
+  if(k === 'Hadir') return '✅';
+  if(k === 'Tidak Hadir') return '❌';
+  return '⏳';
+}
+
 // Bandingkan tanggal aktivasi ("Sudah") dengan tanggal onboarding kandidat.
 // Return 'sebelum' | 'hari-h' | 'setelah' | null (null = status bukan "Sudah",
 // atau tglAktivasi belum tercatat — misalnya data lama sebelum fitur ini ada).
@@ -1833,7 +1839,7 @@ function renderSimpleCandList(list, showWeekHeader){
         <div class="cand-badges">
           ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
           ${getAktivasiTimingBadge(c)}
-          <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">✅ Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
+          <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
         </div>
       </div>
     </div>`;
@@ -2862,7 +2868,7 @@ function openChartModal(group, pic, date){
           <div class="cand-badges">
             ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
             ${getAktivasiTimingBadge(c)}
-            <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">✅ Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
+            <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
           </div>
         </div>
         <div class="cand-card-actions-row">
