@@ -2941,6 +2941,7 @@ function buildText(){
       if(c.tglJoin) lines.push(`· Tgl Join: ${fmtID(c.tglJoin)}`);
       if(c.statusAktivasi) lines.push(`· Status Aktivasi: *${c.statusAktivasi}*`);
       if(c.noHp) lines.push(`· No HP: ${c.noHp}`);
+      lines.push(`· Kehadiran: ${kehadiranEmoji(c.kehadiran||'')} *${c.kehadiran || 'Belum diverifikasi'}*`);
       lines.push('');
     });
     lines.push(''); // jeda ekstra antar PIC recruitment
