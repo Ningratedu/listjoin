@@ -437,7 +437,7 @@
     transition:background .15s, color .15s, border-color .15s;
   }
   .shift-btn:hover{color:var(--accent);border-color:var(--accent);background:#eafaf3;}
-  .shift-label{font-size:11px;color:var(--text-dim);}
+  .shift-label{font-size:9.5px;color:var(--accent);}
 
   .submit-btn{
     width:100%;
@@ -598,6 +598,13 @@
   .status-warn{background:rgba(201,134,28,0.15);color:var(--warn);}
   .badge-row{display:flex;flex-wrap:wrap;gap:6px;}
   .cand-card .info{min-width:0;flex:1;}
+  .dept-mini-card{padding:11px 13px;}
+  .dept-mini-name{font-size:12.5px;font-weight:700;color:var(--text);}
+  .dept-mini-role{font-size:10.5px;color:var(--text-dim);margin:2px 0 8px;}
+  .dept-mini-row{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:8px;}
+  .dept-mini-row .meta-item{font-size:10.5px;}
+  .dept-mini-badges{display:flex;flex-wrap:wrap;gap:6px;}
+  .dept-mini-badges .status-badge{margin:0;}
   .cand-card-actions-row{
     display:flex;gap:8px;margin-top:10px;padding-top:10px;
     border-top:1px solid var(--border);
@@ -1102,14 +1109,10 @@
           <label>Rencana Onboarding<span class="required-star">*</span></label>
           <input type="date" id="tglOnboarding" class="field-special">
           <div class="shift-row">
-            <button type="button" class="shift-btn" id="shiftMinus">− 1 hari</button>
-            <button type="button" class="shift-btn" id="shiftPlus">+ 1 hari</button>
-            <span class="shift-label" id="onbHint">auto: Selasa/Jumat terdekat</span>
+            <span class="shift-label" id="onbHint">tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini</span>
           </div>
         </div>
       </div>
-      <div class="hint">Isi tanggal berapa aja di Rencana Onboarding, otomatis digenapkan ke Selasa (kalau Senin/Selasa) atau Jumat (kalau Rabu-Jumat) minggu itu. Geser pakai tombol kalau kena hari libur.</div>
-
       <button class="submit-btn" id="submitBtn">+ Tambah ke List Bersama</button>
     </div>
 
@@ -1148,6 +1151,24 @@
     <div class="chart-hint" id="chartHint" style="display:none;">💡 Klik gelembung untuk lihat, edit &amp; kelola detail kandidat</div>
     <div style="position:relative;height:320px;">
       <canvas id="picChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CHART SEBARAN DEPARTEMEN -->
+  <div class="list-panel chart-panel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">🏢</span>
+        <div class="chart-heading-text">
+          <span>Sebaran Departemen</span>
+          <span class="chart-sub" id="deptChartSub">Jumlah kandidat per departemen</span>
+        </div>
+      </div>
+    </h2>
+    <div id="deptChartEmptyState" class="empty-state" style="display:none;">Belum ada data buat statistik.</div>
+    <div class="chart-hint" id="deptChartHint" style="display:none;">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+    <div style="position:relative;height:320px;">
+      <canvas id="deptChart"></canvas>
     </div>
   </div>
 
@@ -1354,6 +1375,17 @@ function toDateStr(d){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
+// Google Sheet otomatis mendeteksi No HP yang cuma berisi angka sebagai
+// angka (number), jadi angka 0 di depan (mis. 081234567890) ikut hilang.
+// Kasih prefix apostrof (') supaya Sheet maksa nyimpennya sebagai teks,
+// biar angka 0 di depan tetap kebawa & kelihatan utuh di Sheet.
+function forceTextForSheet(val){
+  if(!val) return val;
+  const str = String(val);
+  if(str.startsWith("'")) return str;
+  return "'" + str;
+}
+
 function snapToTueFri(dateStr){
   if(!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
@@ -1380,7 +1412,7 @@ function setDefaultOnboarding(){
   const todayStr = toDateStr(new Date());
   tglOnboardingEl.value = snapToTueFri(todayStr);
   delete tglOnboardingEl.dataset.manual;
-  onbHintEl.textContent = 'auto: Selasa/Jumat terdekat';
+  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini';
 }
 
 // Nama PIC Recruitment yang aktif saat tanggal Rencana Onboarding terakhir kali di-set default.
@@ -1403,10 +1435,8 @@ tglOnboardingEl.addEventListener('change', () => {
     tglOnboardingEl.value = snapped;
   }
   delete tglOnboardingEl.dataset.manual;
-  onbHintEl.textContent = 'auto: Selasa/Jumat terdekat';
+  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini';
 });
-document.getElementById('shiftMinus').addEventListener('click', () => shiftOnboarding(-1));
-document.getElementById('shiftPlus').addEventListener('click', () => shiftOnboarding(1));
 function shiftOnboarding(delta){
   if(!tglOnboardingEl.value) return;
   const d = new Date(tglOnboardingEl.value + 'T00:00:00');
@@ -1620,6 +1650,18 @@ function renderLoadingState(){
     chartCanvasEl.style.display = 'none';
     if(onboardingChart){ onboardingChart.destroy(); onboardingChart = null; }
   }
+
+  // Chart sebaran departemen
+  const deptEmptyEl = document.getElementById('deptChartEmptyState');
+  const deptHintEl = document.getElementById('deptChartHint');
+  const deptCanvasEl = document.getElementById('deptChart');
+  if(deptEmptyEl && deptCanvasEl){
+    deptEmptyEl.innerHTML = '<span class="loading-line"><span class="spinner spinner-dim"></span> Sedang memuat data...</span>';
+    deptEmptyEl.style.display = 'block';
+    if(deptHintEl) deptHintEl.style.display = 'none';
+    deptCanvasEl.style.display = 'none';
+    if(deptChart){ deptChart.destroy(); deptChart = null; }
+  }
 }
 
 async function loadCandidates(){
@@ -1652,6 +1694,7 @@ async function loadCandidates(){
     renderTable();
     renderStats();
     renderChart();
+    renderDeptChart();
   }catch(e){
     showToast('Gagal memuat list', true);
   }
@@ -1821,40 +1864,67 @@ function aktivasiColTooltip(c){
   return 'Status Sudah, tapi tanggal aktivasi belum tercatat';
 }
 
-function renderSimpleCandList(list, showWeekHeader){
-  if(showWeekHeader === undefined) showWeekHeader = true;
-  if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
-  return list.map(c => {
-    const wk = onboardingWeekNumber(c.tglOnboarding);
-    const roleParts = [c.designation, c.departemen].filter(Boolean);
-    return `
-    <div class="cand-card">
-      ${showWeekHeader ? `
-      <div class="week-header cand-card-week-header">
-        <span class="week-pill">📅 Minggu ke-${wk || '?'}</span>
-        <span class="week-date">${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : 'Tgl onboarding belum diisi'}</span>
-      </div>` : ''}
-      <div class="cand-card-main">
-        <div class="cand-avatar">${escapeHtml(getInitials(c.nama))}</div>
-        <div class="info">
-          <div class="cand-name-row">
-            <b>${escapeHtml(c.nama||'(nama belum diisi)')}</b>
-          </div>
-          ${roleParts.length ? `<div class="cand-role">${escapeHtml(roleParts.join(' · '))}</div>` : ''}
-          <div class="cand-meta-grid">
-            <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic||'(Belum diisi)')}</span>
-            <span class="meta-item">📆 <b>Join</b> ${escapeHtml(fmtShortID(c.tglJoin))}</span>
-            <span class="meta-item">📱 ${escapeHtml(c.noHp||'-')}</span>
-          </div>
-        </div>
-        <div class="cand-badges">
-          ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
-          ${getAktivasiTimingBadge(c)}
-          <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
-        </div>
-      </div>
+// Badge aktivasi standar dipakai di SEMUA popup card kandidat (stat modal, dept modal,
+// chart bubble modal) biar konsisten. Kalau ada detail timing (sebelum/hari-H/setelah
+// onboarding) tampilin itu, kalau enggak (status "Belum", atau "Sudah" tapi tglAktivasi
+// belum tercatat) fallback ke badge dasar 🔑 Aktivasi: Sudah/Belum -- jadi badge ini
+// SELALU muncul di setiap card, gak pernah kosong.
+function renderAktivasiBadge(c){
+  return getAktivasiTimingBadge(c) || `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi || 'Belum')}</span>`;
+}
+
+// Badge kehadiran standar, dikasih label "Kehadiran:" biar jelas keterangannya
+// (bukan cuma nampilin nilainya doang), dipakai konsisten di semua popup card.
+function renderKehadiranBadge(c){
+  return `<span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>`;
+}
+
+// Kartu detail kandidat dipakai di SEMUA popup card statistik (Total, PIC Aktif,
+// % Jadi Onboarding, Aktivasi sebelum Onboarding), formatnya disamakan persis dengan
+// kartu di popup "Sebaran Departemen" (dept-mini-card): nama, role, 2 meta item, 1 badge.
+// `context` nentuin meta item & badge mana yang relevan buat card itu:
+//  - 'total'      → popup "Kandidat Join Bulan Ini": Join + PIC, badge kehadiran
+//  - 'onboarding' → popup "% Jadi Onboarding per PIC": Onboarding + PIC, badge kehadiran
+//  - 'pic'        → popup "PIC Aktif" (detail per PIC): Join + Departemen, badge kehadiran
+//  - 'aktivasi'   → popup "Aktivasi sebelum Onboarding": Onboarding + PIC, badge timing aktivasi
+function renderCandMiniCard(c, context){
+  const roleParts = [c.designation, c.departemen].filter(Boolean);
+  let metaHtml = '';
+  let badgeHtml = '';
+
+  if(context === 'aktivasi'){
+    metaHtml = `
+      <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
+  } else if(context === 'pic'){
+    metaHtml = `
+      <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
+      <span class="meta-item">🏢 <b>Dept</b> ${escapeHtml(c.departemen || '-')}</span>`;
+  } else if(context === 'onboarding'){
+    metaHtml = `
+      <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
+  } else { // 'total' (default)
+    metaHtml = `
+      <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
+  }
+  // Badge aktivasi + kehadiran ditampilin bareng di semua context, konsisten
+  // dengan card "aktivasi" (dua badge, gak pernah kosong).
+  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>`;
+
+  return `
+    <div class="cand-card dept-mini-card">
+      <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
+      <div class="dept-mini-role">${escapeHtml(roleParts.length ? roleParts.join(' · ') : '(designation belum diisi)')}</div>
+      <div class="dept-mini-row">${metaHtml}</div>
+      ${badgeHtml}
     </div>`;
-  }).join('');
+}
+
+function renderSimpleCandList(list, context){
+  if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
+  return list.map(c => renderCandMiniCard(c, context)).join('');
 }
 
 // Konsep umum: dikelompokkan per jadwal onboarding (tanggal), badge Minggu ke- muncul
@@ -1863,7 +1933,7 @@ function renderSimpleCandList(list, showWeekHeader){
 // menentukan teks judul tiap grup recruiter sesuai konteks card (jumlah kandidat, %, dll).
 // `weekExtraFn(dayCandidates)` opsional: kalau diisi, hasilnya (string HTML) ditaruh
 // di header jadwal (dipakai buat nampilin % Jadi Onboarding per jadwal onboarding).
-function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn){
+function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn, context){
   if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
 
   const withDate = list.filter(c => c.tglOnboarding);
@@ -1888,7 +1958,7 @@ function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn){
       html += `
       <div class="pic-group">
         <div class="pic-title">${escapeHtml(picLabelFn(picCands, pic))}</div>
-        ${renderSimpleCandList(picCands, false)}
+        ${renderSimpleCandList(picCands, context)}
       </div>`;
     });
     html += `</div>`;
@@ -1905,7 +1975,7 @@ function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn){
       </div>
       <div class="pic-group">
         <div class="pic-title">${escapeHtml(picLabelFn(withoutDate, null))}</div>
-        ${renderSimpleCandList(withoutDate, false)}
+        ${renderSimpleCandList(withoutDate, context)}
       </div>
     </div>`;
   }
@@ -1930,7 +2000,7 @@ function renderPicWeeklyDetailHtml(list){
         <span class="week-date">${escapeHtml(fmtShortID(date))}</span>
         <span class="week-count">${dayCandidates.length} kandidat</span>
       </div>
-      ${renderSimpleCandList(dayCandidates, false)}
+      ${renderSimpleCandList(dayCandidates, 'pic')}
     </div>`;
   });
 
@@ -1942,7 +2012,7 @@ function renderPicWeeklyDetailHtml(list){
         <span class="week-date">Tgl onboarding belum diisi</span>
         <span class="week-count">${withoutDate.length} kandidat</span>
       </div>
-      ${renderSimpleCandList(withoutDate, false)}
+      ${renderSimpleCandList(withoutDate, 'pic')}
     </div>`;
   }
 
@@ -1990,7 +2060,7 @@ function renderTotalPicSummaryHtml(picList){
 function renderPicBreakdownByWeekHtml(list){
   return renderGroupedByWeekHtml(list, (picCands, pic) =>
     pic ? `${pic} · ${picCands.length} kandidat` : `${picCands.length} kandidat`
-  );
+  , null, 'total');
 }
 
 // Popup "Jadi Onboarding": sama konsepnya (per jadwal onboarding, urut tanggal), tapi tiap
@@ -2008,7 +2078,7 @@ function renderOnboardingByWeekHtml(list){
     const total = dayCandidates.length;
     const pct = total ? Math.round((hadir / total) * 100) : 0;
     return `<span class="week-count">${hadir}/${total} Jadi Onboarding (${pct}%)</span>`;
-  });
+  }, 'onboarding');
 }
 
 function groupByPic(list){
@@ -2030,7 +2100,7 @@ function renderAktivasiBreakdownHtml(list){
         <span class="pic-title-pct">${pct}%</span>
       </div>
       <div class="pic-summary-bar-wrap pic-title-bar-wrap"><span class="pic-summary-bar" style="width:${pct}%"></span></div>
-      ${renderSimpleCandList(list, false)}
+      ${renderSimpleCandList(list, 'aktivasi')}
     </div>`;
   }).join('');
 }
@@ -2109,7 +2179,7 @@ editModalSaveBtn.addEventListener('click', async () => {
   if(!editingCandId) return;
   const fields = {
     nama: efNamaEl.value.trim(),
-    noHp: efNoHpEl.value.trim(),
+    noHp: forceTextForSheet(efNoHpEl.value.trim()),
     pic: efPicEl.value.trim(),
     departemen: efDepartemenEl.value.trim(),
     designation: efDesignationEl.value.trim(),
@@ -2877,9 +2947,8 @@ function openChartModal(group, pic, date){
             </div>
           </div>
           <div class="cand-badges">
-            ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
-            ${getAktivasiTimingBadge(c)}
-            <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
+            ${renderAktivasiBadge(c)}
+            ${renderKehadiranBadge(c)}
           </div>
         </div>
         <div class="cand-card-actions-row">
@@ -2919,6 +2988,213 @@ document.getElementById('chartModalOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'chartModalOverlay') closeChartModal();
 });
 document.getElementById('chartRefreshBtn').addEventListener('click', loadCandidates);
+
+// ==== Chart Sebaran Departemen ====
+let deptChart = null;
+
+// pecah label departemen jadi maksimal 2 baris biar gak kepotong di layar sempit (HP)
+function wrapDeptLabel(label, maxCharsPerLine){
+  if(!label) return [''];
+  if(label.length <= maxCharsPerLine) return [label];
+  const words = label.split(' ');
+  if(words.length === 1){
+    // satu kata panjang, potong paksa jadi 2 baris
+    return [label.slice(0, maxCharsPerLine), label.slice(maxCharsPerLine)];
+  }
+  let line1 = '';
+  let i = 0;
+  for(; i < words.length; i++){
+    const test = line1 ? line1 + ' ' + words[i] : words[i];
+    if(test.length > maxCharsPerLine && line1) break;
+    line1 = test;
+  }
+  let line2 = words.slice(i).join(' ');
+  if(!line2) return [line1];
+  // kalau baris kedua masih kepanjangan, tambahin ellipsis
+  if(line2.length > maxCharsPerLine){
+    line2 = line2.slice(0, maxCharsPerLine - 1) + '…';
+  }
+  return [line1, line2];
+}
+const DEPT_GRADIENTS = [
+  ['#4d6bff','#8b5cf6'],
+  ['#17b978','#0e9d74'],
+  ['#f6a04d','#e0574a'],
+  ['#4dd0e1','#4d6bff'],
+  ['#f06292','#b388ff'],
+  ['#ffb74d','#e0a53a'],
+  ['#5aa9e6','#4dd0e1'],
+  ['#a1887f','#8b5cf6'],
+  ['#e05a4e','#f06292'],
+  ['#00a884','#4dd0e1']
+];
+
+// plugin kecil: gambar angka jumlah kandidat di ujung tiap bar
+const deptCountPlugin = {
+  id: 'deptCountLabel',
+  afterDatasetsDraw(chart){
+    if(chart.canvas.id !== 'deptChart') return;
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    meta.data.forEach((bar, index) => {
+      const value = chart.data.datasets[0].data[index];
+      if(value == null) return;
+      const { x, y } = bar.getProps(['x','y'], true);
+      ctx.save();
+      ctx.font = '700 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      ctx.fillStyle = '#1e2b32';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(value), x + 8, y);
+      ctx.restore();
+    });
+  }
+};
+if(window.Chart) Chart.register(deptCountPlugin);
+
+function renderDeptChart(){
+  const canvas = document.getElementById('deptChart');
+  if(!canvas) return;
+  const emptyEl = document.getElementById('deptChartEmptyState');
+  const hintEl = document.getElementById('deptChartHint');
+  const subEl = document.getElementById('deptChartSub');
+
+  const deptMap = {}; // departemen -> [kandidat]
+  candidates.forEach(c => {
+    const d = (c.departemen || '').trim() || '(Belum diisi)';
+    if(!deptMap[d]) deptMap[d] = [];
+    deptMap[d].push(c);
+  });
+
+  const entries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
+
+  if(entries.length === 0){
+    emptyEl.textContent = 'Belum ada data buat statistik.';
+    emptyEl.style.display = 'block';
+    hintEl.style.display = 'none';
+    canvas.style.display = 'none';
+    if(deptChart){ deptChart.destroy(); deptChart = null; }
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  hintEl.style.display = 'block';
+  canvas.style.display = 'block';
+
+  const total = candidates.length;
+  const topDept = entries[0][0];
+  subEl.textContent = `${total} kandidat total · terbanyak: ${topDept} (${entries[0][1].length})`;
+
+  const labels = entries.map(e => e[0]);
+  const data = entries.map(e => e[1].length);
+  const groups = entries.map(e => e[1]);
+
+  const ctx2d = canvas.getContext('2d');
+  const barColors = labels.map((_, idx) => {
+    const [c1, c2] = DEPT_GRADIENTS[idx % DEPT_GRADIENTS.length];
+    const gradient = ctx2d.createLinearGradient(0, 0, canvas.width || 600, 0);
+    gradient.addColorStop(0, c1);
+    gradient.addColorStop(1, c2);
+    return gradient;
+  });
+
+  // makin sempit layar, makin pendek batas karakter per baris label
+  const isNarrow = window.innerWidth < 480;
+  const maxCharsPerLine = isNarrow ? 11 : (window.innerWidth < 700 ? 15 : 20);
+  const wrappedLabels = labels.map(l => wrapDeptLabel(l, maxCharsPerLine));
+  const maxLines = Math.max(1, ...wrappedLabels.map(l => l.length));
+
+  // tinggi per baris kandidat disesuaikan kalau labelnya 2 baris
+  const rowHeight = maxLines > 1 ? 32 : 22;
+  const chartHeight = Math.max(180, labels.length * rowHeight);
+  canvas.parentElement.style.height = chartHeight + 'px';
+
+  if(deptChart) deptChart.destroy();
+  deptChart = new Chart(ctx2d, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Jumlah Kandidat',
+        data,
+        backgroundColor: barColors,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 14,
+        categoryPercentage: 0.9,
+        barPercentage: 0.95
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 30 } },
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      onClick: (evt, elements) => {
+        if(!elements.length) return;
+        const idx = elements[0].index;
+        openDeptModal(labels[idx], groups[idx]);
+      },
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.raw} kandidat · klik untuk detail`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 },
+          grid: { color: '#e5edf1' }
+        },
+        y: {
+          ticks: {
+            color: '#334155',
+            font: { size: 11, weight: '600' },
+            callback: function(value){
+              return wrappedLabels[value] || this.getLabelForValue(value);
+            }
+          },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function openDeptModal(dept, group){
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  modalTitleEl.textContent = `🏢 ${dept}`;
+
+  let html = `<div class="week-group">
+    <div class="week-header">
+      <span class="week-pill">🏢 ${escapeHtml(dept)}</span>
+      <span class="week-count">${group.length} kandidat</span>
+    </div>`;
+  group.forEach(c => {
+    html += `
+      <div class="cand-card dept-mini-card">
+        <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
+        <div class="dept-mini-role">${escapeHtml(c.designation || '(designation belum diisi)')}</div>
+        <div class="dept-mini-row">
+          <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+          <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
+        </div>
+        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>
+      </div>`;
+  });
+  html += `</div>`;
+  modalBodyEl.innerHTML = html;
+
+  document.getElementById('chartModalOverlay').classList.add('show');
+}
 
 function buildText(){
   const filtered = getFilteredCandidates();
@@ -3031,7 +3307,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     action: 'add',
     pic,
     nama,
-    noHp,
+    noHp: forceTextForSheet(noHp),
     departemen: departemenEl.value.trim(),
     designation: designationEl.value.trim(),
     atasan: atasanEl.value.trim(),
@@ -3146,6 +3422,15 @@ function syncPreviewHeight(){
   }
 }
 window.addEventListener('resize', syncPreviewHeight);
+
+// re-render chart departemen kalau layar di-resize/rotate biar label tetap rapi
+let deptChartResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(deptChartResizeTimer);
+  deptChartResizeTimer = setTimeout(() => {
+    if(deptChart) renderDeptChart();
+  }, 200);
+});
 if(window.ResizeObserver){
   const formPanelEl = document.getElementById('formPanel');
   if(formPanelEl){
