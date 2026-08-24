@@ -584,6 +584,7 @@
   .status-hadir{background:rgba(37,211,102,0.15);color:var(--accent-2);}
   .status-tidak-hadir{background:rgba(224,90,78,0.15);color:var(--danger);}
   .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
+  .status-warn{background:rgba(201,134,28,0.15);color:var(--warn);}
   .badge-row{display:flex;flex-wrap:wrap;gap:6px;}
   .cand-card .info{min-width:0;flex:1;}
   .cand-card-actions-row{
@@ -1283,6 +1284,14 @@ function fmtShortID(dateStr){
   return `${hari}, ${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function todayISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
 function getInitials(nama){
   const parts = String(nama||'').trim().split(/\s+/).filter(Boolean);
   if(parts.length === 0) return '?';
@@ -1622,6 +1631,7 @@ async function loadCandidates(){
       tglJoin: row.tglJoin,
       tglOnboarding: row.tglOnboarding,
       statusAktivasi: row.statusAktivasi,
+      tglAktivasi: row.tglAktivasi || '',
       kehadiran: row.kehadiran || ''
     }));
     items.sort((a,b) => (a.tglJoin||'').localeCompare(b.tglJoin||''));
@@ -1663,9 +1673,13 @@ function renderStats(){
   const totalCandidateCount = candidates.length;
   const pctOnboarding = totalCandidateCount ? Math.round((hadirList.length / totalCandidateCount) * 100) : 0;
 
-  // % Aktivasi Akun Selesai (statusAktivasi === 'Sudah') dari seluruh kandidat yang ditrack
-  const aktivasiSudahList = candidates.filter(c => c.statusAktivasi === 'Sudah');
-  const pctAktivasi = totalCandidateCount ? Math.round((aktivasiSudahList.length / totalCandidateCount) * 100) : 0;
+  // % Aktivasi SEBELUM Onboarding — cuma dihitung kandidat yang statusnya "Sudah"
+  // DAN tercatat diaktivasi sebelum tanggal onboarding (pakai getAktivasiTiming).
+  // Catatan: kandidat lama yang statusnya "Sudah" tapi belum punya tglAktivasi
+  // (diisi sebelum fitur pencatatan tanggal ini ada) belum bisa dipastikan
+  // timing-nya, jadi sementara tidak dihitung "sebelum onboarding" sampai di-edit ulang.
+  const aktivasiSebelumList = candidates.filter(c => getAktivasiTiming(c) === 'sebelum');
+  const pctAktivasi = totalCandidateCount ? Math.round((aktivasiSebelumList.length / totalCandidateCount) * 100) : 0;
 
   statDetailsCache = {
     total: candidatesThisMonth,
@@ -1701,7 +1715,7 @@ function renderStats(){
       variant: 'ring',
       pct: pctAktivasi, badgeBg: 'var(--navy-2)', ringColor: 'var(--blue)',
       icon: '🔑', iconBg: 'rgba(77,107,255,0.12)', iconColor: 'var(--blue)',
-      title: 'Aktivasi sebelum Onboarding', sub: `${aktivasiSudahList.length} dari ${totalCandidateCount} selesai`
+      title: 'Aktivasi sebelum Onboarding', sub: `${aktivasiSebelumList.length} dari ${totalCandidateCount} sebelum onboarding`
     }
   ];
 
@@ -1746,6 +1760,50 @@ function kehadiranBadgeClass(k){
   return 'status-belum-verif';
 }
 
+// Bandingkan tanggal aktivasi ("Sudah") dengan tanggal onboarding kandidat.
+// Return 'sebelum' | 'hari-h' | 'setelah' | null (null = status bukan "Sudah",
+// atau tglAktivasi belum tercatat — misalnya data lama sebelum fitur ini ada).
+function getAktivasiTiming(c){
+  if(c.statusAktivasi !== 'Sudah' || !c.tglAktivasi || !c.tglOnboarding) return null;
+  const tA = String(c.tglAktivasi).slice(0,10);
+  const tO = String(c.tglOnboarding).slice(0,10);
+  if(tA < tO) return 'sebelum';
+  if(tA === tO) return 'hari-h';
+  return 'setelah';
+}
+
+// Dipakai khusus buat card "Aktivasi sebelum Onboarding" biar PIC bisa lihat
+// apakah target aktivasi SEBELUM hari onboarding beneran tercapai atau meleset.
+function getAktivasiTimingBadge(c){
+  const t = getAktivasiTiming(c);
+  if(t === 'sebelum') return `<span class="status-badge status-sudah">✅ Aktivasi sebelum onboarding</span>`;
+  if(t === 'hari-h') return `<span class="status-badge status-warn">⚡ Aktivasi di hari onboarding</span>`;
+  if(t === 'setelah') return `<span class="status-badge status-belum">⏰ Aktivasi setelah onboarding</span>`;
+  return '';
+}
+
+// Warna badge kolom "Aktivasi" di tabel detail. Ijo cuma buat yang beneran
+// sebelum onboarding (on-target); selain itu (di hari-H, telat, atau status
+// "Sudah" tapi tanggal aktivasinya belum tercatat) dikasih warna beda biar
+// gampang dibedain sekilas dari tabel.
+function getAktivasiColClass(c){
+  if(c.statusAktivasi !== 'Sudah') return 'status-belum';
+  const t = getAktivasiTiming(c);
+  if(t === 'sebelum') return 'status-sudah';
+  if(t === 'hari-h') return 'status-warn';
+  if(t === 'setelah') return 'status-belum';
+  return 'status-belum-verif'; // "Sudah" tapi tglAktivasi belum tercatat (data lama)
+}
+
+function aktivasiColTooltip(c){
+  if(c.statusAktivasi !== 'Sudah') return '';
+  const t = getAktivasiTiming(c);
+  if(t === 'sebelum') return 'Aktivasi sebelum onboarding';
+  if(t === 'hari-h') return 'Aktivasi di hari onboarding';
+  if(t === 'setelah') return 'Aktivasi setelah onboarding (telat)';
+  return 'Status Sudah, tapi tanggal aktivasi belum tercatat';
+}
+
 function renderSimpleCandList(list, showWeekHeader){
   if(showWeekHeader === undefined) showWeekHeader = true;
   if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
@@ -1774,6 +1832,7 @@ function renderSimpleCandList(list, showWeekHeader){
         </div>
         <div class="cand-badges">
           ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
+          ${getAktivasiTimingBadge(c)}
           <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">✅ Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
         </div>
       </div>
@@ -1934,13 +1993,13 @@ function renderAktivasiBreakdownHtml(list){
   if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
   const picGroups = groupByPic(list);
   return picGroups.map(({pic, list}) => {
-    const sudah = list.filter(c => c.statusAktivasi === 'Sudah').length;
+    const sebelum = list.filter(c => getAktivasiTiming(c) === 'sebelum').length;
     const total = list.length;
-    const pct = total ? Math.round((sudah / total) * 100) : 0;
+    const pct = total ? Math.round((sebelum / total) * 100) : 0;
     return `
     <div class="pic-group pic-group-boxed">
       <div class="pic-title pic-title-with-bar">
-        <span class="pic-title-text">${escapeHtml(pic)} · ${sudah}/${total} Aktivasi Selesai</span>
+        <span class="pic-title-text">${escapeHtml(pic)} · ${sebelum}/${total} Aktivasi sebelum Onboarding</span>
         <span class="pic-title-pct">${pct}%</span>
       </div>
       <div class="pic-summary-bar-wrap pic-title-bar-wrap"><span class="pic-summary-bar" style="width:${pct}%"></span></div>
@@ -1993,6 +2052,7 @@ const editModalSaveBtn = document.getElementById('editModalSave');
 
 function openEditModal(c){
   editingCandId = c._id;
+  editingCandOriginal = c;
   efNamaEl.value = c.nama || '';
   efNoHpEl.value = c.noHp || '';
   efPicEl.value = c.pic || '';
@@ -2035,6 +2095,17 @@ editModalSaveBtn.addEventListener('click', async () => {
     showToast('Nama & Nomor HP wajib diisi', true);
     return;
   }
+
+  // Kalau PIC baru saja set status jadi "Sudah" (sebelumnya belum "Sudah"), catat
+  // tanggal aktivasi hari ini. Kalau tanggal itu sama dengan tanggal onboarding,
+  // berarti aktivasi dilakukan tepat di hari onboarding -> tampilkan keterangan khusus.
+  const wasSudah = editingCandOriginal && editingCandOriginal.statusAktivasi === 'Sudah';
+  if(fields.statusAktivasi === 'Sudah' && !wasSudah){
+    fields.tglAktivasi = todayISO();
+  }else if(fields.statusAktivasi !== 'Sudah'){
+    fields.tglAktivasi = '';
+  }
+
   const id = editingCandId;
   editModalSaveBtn.disabled = true;
   editModalSaveBtn.textContent = 'Menyimpan...';
@@ -2101,6 +2172,7 @@ onboardingFilterEl.addEventListener('change', () => {
 });
 
 let editingCandId = null;
+let editingCandOriginal = null;
 let pendingKehadiran = {}; // { id: value } perubahan kehadiran yang belum disimpan ke server
 let sortState = { column: null, dir: 'asc' }; // sort a-z / z-a per kolom tabel
 let columnFilters = {}; // { columnKey: [selectedValue, ...] } filter multi-pilihan per kolom tabel (kalau key ga ada = semua nilai tampil)
@@ -2430,7 +2502,7 @@ function renderCandRow(c){
       <td>${c.tglJoin ? escapeHtml(fmtShortID(c.tglJoin)) : '-'}</td>
       <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
-      <td>${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">${escapeHtml(c.statusAktivasi)}</span>` : `<span class="status-badge status-belum-verif">-</span>`}</td>
+      <td>${c.statusAktivasi ? `<span class="status-badge ${getAktivasiColClass(c)}" title="${escapeAttr(aktivasiColTooltip(c))}">${escapeHtml(c.statusAktivasi)}</span>` : `<span class="status-badge status-belum-verif">-</span>`}</td>
       <td class="wrap">${escapeHtml(c.noHp||'-')}</td>
       <td>
         <div class="verify-row">
@@ -2777,10 +2849,11 @@ function openChartModal(group, pic, date){
               ${c.tglOnboarding ? `<span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(fmtShortID(c.tglOnboarding))}</span>` : ''}
             </div>
           </div>
-          ${c.statusAktivasi ? `
           <div class="cand-badges">
-            <span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>
-          </div>` : ''}
+            ${c.statusAktivasi ? `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi)}</span>` : ''}
+            ${getAktivasiTimingBadge(c)}
+            <span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">✅ Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>
+          </div>
         </div>
         <div class="cand-card-actions-row">
           <button class="edit" data-id="${escapeAttr(c._id)}">✏️ Edit</button>
