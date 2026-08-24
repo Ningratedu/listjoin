@@ -304,6 +304,23 @@
     opacity:0.55;
   }
   .field input[type="date"]{color-scheme:light;}
+  /* Overlay dd/mm/yyyy: input date aslinya tetap dipakai (buat picker & value),
+     tapi teksnya disembunyiin (color:transparent) dan diganti span overlay yang
+     formatnya kita kontrol sendiri, biar konsisten dd/mm/yyyy di semua browser/OS. */
+  .date-input-wrap{position:relative;}
+  .date-input-wrap input[type="date"]{color:transparent;}
+  .date-input-wrap input[type="date"]:focus{color:var(--text);}
+  .date-input-wrap .date-overlay{
+    position:absolute;
+    left:12px; right:32px; top:0; bottom:0;
+    display:flex; align-items:center;
+    font-size:12px; color:var(--text);
+    font-family:inherit;
+    pointer-events:none;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .date-input-wrap .date-overlay.is-empty{color:var(--text-dim); opacity:0.55;}
+  .date-input-wrap input[type="date"]:focus + .date-overlay{display:none;}
   .field input:focus, .field textarea:focus, .field select:focus{
     border-color:var(--accent);
     background:var(--panel);
@@ -936,7 +953,9 @@
     max-height:600px;
   }
   @media (max-width:860px){
-    .chat-bg{max-height:420px;}
+    /* Fallback sebelum JS (syncPreviewHeight) sempet jalan & nyamain tinggi ini
+       ke section form input. min-height biar gak keliatan pendek pas render awal. */
+    .chat-bg{max-height:none;min-height:420px;}
   }
   .chat-header{
     background:var(--panel-2);
@@ -1103,11 +1122,17 @@
       <div class="row2">
         <div class="field">
           <label>Tgl Join<span class="required-star">*</span></label>
-          <input type="date" id="tglJoin">
+          <div class="date-input-wrap">
+            <input type="date" id="tglJoin">
+            <span class="date-overlay is-empty" id="tglJoinOverlay"></span>
+          </div>
         </div>
         <div class="field">
           <label>Rencana Onboarding<span class="required-star">*</span></label>
-          <input type="date" id="tglOnboarding" class="field-special">
+          <div class="date-input-wrap">
+            <input type="date" id="tglOnboarding" class="field-special">
+            <span class="date-overlay is-empty" id="tglOnboardingOverlay"></span>
+          </div>
           <div class="shift-row">
             <span class="shift-label" id="onbHint">tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini</span>
           </div>
@@ -1249,10 +1274,20 @@
             <option value="Belum">Belum</option>
           </select>
         </div>
-        <div class="field"><label>Tgl Join</label><input type="date" id="efTglJoin"></div>
+        <div class="field"><label>Tgl Join</label>
+          <div class="date-input-wrap">
+            <input type="date" id="efTglJoin">
+            <span class="date-overlay is-empty" id="efTglJoinOverlay"></span>
+          </div>
+        </div>
       </div>
       <div class="row2">
-        <div class="field"><label>Rencana Onboarding</label><input type="date" id="efTglOnboarding"></div>
+        <div class="field"><label>Rencana Onboarding</label>
+          <div class="date-input-wrap">
+            <input type="date" id="efTglOnboarding">
+            <span class="date-overlay is-empty" id="efTglOnboardingOverlay"></span>
+          </div>
+        </div>
       </div>
       <div class="edit-modal-actions">
         <button class="btn-save-edit" id="editModalSave">💾 Simpan</button>
@@ -1314,6 +1349,51 @@ function fmtShortID(dateStr){
   const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const hari = d.toLocaleDateString('id-ID', {weekday:'long'});
   return `${hari}, ${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ==== Overlay dd/mm/yyyy untuk input[type="date"] ====
+// Value asli input tetap format yyyy-MM-dd (dibutuhin HTML & backend), yang diubah
+// cuma TAMPILANNYA lewat span overlay di atasnya (lihat CSS .date-input-wrap).
+const HARI_PENDEK = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+function fmtDMY(yyyyMmDd){
+  if(!yyyyMmDd) return '';
+  const parts = String(yyyyMmDd).slice(0,10).split('-');
+  if(parts.length !== 3) return '';
+  const [y, m, d] = parts;
+  if(!y || !m || !d) return '';
+  const dateObj = new Date(`${y}-${m}-${d}T00:00:00`);
+  const hariLabel = isNaN(dateObj) ? '' : HARI_PENDEK[dateObj.getDay()] + ', ';
+  return `${hariLabel}${d}/${m}/${y}`;
+}
+
+function refreshDateOverlay(inputEl){
+  if(!inputEl) return;
+  const overlayEl = document.getElementById(inputEl.id + 'Overlay');
+  if(!overlayEl) return;
+  const formatted = fmtDMY(inputEl.value);
+  overlayEl.textContent = formatted || 'dd/mm/yyyy';
+  overlayEl.classList.toggle('is-empty', !formatted);
+}
+
+// Set value input date + langsung sinkronin overlay-nya. Pakai ini (bukan
+// `el.value = ...` langsung) tiap kali nge-set tanggal lewat JS, biar overlay-nya
+// gak ketinggalan/basi.
+function setDateInputValue(inputEl, value){
+  if(!inputEl) return;
+  inputEl.value = value || '';
+  refreshDateOverlay(inputEl);
+}
+
+function initDateOverlays(){
+  ['tglJoin', 'tglOnboarding', 'efTglJoin', 'efTglOnboarding'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    refreshDateOverlay(el);
+    // input date native gak selalu fire 'input' pas user pilih dari picker di semua
+    // browser -> dengerin dua-duanya biar overlay pasti update tiap perubahan manual.
+    el.addEventListener('input', () => refreshDateOverlay(el));
+    el.addEventListener('change', () => refreshDateOverlay(el));
+  });
 }
 
 function todayISO(){
@@ -1410,7 +1490,7 @@ function snapToTueFri(dateStr){
 
 function setDefaultOnboarding(){
   const todayStr = toDateStr(new Date());
-  tglOnboardingEl.value = snapToTueFri(todayStr);
+  setDateInputValue(tglOnboardingEl, snapToTueFri(todayStr));
   delete tglOnboardingEl.dataset.manual;
   onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini';
 }
@@ -1432,7 +1512,7 @@ tglOnboardingEl.addEventListener('change', () => {
   if(!tglOnboardingEl.value) return;
   const snapped = snapToTueFri(tglOnboardingEl.value);
   if(snapped !== tglOnboardingEl.value){
-    tglOnboardingEl.value = snapped;
+    setDateInputValue(tglOnboardingEl, snapped);
   }
   delete tglOnboardingEl.dataset.manual;
   onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini';
@@ -1441,7 +1521,7 @@ function shiftOnboarding(delta){
   if(!tglOnboardingEl.value) return;
   const d = new Date(tglOnboardingEl.value + 'T00:00:00');
   d.setDate(d.getDate()+delta);
-  tglOnboardingEl.value = toDateStr(d);
+  setDateInputValue(tglOnboardingEl, toDateStr(d));
   tglOnboardingEl.dataset.manual = '1';
   onbHintEl.textContent = 'digeser manual (cek hari libur)';
 }
@@ -1592,7 +1672,7 @@ function fillFormFromExtracted(data, resetOnboardingFlag){
   if(data.designation) designationEl.value = data.designation;
   if(data.atasan) atasanEl.value = data.atasan;
   if(data.tglJoin){
-    tglJoinEl.value = data.tglJoin;
+    setDateInputValue(tglJoinEl, data.tglJoin);
   }
   if(data.statusAktivasi === 'Sudah' || data.statusAktivasi === 'Belum'){
     statusAktivasiEl.value = data.statusAktivasi;
@@ -2205,8 +2285,8 @@ function openEditModal(c){
   efDesignationEl.value = c.designation || '';
   efAtasanEl.value = c.atasan || '';
   efStatusAktivasiEl.value = c.statusAktivasi || '';
-  efTglJoinEl.value = String(c.tglJoin || '').slice(0,10);
-  efTglOnboardingEl.value = String(c.tglOnboarding || '').slice(0,10);
+  setDateInputValue(efTglJoinEl, String(c.tglJoin || '').slice(0,10));
+  setDateInputValue(efTglOnboardingEl, String(c.tglOnboarding || '').slice(0,10));
   editModalSaveBtn.disabled = false;
   editModalSaveBtn.textContent = '💾 Simpan';
   editModalOverlayEl.classList.add('show');
@@ -3040,29 +3120,53 @@ document.getElementById('chartRefreshBtn').addEventListener('click', loadCandida
 // ==== Chart Sebaran Departemen ====
 let deptChart = null;
 
-// pecah label departemen jadi maksimal 2 baris biar gak kepotong di layar sempit (HP)
-function wrapDeptLabel(label, maxCharsPerLine){
+// pecah label departemen jadi maksimal 2 baris berdasarkan LEBAR PIXEL asli teksnya
+// (bukan tebak-tebakan jumlah karakter) -> hasil wrap konsisten walau ukuran font
+// atau lebar layar berubah-ubah, jadi gak ada teks yang kepotong.
+function wrapDeptLabelByWidth(ctx, label, maxWidthPx, font){
   if(!label) return [''];
-  if(label.length <= maxCharsPerLine) return [label];
+  ctx.save();
+  ctx.font = font;
+
+  if(ctx.measureText(label).width <= maxWidthPx){
+    ctx.restore();
+    return [label];
+  }
+
   const words = label.split(' ');
-  if(words.length === 1){
-    // satu kata panjang, potong paksa jadi 2 baris
-    return [label.slice(0, maxCharsPerLine), label.slice(maxCharsPerLine)];
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? current + ' ' + word : word;
+    if(ctx.measureText(test).width <= maxWidthPx){
+      current = test;
+    } else {
+      if(current) lines.push(current);
+      if(ctx.measureText(word).width > maxWidthPx){
+        // satu kata aja udah lebih lebar dari kolom -> potong paksa per huruf
+        let chopped = word;
+        while(chopped.length > 1 && ctx.measureText(chopped).width > maxWidthPx){
+          chopped = chopped.slice(0, -1);
+        }
+        current = chopped;
+      } else {
+        current = word;
+      }
+    }
+  });
+  if(current) lines.push(current);
+
+  if(lines.length > 2){
+    // gabung sisa baris ke baris ke-2, potong + kasih ellipsis biar tetap max 2 baris
+    let rest = lines.slice(1).join(' ');
+    while(rest.length > 1 && ctx.measureText(rest + '…').width > maxWidthPx){
+      rest = rest.slice(0, -1);
+    }
+    ctx.restore();
+    return [lines[0], rest + '…'];
   }
-  let line1 = '';
-  let i = 0;
-  for(; i < words.length; i++){
-    const test = line1 ? line1 + ' ' + words[i] : words[i];
-    if(test.length > maxCharsPerLine && line1) break;
-    line1 = test;
-  }
-  let line2 = words.slice(i).join(' ');
-  if(!line2) return [line1];
-  // kalau baris kedua masih kepanjangan, tambahin ellipsis
-  if(line2.length > maxCharsPerLine){
-    line2 = line2.slice(0, maxCharsPerLine - 1) + '…';
-  }
-  return [line1, line2];
+  ctx.restore();
+  return lines;
 }
 const DEPT_GRADIENTS = [
   ['#4d6bff','#8b5cf6'],
@@ -3083,13 +3187,14 @@ const deptCountPlugin = {
   afterDatasetsDraw(chart){
     if(chart.canvas.id !== 'deptChart') return;
     const { ctx } = chart;
+    const fontSize = chart.$countFontSize || 11.5;
     const meta = chart.getDatasetMeta(0);
     meta.data.forEach((bar, index) => {
       const value = chart.data.datasets[0].data[index];
       if(value == null) return;
       const { x, y } = bar.getProps(['x','y'], true);
       ctx.save();
-      ctx.font = '700 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
       ctx.fillStyle = '#1e2b32';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
@@ -3146,14 +3251,27 @@ function renderDeptChart(){
     return gradient;
   });
 
-  // makin sempit layar, makin pendek batas karakter per baris label
-  const isNarrow = window.innerWidth < 480;
-  const maxCharsPerLine = isNarrow ? 11 : (window.innerWidth < 700 ? 15 : 20);
-  const wrappedLabels = labels.map(l => wrapDeptLabel(l, maxCharsPerLine));
+  // Ukuran font & lebar kolom label ngikutin lebar KONTAINER ASLI (bukan window.innerWidth,
+  // yang suka meleset kalau layoutnya ada sidebar/kolom di laptop). Ini yang bikin
+  // hasilnya konsisten rapi baik di HP maupun laptop.
+  const containerWidth = canvas.parentElement.clientWidth || window.innerWidth;
+  const isNarrow = containerWidth < 420;
+  const isMedium = !isNarrow && containerWidth < 640;
+
+  const yFontSize = isNarrow ? 9.5 : (isMedium ? 10 : 11);
+  const xFontSize = isNarrow ? 9 : (isMedium ? 9.5 : 10.5);
+  const countFontSize = isNarrow ? 10 : (isMedium ? 10.5 : 11.5);
+  const yFont = `600 ${yFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+
+  // kolom label departemen dijatah maks ~40% lebar kontainer (biar bar tetap keliatan
+  // proporsional), dengan batas atas biar gak makan tempat berlebihan di layar lebar.
+  const labelBudgetPx = Math.max(70, Math.min(containerWidth * 0.4, isNarrow ? 120 : 180));
+
+  const wrappedLabels = labels.map(l => wrapDeptLabelByWidth(ctx2d, l, labelBudgetPx, yFont));
   const maxLines = Math.max(1, ...wrappedLabels.map(l => l.length));
 
-  // tinggi per baris kandidat disesuaikan kalau labelnya 2 baris
-  const rowHeight = maxLines > 1 ? 32 : 22;
+  // tinggi per baris kandidat disesuaikan kalau labelnya 2 baris & ukuran font
+  const rowHeight = (maxLines > 1 ? yFontSize * 2.9 : yFontSize * 2) + 8;
   const chartHeight = Math.max(180, labels.length * rowHeight);
   canvas.parentElement.style.height = chartHeight + 'px';
 
@@ -3168,7 +3286,7 @@ function renderDeptChart(){
         backgroundColor: barColors,
         borderRadius: 6,
         borderSkipped: false,
-        maxBarThickness: 14,
+        maxBarThickness: isNarrow ? 12 : 14,
         categoryPercentage: 0.9,
         barPercentage: 0.95
       }]
@@ -3177,7 +3295,7 @@ function renderDeptChart(){
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { right: 30 } },
+      layout: { padding: { right: isNarrow ? 26 : 34 } },
       animation: { duration: 700, easing: 'easeOutQuart' },
       onClick: (evt, elements) => {
         if(!elements.length) return;
@@ -3198,13 +3316,18 @@ function renderDeptChart(){
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 },
+          ticks: { color: '#64748b', font: { size: xFontSize }, precision: 0 },
           grid: { color: '#e5edf1' }
         },
         y: {
+          afterFit: (scale) => {
+            // kunci lebar kolom label ke jatah yang udah kita hitung + sedikit padding,
+            // biar bar-nya dapet ruang yang konsisten & gak "dimakan" label yang panjang.
+            scale.width = Math.min(scale.width, labelBudgetPx + 16);
+          },
           ticks: {
             color: '#334155',
-            font: { size: 11, weight: '600' },
+            font: { size: yFontSize, weight: '600' },
             callback: function(value){
               return wrappedLabels[value] || this.getLabelForValue(value);
             }
@@ -3214,6 +3337,7 @@ function renderDeptChart(){
       }
     }
   });
+  deptChart.$countFontSize = countFontSize;
 }
 
 function openDeptModal(dept, group){
@@ -3391,7 +3515,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       departemenEl.value = '';
       designationEl.value = '';
       atasanEl.value = '';
-      tglJoinEl.value = '';
+      setDateInputValue(tglJoinEl, '');
       statusAktivasiEl.value = '';
       maybeSetDefaultOnboarding();
       if(remaining > 0){
@@ -3407,7 +3531,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       departemenEl.value = '';
       designationEl.value = '';
       atasanEl.value = '';
-      tglJoinEl.value = '';
+      setDateInputValue(tglJoinEl, '');
       statusAktivasiEl.value = '';
       maybeSetDefaultOnboarding();
       uploadStatusEl.textContent = '';
@@ -3460,10 +3584,9 @@ function syncPreviewHeight(){
   const formPanel = document.getElementById('formPanel');
   const previewPanel = document.getElementById('previewPanel');
   if(!formPanel || !previewPanel) return;
-  if(window.innerWidth <= 860){
-    previewPanel.style.maxHeight = ''; // biarkan CSS mobile yang atur
-    return;
-  }
+  // Samain tinggi preview chat sama tinggi section form input, di semua ukuran
+  // layar (termasuk HP) -> sebelumnya di HP dipatok fix 420px lewat CSS, sekarang
+  // ngikutin tinggi form beneran biar gak keliatan pendek/kepotong.
   const h = formPanel.offsetHeight;
   if(h > 0){
     previewPanel.style.maxHeight = h + 'px';
@@ -3488,6 +3611,7 @@ if(window.ResizeObserver){
 syncPreviewHeight();
 
 initHeaderChip();
+initDateOverlays();
 setDefaultOnboarding();
 lastOnboardingPic = picNameEl.value.trim();
 loadCandidates();
