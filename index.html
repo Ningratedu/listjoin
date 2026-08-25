@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Info Karyawan Baru Join & Onboarding</title>
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Ningratedu/asset-foto/refs/heads/main/favicon.png">
+<!-- Set tema sepagi mungkin (sebelum CSS/body kerender) biar gak ada "kedipan" dari
+     terang ke gelap pas reload. Urutan: preferensi tersimpan -> preferensi sistem OS. -->
+<script>
+(function(){
+  try{
+    var saved = localStorage.getItem('ningrat_theme');
+    var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    if(theme === 'dark'){ document.documentElement.setAttribute('data-theme', 'dark'); }
+  }catch(e){ /* localStorage diblok -> default tema terang */ }
+})();
+</script>
 <!-- Perf: buka koneksi ke domain eksternal lebih awal, biar DNS/TLS gak nunggu pas resource-nya baru ke-discover -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,8 +23,12 @@
 <link rel="preconnect" href="https://script.google.com">
 <!-- Perf: header background adalah elemen paling gede di layar pertama (LCP), kasih tau browser ini prioritas tinggi -->
 <link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/Ningratedu/asset-foto@main/header-bg.webp">
+<!-- Perf: font di-load lewat <link> biasa (bukan @import di CSS), biar browser mulai fetch
+     font-nya paralel dari awal, bukan nunggu <style> di-parse dulu baru nemu @import-nya -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<!-- Perf: mulai download Chart.js paralel dari awal, biar udah siap pas dibutuhin buat render chart -->
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
   :root{
     --bg:#eef3f5;
     --panel:#ffffff;
@@ -32,18 +47,84 @@
     --purple:#8b5cf6;
     --shadow:0 10px 30px -12px rgba(30,43,50,0.12);
     --shadow-sm:0 4px 14px -6px rgba(30,43,50,0.10);
+    /* dulunya hex mentah dipake langsung di banyak tempat -> sekarang dijadiin
+       variable juga biar bisa ganti warna pas dark mode */
+    --notice-bg:#fdf3e0;
+    --notice-border:#f0dba8;
+    --notice-text:var(--text);
+    --danger-bg:#fdecea;
+    --danger-text:#a83226;
+    --success-bg:#eafaf3;
+    --input-bg:#ffffff;
+    --scrim:rgba(15,23,32,0.55);
+    --radial-1:rgba(23,185,120,0.10);
+    --radial-2:rgba(77,107,255,0.10);
+    color-scheme: light;
+  }
+  html[data-theme="dark"]{
+    --bg:#0f1621;
+    --panel:#161f2c;
+    --panel-2:#1b2634;
+    --bubble:#12291f;
+    --accent:#1fce93;
+    --accent-2:#26e0a0;
+    --text:#e8eef2;
+    --text-dim:#93a3ae;
+    --border:#2a3644;
+    --danger:#ef7a6d;
+    --warn:#e0ab4a;
+    --navy:#0a0e16;
+    --navy-2:#141b2e;
+    --blue:#7590ff;
+    --purple:#a58bfc;
+    --shadow:0 10px 30px -12px rgba(0,0,0,0.45);
+    --shadow-sm:0 4px 14px -6px rgba(0,0,0,0.4);
+    --notice-bg:#2e2716;
+    --notice-border:#4a3f22;
+    --notice-text:var(--text);
+    --danger-bg:#33201e;
+    --danger-text:#ff9086;
+    --success-bg:#123024;
+    --input-bg:#1b2634;
+    --scrim:rgba(0,0,0,0.65);
+    --radial-1:rgba(23,185,120,0.14);
+    --radial-2:rgba(77,107,255,0.14);
+    color-scheme: dark;
   }
   *{box-sizing:border-box;}
+  html{background:var(--bg);}
+  .theme-toggle-btn{
+    position:fixed;
+    top:16px; left:16px;
+    z-index:200;
+    width:40px; height:40px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--panel);
+    box-shadow:var(--shadow-sm);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    font-size:18px;
+    line-height:1;
+    padding:0;
+    transition:background .15s, transform .12s, border-color .15s;
+  }
+  .theme-toggle-btn:hover{transform:translateY(-1px); border-color:var(--accent);}
+  .theme-toggle-btn:active{transform:translateY(0) scale(0.94);}
+  @media (max-width:640px){
+    .theme-toggle-btn{top:10px; left:10px; width:36px; height:36px; font-size:16px;}
+  }
   body{
     margin:0;
     font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
     background:
-      radial-gradient(1000px 480px at 12% -8%, rgba(23,185,120,0.10), transparent 60%),
-      radial-gradient(900px 460px at 96% 0%, rgba(77,107,255,0.10), transparent 55%),
+      radial-gradient(1000px 480px at 12% -8%, var(--radial-1), transparent 60%),
+      radial-gradient(900px 460px at 96% 0%, var(--radial-2), transparent 55%),
       var(--bg);
     color:var(--text);
     min-height:100vh;
     padding:24px 16px 60px;
+    transition:background-color .2s ease, color .2s ease;
   }
   .wrap{max-width:1040px;margin:0 auto;}
   header{
@@ -167,8 +248,9 @@
   }
 
   .notice{
-    background:#fdf3e0;
-    border:1px solid #f0dba8;
+    background:var(--notice-bg);
+    border:1px solid var(--notice-border);
+    color:var(--notice-text);
     color:var(--warn);
     font-size:12px;
     padding:9px 12px;
@@ -326,7 +408,8 @@
     color:var(--text-dim);
     opacity:0.55;
   }
-  .field input[type="date"]{color-scheme:light;}
+  /* color-scheme date picker ikut tema aktif (diset di :root / html[data-theme="dark"]),
+     jadi gak perlu dipaksa "light" di sini lagi */
   /* Overlay dd/mm/yyyy: input date aslinya tetap dipakai (buat picker & value),
      tapi teksnya disembunyiin (color:transparent) dan diganti span overlay yang
      formatnya kita kontrol sendiri, biar konsisten dd/mm/yyyy di semua browser/OS. */
@@ -397,13 +480,13 @@
     cursor:pointer;
     transition:background .15s, transform .1s;
   }
-  .upload-btn:hover{background:#eafaf3;transform:translateY(-1px);}
+  .upload-btn:hover{background:var(--success-bg);transform:translateY(-1px);}
   .upload-btn:disabled{opacity:0.5;cursor:default;transform:none;}
   .upload-status{font-size:12px;color:var(--text-dim);}
   .debug-box{
-    background:#fdecea;
+    background:var(--danger-bg);
     border:1px solid var(--danger);
-    color:#a83226;
+    color:var(--danger-text);
     font-size:11px;
     line-height:1.5;
     padding:8px 10px;
@@ -440,7 +523,7 @@
   .extract-item:hover{border-color:var(--accent);}
   .extract-item.selected{
     border-color:var(--accent);
-    background:#eafaf3;
+    background:var(--success-bg);
     box-shadow:0 0 0 2px rgba(23,185,120,0.15);
   }
   .extract-item.submitted{
@@ -476,7 +559,7 @@
     cursor:pointer;
     transition:background .15s, color .15s, border-color .15s;
   }
-  .shift-btn:hover{color:var(--accent);border-color:var(--accent);background:#eafaf3;}
+  .shift-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--success-bg);}
   .shift-label{font-size:9.5px;color:var(--accent);}
 
   .submit-btn{
@@ -536,7 +619,7 @@
     cursor:pointer;
     transition:background .15s, color .15s, border-color .15s;
   }
-  .refresh-btn:hover{color:var(--accent);border-color:var(--accent);background:#eafaf3;}
+  .refresh-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--success-bg);}
 
   /* Filter global bulan — persis di bawah header, rata kanan. Pakai style yang
      sama kayak filter jadwal onboarding di preview chat biar konsisten. */
@@ -858,7 +941,7 @@
   }
   .th-filter-btn:hover{background:var(--panel);color:var(--accent);border-color:var(--border);}
   .th-filter-btn svg{width:11px;height:11px;display:block;}
-  .th-filter-btn.active-filter{color:var(--accent);background:#eafaf3;border-color:var(--accent);}
+  .th-filter-btn.active-filter{color:var(--accent);background:var(--success-bg);border-color:var(--accent);}
   .filter-dropdown{
     position:fixed;z-index:400;
     width:222px;max-height:320px;
@@ -1092,6 +1175,7 @@
 </style>
 </head>
 <body>
+<button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Ganti tema terang/gelap" aria-label="Ganti tema terang/gelap">🌙</button>
 <div class="wrap">
   <header>
     <div class="header-top-logo-wrap">
@@ -1785,7 +1869,7 @@ function showDebug(text, isErr=true){
   debugBoxEl.textContent = text;
   debugBoxEl.style.display = 'block';
   debugBoxEl.style.borderColor = isErr ? 'var(--danger)' : 'var(--accent)';
-  debugBoxEl.style.color = isErr ? '#a83226' : 'var(--text-dim)';
+  debugBoxEl.style.color = isErr ? 'var(--danger-text)' : 'var(--text-dim)';
 }
 function hideDebug(){
   debugBoxEl.style.display = 'none';
@@ -1875,6 +1959,10 @@ function renderLoadingState(){
 }
 
 const CANDIDATES_CACHE_KEY = 'ningrat_candidates_cache_v1';
+// Perf: nyimpen "fingerprint" (JSON string) dari data mentah terakhir yang dipakai
+// buat render. Kalau data baru dari server sama persis, kita skip applyCandidates()
+// biar gak destroy+rebuild chart, tabel, & card yang isinya sebenernya gak berubah.
+let lastCandidatesRawStr = null;
 
 function mapCandidateRows(rawRows){
   const items = (rawRows || []).map(row => ({
@@ -1937,6 +2025,7 @@ async function loadCandidates(){
   let hasCachedView = false;
   if(cachedRows){
     applyCandidates(mapCandidateRows(cachedRows));
+    lastCandidatesRawStr = JSON.stringify(cachedRows);
     hasCachedView = true;
   } else {
     renderLoadingState();
@@ -1949,7 +2038,15 @@ async function loadCandidates(){
     const json = await res.json();
     if(!json.success) throw new Error(json.error || 'unknown error');
     const rawRows = json.data || [];
-    applyCandidates(mapCandidateRows(rawRows));
+    const rawStr = JSON.stringify(rawRows);
+    // Perf: kalau data persis sama kayak yang lagi ketampil (baik dari cache
+    // ataupun dari load sebelumnya), skip render ulang -> gak ada chart yang
+    // di-destroy/dibikin ulang, gak ada tabel yang di-rebuild, dst. Cukup update
+    // cache-nya aja biar timestamp cache-nya fresh.
+    if(rawStr !== lastCandidatesRawStr){
+      applyCandidates(mapCandidateRows(rawRows));
+      lastCandidatesRawStr = rawStr;
+    }
     writeCandidatesCache(rawRows);
   }catch(e){
     if(!hasCachedView){
@@ -3058,6 +3155,13 @@ async function onDelete(e){
   }
 }
 
+// Ambil nilai CSS variable yang lagi aktif (ikut tema terang/gelap). Dipakai buat
+// Chart.js karena canvas butuh warna yang udah "resolved", gak bisa langsung
+// dikasih string 'var(--text)' begitu aja.
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 // ==== Chart Peta Sebaran Karyawan Baru ====
 let onboardingChart = null;
 const PIC_COLORS = ['#25d366','#00a884','#e0a53a','#5aa9e6','#e05a4e','#b388ff','#ffb74d','#4dd0e1','#f06292','#a1887f'];
@@ -3150,7 +3254,7 @@ function renderChart(){
       borderColor: color,
       borderWidth: 2,
       hoverBackgroundColor: color,
-      hoverBorderColor: '#1e2b32',
+      hoverBorderColor: cssVar('--text'),
       hoverBorderWidth: 2
     };
   });
@@ -3173,7 +3277,7 @@ function renderChart(){
       },
       plugins: {
         legend: {
-          labels: { color: '#334155', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 }
+          labels: { color: cssVar('--text'), font: { size: 11 }, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 }
         },
         tooltip: {
           callbacks: {
@@ -3187,16 +3291,16 @@ function renderChart(){
           type: 'category',
           labels: dateLabels,
           offset: true,
-          ticks: { color: '#64748b', font: { size: 10.5 } },
-          grid: { color: '#e5edf1' },
-          title: { display: true, text: 'Tanggal Onboarding (Minggu ke-)', color: '#64748b', font: { size: 11 } }
+          ticks: { color: cssVar('--text-dim'), font: { size: 10.5 } },
+          grid: { color: cssVar('--border') },
+          title: { display: true, text: 'Tanggal Onboarding (Minggu ke-)', color: cssVar('--text-dim'), font: { size: 11 } }
         },
         y: {
           type: 'category',
           labels: pics,
           offset: true,
-          ticks: { color: '#64748b', font: { size: 11 } },
-          grid: { color: '#e5edf1' }
+          ticks: { color: cssVar('--text-dim'), font: { size: 11 } },
+          grid: { color: cssVar('--border') }
         }
       }
     }
@@ -3352,7 +3456,7 @@ const deptCountPlugin = {
       const { x, y } = bar.getProps(['x','y'], true);
       ctx.save();
       ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-      ctx.fillStyle = '#1e2b32';
+      ctx.fillStyle = cssVar('--text');
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(value), x + 8, y);
@@ -3474,8 +3578,8 @@ function renderDeptChart(){
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { color: '#64748b', font: { size: xFontSize }, precision: 0 },
-          grid: { color: '#e5edf1' }
+          ticks: { color: cssVar('--text-dim'), font: { size: xFontSize }, precision: 0 },
+          grid: { color: cssVar('--border') }
         },
         y: {
           afterFit: (scale) => {
@@ -3484,7 +3588,7 @@ function renderDeptChart(){
             scale.width = Math.min(scale.width, labelBudgetPx + 16);
           },
           ticks: {
-            color: '#334155',
+            color: cssVar('--text'),
             font: { size: yFontSize, weight: '600' },
             callback: function(value){
               return wrappedLabels[value] || this.getLabelForValue(value);
@@ -3777,6 +3881,43 @@ if(window.ResizeObserver){
   }
 }
 syncPreviewHeight();
+
+// ==== Toggle tema terang/gelap ====
+const THEME_STORAGE_KEY = 'ningrat_theme';
+const themeToggleBtnEl = document.getElementById('themeToggleBtn');
+
+function getCurrentTheme(){
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function applyThemeButtonIcon(theme){
+  if(!themeToggleBtnEl) return;
+  themeToggleBtnEl.textContent = theme === 'dark' ? '☀️' : '🌙';
+  themeToggleBtnEl.title = theme === 'dark' ? 'Ganti ke tema terang' : 'Ganti ke tema gelap';
+}
+
+function setTheme(theme, persist){
+  if(theme === 'dark'){
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }else{
+    document.documentElement.removeAttribute('data-theme');
+  }
+  applyThemeButtonIcon(theme);
+  if(persist){
+    try{ localStorage.setItem(THEME_STORAGE_KEY, theme); }catch(e){ /* diem-diem aja */ }
+  }
+  // Chart.js gak otomatis re-theme warna teks/grid-nya sendiri -> render ulang
+  // chart yang lagi aktif biar kontras tetap kebaca di tema baru.
+  if(onboardingChart) renderChart();
+  if(deptChart) renderDeptChart();
+}
+
+if(themeToggleBtnEl){
+  applyThemeButtonIcon(getCurrentTheme());
+  themeToggleBtnEl.addEventListener('click', () => {
+    setTheme(getCurrentTheme() === 'dark' ? 'light' : 'dark', true);
+  });
+}
 
 initHeaderChip();
 populateGlobalMonthFilter();
