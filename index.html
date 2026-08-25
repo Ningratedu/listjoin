@@ -2832,6 +2832,7 @@ function openStatModal(title, bodyHtml, opts){
 function closeStatModal(){
   document.getElementById('statModalOverlay').classList.remove('show');
   destroyTotalBatchCharts();
+  lastTotalBatches = [];
 }
 document.getElementById('statModalClose').addEventListener('click', closeStatModal);
 document.getElementById('statModalOverlay').addEventListener('click', (e) => {
@@ -3972,10 +3973,25 @@ function openDeptModal(dept, group){
 // lihat detail kandidat), tapi di sini dipecah jadi satu chart kecil per batch
 // (jadwal onboarding), disusun kayak "week-group" biar konsisten sama popup lain.
 let totalBatchCharts = []; // simpen semua instance Chart biar bisa di-destroy pas modal ditutup/dirender ulang
+let lastTotalBatches = []; // simpen data batch terakhir buat re-render pas ganti tema (canvas-nya masih ada di DOM)
 
 function destroyTotalBatchCharts(){
   totalBatchCharts.forEach(ch => { try{ ch.destroy(); }catch(e){} });
   totalBatchCharts = [];
+}
+
+// Chart.js gak otomatis re-theme warna teks/grid-nya -> pas tema ganti, gambar ulang
+// tiap chart batch pake canvas yang sama (popup-nya masih kebuka), biar label departemen
+// tetap kebaca kontras di tema baru.
+function rerenderTotalBatchCharts(){
+  if(!lastTotalBatches.length) return;
+  destroyTotalBatchCharts();
+  lastTotalBatches.forEach(b => {
+    const canvas = document.getElementById(b.key);
+    if(!canvas) return;
+    const chart = buildBatchDeptChart(canvas, b.group, b.wk, b.date);
+    if(chart) totalBatchCharts.push(chart);
+  });
 }
 
 // bangun 1 chart dept-distribution buat 1 batch (dipakai berulang per jadwal onboarding)
@@ -4123,6 +4139,7 @@ function renderTotalKandidatByBatchHtml(list){
     </div>`;
   }
 
+  lastTotalBatches = batches;
   setTimeout(() => {
     batches.forEach(b => {
       const canvas = document.getElementById(b.key);
@@ -4445,6 +4462,7 @@ function setTheme(theme, persist){
   // chart yang lagi aktif biar kontras tetap kebaca di tema baru.
   if(onboardingChart) renderChart();
   if(deptChart) renderDeptChart();
+  if(totalBatchCharts.length) rerenderTotalBatchCharts();
 }
 
 if(themeToggleBtnEl){
