@@ -135,10 +135,30 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       var(--bg);
     color:var(--text);
     min-height:100vh;
-    padding:24px 16px 60px;
+    padding:24px 16px 26px;
     transition:background-color .2s ease, color .2s ease;
   }
   .wrap{max-width:1040px;margin:0 auto;}
+  .wrap > *:last-child{margin-bottom:0;}
+  /* Footer fixed di ujung bawah viewport -> beda sama footer biasa yang ikut
+     kescroll bareng konten, ini nempel terus di bottom layar. */
+  .site-footer{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    z-index:150;
+    background:var(--panel);
+    border-top:1px solid var(--border);
+    box-shadow:var(--shadow-sm);
+    padding:4px 16px;
+    text-align:center;
+    font-size:9.5px;
+    font-weight:600;
+    color:var(--text-dim);
+  }
+  .site-footer strong{color:var(--text);}
+  @media (max-width:640px){
+    .site-footer{font-size:9px;padding:4px 12px;}
+  }
   header{
     position:relative;
     display:flex;
@@ -1678,6 +1698,10 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 </div>
 
 <div class="toast" id="toast">Tersalin!</div>
+
+<footer class="site-footer">
+  <strong>Onboarding Tracker</strong> · Human Resource Development Trusmi Group
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
