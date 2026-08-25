@@ -469,13 +469,34 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   /* Sama kayak .field-special di form, tapi buat elemen di luar .field (misal filter
      jadwal onboarding di header preview chat) supaya konsisten gaya garis putus-putusnya. */
   select.field-special.onboarding-filter{
-    background:rgba(255,153,0,0.08);
+    background-color:rgba(255,153,0,0.08);
     border:1.5px dashed #ff9800;
+    color:var(--text);
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23e8eef2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 10px center;
+    background-size:12px;
+  }
+  html:not([data-theme="dark"]) select.field-special.onboarding-filter{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%232b3440' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
   }
   select.field-special.onboarding-filter:focus{
     border-color:#ff9800;
-    background:rgba(255,153,0,0.12);
+    background-color:rgba(255,153,0,0.12);
     box-shadow:0 0 0 3px rgba(255,153,0,0.16);
+  }
+  /* Dropdown list (elemen <option>) sengaja dikasih warna eksplisit yang solid
+     (bukan ngewarisin background transparan tipis punya <select>-nya), soalnya
+     browser Chromium suka nurunin background-color select ke popup listbox-nya
+     -> rgba tipis dirender solid di atas kanvas putih jadi keliatan krem, dan
+     teks terang di atasnya ilang. */
+  select.field-special.onboarding-filter option,
+  select.field-special.global-month-filter option{
+    background-color:var(--panel-2);
+    color:var(--text);
   }
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 
@@ -750,10 +771,24 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     border:1px solid var(--border);
     color:var(--text);
     border-radius:999px;
-    padding:6px 12px;
+    padding:6px 28px 6px 12px;
     font-size:11.5px;
     font-weight:600;
     cursor:pointer;
+    /* Reset native appearance -> tanpa ini, sebagian browser (terutama WebView/
+       Safari mobile) tetap render "chrome" select pakai warna sistem walau
+       background/color di-override, jadi teksnya nyaris ga kebaca pas dark mode
+       kecuali di-select manual. */
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23e8eef2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 10px center;
+    background-size:12px;
+  }
+  html:not([data-theme="dark"]) .onboarding-filter{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%232b3440' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
   }
   .refresh-btn{
     background:var(--panel-2);
@@ -776,18 +811,30 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     margin:0 0 18px;
   }
   select.field-special.global-month-filter{
-    background:rgba(255,153,0,0.08);
+    background-color:rgba(255,153,0,0.08);
     border:1.5px dashed #ff9800;
     color:var(--text);
     border-radius:999px;
-    padding:4px 10px;
+    padding:4px 26px 4px 10px;
     font-size:11px;
     font-weight:700;
     cursor:pointer;
+    /* sama kayak .onboarding-filter: reset native appearance biar warna teks
+       custom beneran kepake pas dark mode, bukan warna chrome bawaan browser. */
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23e8eef2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 8px center;
+    background-size:12px;
+  }
+  html:not([data-theme="dark"]) select.field-special.global-month-filter{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%232b3440' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
   }
   select.field-special.global-month-filter:focus{
     border-color:#ff9800;
-    background:rgba(255,153,0,0.12);
+    background-color:rgba(255,153,0,0.12);
     box-shadow:0 0 0 3px rgba(255,153,0,0.16);
   }
 
