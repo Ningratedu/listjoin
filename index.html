@@ -16,6 +16,18 @@
   }catch(e){ /* localStorage diblok -> default tema terang */ }
 })();
 </script>
+<!-- Perf: definisiin API_URL & langsung tembak fetch data SEDINI mungkin di sini,
+     paralel sama download font/Chart.js/gambar header di bawah -> gak nunggu semua itu
+     kelar dulu baru mulai request ke Apps Script. Request ke Apps Script sendiri punya
+     latency jaringan bawaan (redirect + handshake) yang gak bisa dihilangin, jadi paling
+     efektif adalah bikin dia mulai berjalan seawal mungkin, bukan di antrian paling belakang.
+     Hasilnya "dipungut" belakangan sama loadCandidates() pas DOM & Chart.js udah siap. -->
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbx2SUQr5jih5-Zd7-C9lrmWfBzc7WFxUG2V-AzvtGxtYyUbA2koxEPrjrgLz533XwgE/exec';
+window.__earlyListFetch = fetch(API_URL + '?action=list')
+  .then(res => res.json())
+  .catch(err => ({ success:false, error:String(err) }));
+</script>
 <!-- Perf: buka koneksi ke domain eksternal lebih awal, biar DNS/TLS gak nunggu pas resource-nya baru ke-discover -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -483,6 +495,95 @@
   .upload-btn:hover{background:var(--success-bg);transform:translateY(-1px);}
   .upload-btn:disabled{opacity:0.5;cursor:default;transform:none;}
   .upload-status{font-size:12px;color:var(--text-dim);}
+
+  /* ==== Efek "AI sedang membaca gambar" ==== */
+  .ai-scan-wrap{
+    position:relative;
+    margin-top:10px;
+    max-width:240px;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid var(--border);
+    box-shadow:var(--shadow-sm);
+    background:var(--panel-2);
+    opacity:0;
+    transform:translateY(-4px) scale(0.98);
+    transition:opacity .25s ease, transform .25s ease;
+    pointer-events:none;
+  }
+  .ai-scan-wrap.show{opacity:1; transform:translateY(0) scale(1); pointer-events:auto;}
+  .ai-scan-frame{position:relative; overflow:hidden; line-height:0;}
+  .ai-scan-img{display:block;width:100%;height:auto;max-height:220px;object-fit:cover;filter:saturate(0.9) brightness(0.9);}
+  /* tint ijo tipis + garis grid halus di atas gambar, biar berasa "vision mode" */
+  .ai-scan-frame::before{
+    content:'';
+    position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(0deg, rgba(23,185,120,0.08) 0px, rgba(23,185,120,0.08) 1px, transparent 1px, transparent 22px),
+      repeating-linear-gradient(90deg, rgba(23,185,120,0.08) 0px, rgba(23,185,120,0.08) 1px, transparent 1px, transparent 22px),
+      linear-gradient(180deg, rgba(23,185,120,0.10), rgba(77,107,255,0.06));
+    mix-blend-mode:screen;
+    opacity:0.7;
+    pointer-events:none;
+  }
+  /* garis laser yang nyapu bolak-balik dari atas ke bawah gambar */
+  .ai-scan-line{
+    position:absolute; left:0; right:0; top:0;
+    height:3px;
+    background:linear-gradient(90deg, transparent, var(--accent-2) 20%, #eafff5 50%, var(--accent-2) 80%, transparent);
+    box-shadow:0 0 8px 2px var(--accent-2), 0 0 18px 5px rgba(23,185,120,0.55);
+    animation:aiScanSweep 2.2s cubic-bezier(.45,0,.55,1) infinite;
+  }
+  @keyframes aiScanSweep{
+    0%{ top:0%; opacity:0; }
+    6%{ opacity:1; }
+    50%{ top:calc(100% - 3px); opacity:1; }
+    94%{ opacity:1; }
+    100%{ top:0%; opacity:0; }
+  }
+  /* corner brackets ala "target lock" biar makin berasa AI vision */
+  .ai-scan-frame .ai-scan-corner{
+    position:absolute; width:14px; height:14px;
+    border:2px solid var(--accent-2);
+    opacity:0.85;
+  }
+  .ai-scan-frame .ai-scan-corner.tl{top:6px; left:6px; border-right:none; border-bottom:none;}
+  .ai-scan-frame .ai-scan-corner.tr{top:6px; right:6px; border-left:none; border-bottom:none;}
+  .ai-scan-frame .ai-scan-corner.bl{bottom:6px; left:6px; border-right:none; border-top:none;}
+  .ai-scan-frame .ai-scan-corner.br{bottom:6px; right:6px; border-left:none; border-top:none;}
+  .ai-scan-label{
+    display:flex; align-items:center; gap:7px;
+    padding:8px 10px;
+    font-size:11.5px; font-weight:700;
+    background:var(--panel);
+    border-top:1px solid var(--border);
+  }
+  .ai-scan-dot{
+    flex-shrink:0;
+    width:7px; height:7px; border-radius:50%;
+    background:var(--accent-2);
+    animation:aiScanPulse 1.2s ease-out infinite;
+  }
+  @keyframes aiScanPulse{
+    0%{ box-shadow:0 0 0 0 rgba(23,185,120,0.55); }
+    70%{ box-shadow:0 0 0 8px rgba(23,185,120,0); }
+    100%{ box-shadow:0 0 0 0 rgba(23,185,120,0); }
+  }
+  .ai-scan-text{
+    background:linear-gradient(90deg, var(--text-dim) 0%, var(--text-dim) 35%, var(--accent) 50%, var(--text-dim) 65%, var(--text-dim) 100%);
+    background-size:220% auto;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:aiScanShimmer 1.8s linear infinite;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  @keyframes aiScanShimmer{
+    0%{ background-position:220% center; }
+    100%{ background-position:-220% center; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ai-scan-line, .ai-scan-dot, .ai-scan-text{animation:none;}
+  }
+
   .debug-box{
     background:var(--danger-bg);
     border:1px solid var(--danger);
@@ -1239,6 +1340,20 @@
           <span class="upload-status" id="uploadStatus"></span>
         </div>
         <div class="hint">Upload screenshot data kandidat (WA, Excel, HRIS, dll), field di bawah otomatis keisi. Cek & koreksi dulu sebelum submit.</div>
+        <div class="ai-scan-wrap" id="aiScanWrap" style="display:none;">
+          <div class="ai-scan-frame">
+            <img class="ai-scan-img" id="aiScanImg" alt="Preview screenshot yang lagi dibaca AI">
+            <div class="ai-scan-line"></div>
+            <div class="ai-scan-corner tl"></div>
+            <div class="ai-scan-corner tr"></div>
+            <div class="ai-scan-corner bl"></div>
+            <div class="ai-scan-corner br"></div>
+          </div>
+          <div class="ai-scan-label">
+            <span class="ai-scan-dot"></span>
+            <span class="ai-scan-text" id="aiScanText">AI scanning...</span>
+          </div>
+        </div>
         <div class="extract-list" id="extractList" style="display:none;"></div>
         <pre class="debug-box" id="debugBox" style="display:none;"></pre>
       </div>
@@ -1463,9 +1578,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
-// ==== GANTI INI dengan Web App URL dari Apps Script deployment kamu ====
-const API_URL = 'https://script.google.com/macros/s/AKfycbx2SUQr5jih5-Zd7-C9lrmWfBzc7WFxUG2V-AzvtGxtYyUbA2koxEPrjrgLz533XwgE/exec';
-// =========================================================================
+// API_URL udah didefinisiin sedini mungkin di <head> (biar fetch-nya bisa mulai duluan,
+// lihat komentar "Perf: definisiin API_URL & langsung tembak fetch..." di atas).
 // PENTING: fitur Edit & Verifikasi Kehadiran di popup detail memanggil
 // action: 'update' ke Apps Script backend, dan butuh kolom "kehadiran" di
 // Google Sheet. Pastikan backend Apps Script kamu sudah diupdate untuk
@@ -1489,6 +1603,9 @@ const globalMonthFilterEl = document.getElementById('globalMonthFilter');
 const screenshotInputEl = document.getElementById('screenshotInput');
 const uploadBtnEl = document.getElementById('uploadBtn');
 const uploadStatusEl = document.getElementById('uploadStatus');
+const aiScanWrapEl = document.getElementById('aiScanWrap');
+const aiScanImgEl = document.getElementById('aiScanImg');
+const aiScanTextEl = document.getElementById('aiScanText');
 const debugBoxEl = document.getElementById('debugBox');
 const extractListEl = document.getElementById('extractList');
 let extractedItems = []; // hasil baca AI dari screenshot terakhir
@@ -1752,6 +1869,48 @@ function fileToBase64(file){
   });
 }
 
+// ==== Efek "AI scanning" pas nunggu Gemini baca screenshot ====
+let aiScanObjectUrl = null;
+let aiScanTextTimer = null;
+const AI_SCAN_PHRASES = [
+  '🔎 AI scanning gambar...',
+  '🧠 Mengenali data kandidat...',
+  '✨ Menyusun hasil ekstraksi...'
+];
+
+function startAiScanEffect(file){
+  if(aiScanObjectUrl) URL.revokeObjectURL(aiScanObjectUrl);
+  aiScanObjectUrl = URL.createObjectURL(file);
+  aiScanImgEl.src = aiScanObjectUrl;
+
+  let phraseIdx = 0;
+  aiScanTextEl.textContent = AI_SCAN_PHRASES[0];
+  clearInterval(aiScanTextTimer);
+  aiScanTextTimer = setInterval(() => {
+    phraseIdx = (phraseIdx + 1) % AI_SCAN_PHRASES.length;
+    aiScanTextEl.textContent = AI_SCAN_PHRASES[phraseIdx];
+  }, 1600);
+
+  // trigger transition (butuh 1 frame delay biar class "show" ke-animate, bukan langsung muncul)
+  aiScanWrapEl.style.display = 'block';
+  requestAnimationFrame(() => aiScanWrapEl.classList.add('show'));
+}
+
+function stopAiScanEffect(){
+  clearInterval(aiScanTextTimer);
+  aiScanTextTimer = null;
+  aiScanWrapEl.classList.remove('show');
+  setTimeout(() => {
+    // baru bener2 disembunyiin & gambar preview-nya dilepas setelah animasi fade-out kelar,
+    // biar transition-nya keliatan mulus bukan ngilang tiba2
+    if(!aiScanWrapEl.classList.contains('show')){
+      aiScanWrapEl.style.display = 'none';
+      if(aiScanObjectUrl){ URL.revokeObjectURL(aiScanObjectUrl); aiScanObjectUrl = null; }
+      aiScanImgEl.src = '';
+    }
+  }, 260);
+}
+
 async function handleScreenshotUpload(e){
   const file = e.target.files[0];
   screenshotInputEl.value = ''; // reset supaya bisa upload file yg sama lagi
@@ -1761,7 +1920,8 @@ async function handleScreenshotUpload(e){
     return;
   }
   uploadBtnEl.disabled = true;
-  uploadStatusEl.textContent = '⏳ Membaca gambar...';
+  uploadStatusEl.textContent = '';
+  startAiScanEffect(file);
   hideDebug();
   let rawText = '';
   try{
@@ -1809,6 +1969,7 @@ async function handleScreenshotUpload(e){
     showDebug(err.message + (rawText ? '\n\n--- Raw response dari server ---\n' + rawText : '\n\n(Tidak ada respons dari server — cek koneksi / API_URL / CORS)'));
   }finally{
     uploadBtnEl.disabled = false;
+    stopAiScanEffect();
   }
 }
 
@@ -2034,8 +2195,17 @@ async function loadCandidates(){
   // 2) Fetch data terbaru dari server (di-cache 60 detik di sisi Apps Script juga,
   //    jadi request yang beruntun dalam 1 menit bakal jauh lebih cepat).
   try{
-    const res = await fetch(API_URL + '?action=list');
-    const json = await res.json();
+    let json;
+    if(window.__earlyListFetch){
+      // Perf: request ini udah ditembak sedini mungkin dari <head>, paralel sama
+      // download font/Chart.js/gambar -> tinggal "dipungut" hasilnya di sini,
+      // gak perlu nunggu network round-trip baru lagi dari titik ini.
+      json = await window.__earlyListFetch;
+      window.__earlyListFetch = null; // cuma dipake sekali; load berikutnya (refresh manual, dst) fetch fresh
+    } else {
+      const res = await fetch(API_URL + '?action=list');
+      json = await res.json();
+    }
     if(!json.success) throw new Error(json.error || 'unknown error');
     const rawRows = json.data || [];
     const rawStr = JSON.stringify(rawRows);
