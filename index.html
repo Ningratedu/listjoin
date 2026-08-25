@@ -66,6 +66,7 @@
     right:20px;
     z-index:1;
   }
+  header .brand-spacer{display:none;}
   header .header-logos{
     position:absolute;
     right:20px;
@@ -93,6 +94,8 @@
   @media (max-width:520px){
     header .header-top-logo-wrap{width:71px;height:22px;top:12px;right:14px;}
     header .header-top-logo{top:-28px;left:-6px;width:84px;height:84px;}
+    header h1{white-space:nowrap;}
+    header p{white-space:nowrap;}
   }
   header h1{color:#fff;}
   header p{color:rgba(255,255,255,0.85) !important;}
@@ -185,6 +188,18 @@
   }
   @media (max-width:520px){
     .stats-row{grid-template-columns:1fr;}
+    header h1{font-size:14px;}
+    header p{font-size:9.5px;}
+    header .brand{left:50%;right:auto;transform:translateX(-50%);max-width:calc(100% - 40px);width:max-content;}
+    header .brand-spacer{display:block;width:34px;flex-shrink:0;}
+  }
+  @media (max-width:430px){
+    header h1{font-size:13px;}
+    header p{font-size:8.5px;}
+  }
+  @media (max-width:360px){
+    header h1{font-size:11px;}
+    header p{font-size:7px;}
   }
   .stat-tile{
     display:flex;
@@ -1105,6 +1120,7 @@
         <h1>Info Karyawan Baru Join &amp; Onboarding</h1>
         <p id="headerPeriodLabel">Human Resource Development Trusmi Group Periode Memuat...</p>
       </div>
+      <div class="brand-spacer" aria-hidden="true"></div>
     </div>
     <div class="header-logos">
 
