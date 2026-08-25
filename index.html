@@ -965,6 +965,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .status-hadir{background:rgba(37,211,102,0.15);color:var(--accent-2);}
   .status-tidak-hadir{background:rgba(224,90,78,0.15);color:var(--danger);}
   .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
+  .onboarding-status-btn{
+    display:inline-flex;align-items:center;gap:5px;
+    border:none;cursor:pointer;padding:0;background:none;
+    font-family:inherit;
+  }
+  .onboarding-status-btn .status-badge{transition:filter .15s;}
+  .onboarding-status-btn:hover .status-badge{filter:brightness(1.12);}
   .status-warn{background:rgba(201,134,28,0.15);color:var(--warn);}
   .badge-row{display:flex;flex-wrap:wrap;gap:6px;}
   .cand-card .info{min-width:0;flex:1;}
@@ -1087,6 +1094,32 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     border-radius:999px;
     padding:3px 7px;margin-bottom:14px;
   }
+
+  /* search box tabel detail kandidat */
+  .table-search-wrap{
+    position:relative;display:flex;align-items:center;
+    margin-bottom:12px;
+  }
+  .table-search-icon{
+    position:absolute;left:11px;width:14px;height:14px;
+    color:var(--text-dim);pointer-events:none;
+  }
+  .table-search-input{
+    width:100%;padding:9px 32px 9px 32px;
+    border:1px solid var(--border);border-radius:9px;
+    background:var(--panel-2);color:var(--text);
+    font-size:12.5px;font-family:inherit;
+    transition:border-color .15s;
+  }
+  .table-search-input::placeholder{color:var(--text-dim);}
+  .table-search-input:focus{outline:none;border-color:var(--accent);}
+  .table-search-clear{
+    position:absolute;right:8px;
+    background:none;border:none;cursor:pointer;
+    color:var(--text-dim);font-size:11px;padding:4px 5px;
+    line-height:1;border-radius:999px;
+  }
+  .table-search-clear:hover{color:var(--danger);}
 
   /* detail table */
   .table-scroll{
@@ -1612,6 +1645,11 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       </div>
     </h2>
     <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
+    <div class="table-search-wrap">
+      <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input type="text" id="tableSearchInput" class="table-search-input" placeholder="Cari nama, PIC, departemen, designation, atasan, atau no HP...">
+      <button type="button" id="tableSearchClearBtn" class="table-search-clear" style="display:none;" title="Hapus pencarian">✕</button>
+    </div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
     <div class="table-scroll" id="tableScrollWrap">
       <table class="cand-table">
@@ -2985,6 +3023,28 @@ onboardingFilterEl.addEventListener('change', () => {
   renderPreview();
 });
 
+let tableSearchQuery = ''; // teks pencarian bebas di tabel detail kandidat (nama, PIC, departemen, designation, atasan, no HP)
+
+// ---- Search box tabel detail kandidat ----
+const tableSearchInputEl = document.getElementById('tableSearchInput');
+const tableSearchClearBtnEl = document.getElementById('tableSearchClearBtn');
+if(tableSearchInputEl){
+  tableSearchInputEl.addEventListener('input', (e) => {
+    tableSearchQuery = e.currentTarget.value;
+    if(tableSearchClearBtnEl) tableSearchClearBtnEl.style.display = tableSearchQuery ? 'inline-flex' : 'none';
+    renderTable();
+  });
+}
+if(tableSearchClearBtnEl){
+  tableSearchClearBtnEl.addEventListener('click', () => {
+    tableSearchQuery = '';
+    if(tableSearchInputEl) tableSearchInputEl.value = '';
+    tableSearchClearBtnEl.style.display = 'none';
+    renderTable();
+    if(tableSearchInputEl) tableSearchInputEl.focus();
+  });
+}
+
 let editingCandId = null;
 let editingCandOriginal = null;
 let pendingKehadiran = {}; // { id: value } perubahan kehadiran yang belum disimpan ke server
@@ -2993,6 +3053,12 @@ let columnFilters = {}; // { columnKey: [selectedValue, ...] } filter multi-pili
 
 function effectiveKehadiran(c){
   return pendingKehadiran[c._id] !== undefined ? pendingKehadiran[c._id] : (c.kehadiran || '');
+}
+
+// DUMMY sementara: status onboarding diturunin dari kehadiran (Hadir -> Completed,
+// selain itu -> Not Started). Ganti ke data journey onboarding beneran kalau fiturnya udah jadi.
+function dummyOnboardingStatus(c){
+  return effectiveKehadiran(c) === 'Hadir' ? 'Completed' : 'Not Started';
 }
 
 // Definisi tiap kolom tabel: dipakai bareng buat render header, sort, dan filter
@@ -3036,6 +3102,12 @@ const TABLE_COLUMNS = [
     sortValue: c => effectiveKehadiran(c).toLowerCase(),
     filterValue: c => effectiveKehadiran(c),
     filterLabel: v => v === 'Hadir' ? '✅ Hadir' : v === 'Tidak Hadir' ? '❌ Tidak Hadir' : '⏳ Belum' },
+  { key:'onboardingStatus', label:'Status Onboarding', sortable:true, filterable:true,
+    // NOTE: masih data dummy sementara -> diturunin dari kehadiran (Hadir = Completed,
+    // selain itu = Not Started). Nanti diganti pas journey onboarding beneran udah ada.
+    sortValue: c => dummyOnboardingStatus(c),
+    filterValue: c => dummyOnboardingStatus(c),
+    filterLabel: v => v === 'Completed' ? '✅ Completed' : '⏳ Not Started' },
   { key:'aksi', label:'Aksi', sortable:false, filterable:false }
 ];
 
@@ -3251,6 +3323,14 @@ function getTableCandidates(){
       return filterVal.includes(String(col.filterValue(c)));
     });
   });
+  const q = tableSearchQuery.trim().toLowerCase();
+  if(q){
+    list = list.filter(c => {
+      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp]
+        .filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }
   if(sortState.column){
     const col = TABLE_COLUMNS.find(c => c.key === sortState.column);
     if(col && col.sortValue){
@@ -3307,6 +3387,7 @@ async function handleSaveKehadiranClick(){
 function renderCandRow(c, rowNumber){
   const kehadiran = effectiveKehadiran(c);
   const isDirty = pendingKehadiran[c._id] !== undefined;
+  const onbStatus = dummyOnboardingStatus(c);
   return `
     <tr>
       <td class="row-number">${rowNumber}</td>
@@ -3328,6 +3409,13 @@ function renderCandRow(c, rowNumber){
             <option value="Tidak Hadir" ${kehadiran==='Tidak Hadir'?'selected':''}>❌ Tidak Hadir</option>
           </select>
         </div>
+      </td>
+      <td>
+        <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey onboarding">
+          ${onbStatus==='Completed'
+            ? `<span class="status-badge status-sudah">✅ Completed</span>`
+            : `<span class="status-badge status-belum-verif">⏳ Not Started</span>`}
+        </button>
       </td>
       <td>
         <div class="table-actions-cell">
@@ -3398,7 +3486,9 @@ function renderTable(){
 
   const view = getTableCandidates();
   if(view.length === 0){
-    emptyEl.textContent = `Tidak ada kandidat yang cocok dengan filter di atas untuk bulan ${currentMonthLabel()}.`;
+    emptyEl.textContent = tableSearchQuery.trim()
+      ? `Tidak ada kandidat yang cocok dengan pencarian "${tableSearchQuery.trim()}".`
+      : `Tidak ada kandidat yang cocok dengan filter di atas untuk bulan ${currentMonthLabel()}.`;
     emptyEl.style.display = 'block';
     wrapEl.style.display = 'none';
     tbodyEl.innerHTML = '';
@@ -3434,6 +3524,14 @@ function bindTableEvents(){
       const id = e.currentTarget.dataset.id;
       const c = candidates.find(x => x._id === id);
       if(c) sendOnboardingReminder(c);
+    });
+  });
+
+  tbodyEl.querySelectorAll('.onboarding-status-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const c = candidates.find(x => x._id === id);
+      if(c) openOnboardingJourneyModal(c);
     });
   });
 
@@ -4150,6 +4248,22 @@ function renderTotalKandidatByBatchHtml(list){
   }, 0);
 
   return html;
+}
+
+// Popup detail journey onboarding per kandidat (diklik dari badge kolom "Status Onboarding").
+// Masih placeholder -> fitur journey onboarding beneran (timeline tahapan, dsb) belum dibangun.
+function openOnboardingJourneyModal(c){
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  modalTitleEl.textContent = `🧭 Journey Onboarding — ${c.nama || '(nama belum diisi)'}`;
+
+  modalBodyEl.innerHTML = `
+    <div class="empty-state" style="padding:28px 16px;">
+      🚧 <b>Fitur ini masih dalam proses development.</b><br>
+      Detail journey onboarding (timeline tahapan onboarding kandidat) bakal muncul di sini.
+    </div>`;
+
+  document.getElementById('chartModalOverlay').classList.add('show');
 }
 
 function openBatchDeptModal(dept, date, wk, group){
