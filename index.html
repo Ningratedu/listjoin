@@ -1261,6 +1261,10 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     transition:opacity .2s;
   }
   .modal-overlay.show{opacity:1;pointer-events:auto;}
+  /* chartModalOverlay dipakai buat detail dept yang bisa dibuka dari DALAM popup lain
+     (misal dari popup "Total Kandidat"), jadi z-index-nya harus lebih tinggi biar
+     selalu nongol DI ATAS modal apapun yang lagi kebuka, bukan di bawahnya. */
+  #chartModalOverlay{z-index:110;}
   .modal-panel{
     background:var(--panel);border:1px solid var(--border);border-radius:14px;
     width:100%;max-width:460px;max-height:80vh;
@@ -2827,6 +2831,7 @@ function openStatModal(title, bodyHtml, opts){
 }
 function closeStatModal(){
   document.getElementById('statModalOverlay').classList.remove('show');
+  destroyTotalBatchCharts();
 }
 document.getElementById('statModalClose').addEventListener('click', closeStatModal);
 document.getElementById('statModalOverlay').addEventListener('click', (e) => {
@@ -2931,7 +2936,7 @@ function bindStatTileEvents(){
     el.addEventListener('click', () => {
       const type = el.dataset.stat;
       if(type === 'total'){
-        openStatModal(`Kandidat Join ${currentMonthLabel()} (${statDetailsCache.total.length})`, renderPicBreakdownByWeekHtml(statDetailsCache.total), {icon:'📋', accent:'total'});
+        openStatModal(`Kandidat Join ${currentMonthLabel()} (${statDetailsCache.total.length})`, renderTotalKandidatByBatchHtml(statDetailsCache.total), {icon:'📋', accent:'total'});
       }else if(type === 'pic'){
         openStatModal(`PIC Aktif — ${currentMonthLabel()} (${statDetailsCache.picList.length})`, renderTotalPicSummaryHtml(statDetailsCache.picList), {icon:'👥', accent:'pic'});
       }else if(type === 'onboarding'){
@@ -3777,7 +3782,8 @@ const DEPT_GRADIENTS = [
 const deptCountPlugin = {
   id: 'deptCountLabel',
   afterDatasetsDraw(chart){
-    if(chart.canvas.id !== 'deptChart') return;
+    const cid = chart.canvas.id || '';
+    if(cid !== 'deptChart' && !cid.startsWith('batchDeptChart-')) return;
     const { ctx } = chart;
     const fontSize = chart.$countFontSize || 11.5;
     const meta = chart.getDatasetMeta(0);
@@ -3941,6 +3947,204 @@ function openDeptModal(dept, group){
   let html = `<div class="week-group">
     <div class="week-header">
       <span class="week-pill">🏢 ${escapeHtml(dept)}</span>
+      <span class="week-count">${group.length} kandidat</span>
+    </div>`;
+  group.forEach(c => {
+    html += `
+      <div class="cand-card dept-mini-card">
+        <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
+        <div class="dept-mini-role">${escapeHtml(c.designation || '(designation belum diisi)')}</div>
+        <div class="dept-mini-row">
+          <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+          <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
+        </div>
+        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>
+      </div>`;
+  });
+  html += `</div>`;
+  modalBodyEl.innerHTML = html;
+
+  document.getElementById('chartModalOverlay').classList.add('show');
+}
+
+// ==== Popup "Total Kandidat" -> Sebaran Departemen PER BATCH ONBOARDING ====
+// Konsepnya sama kayak chart "Sebaran Departemen" utama (bar horizontal, klik buat
+// lihat detail kandidat), tapi di sini dipecah jadi satu chart kecil per batch
+// (jadwal onboarding), disusun kayak "week-group" biar konsisten sama popup lain.
+let totalBatchCharts = []; // simpen semua instance Chart biar bisa di-destroy pas modal ditutup/dirender ulang
+
+function destroyTotalBatchCharts(){
+  totalBatchCharts.forEach(ch => { try{ ch.destroy(); }catch(e){} });
+  totalBatchCharts = [];
+}
+
+// bangun 1 chart dept-distribution buat 1 batch (dipakai berulang per jadwal onboarding)
+function buildBatchDeptChart(canvas, group, wk, date){
+  const deptMap = {};
+  group.forEach(c => {
+    const d = (c.departemen || '').trim() || '(Belum diisi)';
+    if(!deptMap[d]) deptMap[d] = [];
+    deptMap[d].push(c);
+  });
+  const entries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
+  if(entries.length === 0) return null;
+
+  const labels = entries.map(e => e[0]);
+  const data = entries.map(e => e[1].length);
+  const groups = entries.map(e => e[1]);
+
+  const ctx2d = canvas.getContext('2d');
+  const barColors = labels.map((_, idx) => {
+    const [c1, c2] = DEPT_GRADIENTS[idx % DEPT_GRADIENTS.length];
+    const gradient = ctx2d.createLinearGradient(0, 0, canvas.width || 500, 0);
+    gradient.addColorStop(0, c1);
+    gradient.addColorStop(1, c2);
+    return gradient;
+  });
+
+  const containerWidth = canvas.parentElement.clientWidth || window.innerWidth;
+  const isNarrow = containerWidth < 420;
+  const isMedium = !isNarrow && containerWidth < 640;
+
+  const yFontSize = isNarrow ? 9.5 : (isMedium ? 10 : 11);
+  const xFontSize = isNarrow ? 9 : (isMedium ? 9.5 : 10.5);
+  const countFontSize = isNarrow ? 10 : (isMedium ? 10.5 : 11.5);
+  const yFont = `600 ${yFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+
+  const labelBudgetPx = Math.max(70, Math.min(containerWidth * 0.4, isNarrow ? 110 : 170));
+  const wrappedLabels = labels.map(l => wrapDeptLabelByWidth(ctx2d, l, labelBudgetPx, yFont));
+  const maxLines = Math.max(1, ...wrappedLabels.map(l => l.length));
+
+  const rowHeight = (maxLines > 1 ? yFontSize * 2.9 : yFontSize * 2) + 8;
+  const chartHeight = Math.max(120, labels.length * rowHeight);
+  canvas.parentElement.style.height = chartHeight + 'px';
+
+  const chart = new Chart(ctx2d, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Jumlah Kandidat',
+        data,
+        backgroundColor: barColors,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: isNarrow ? 12 : 14,
+        categoryPercentage: 0.9,
+        barPercentage: 0.95
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: isNarrow ? 24 : 32 } },
+      animation: { duration: 500, easing: 'easeOutQuart' },
+      onClick: (evt, elements) => {
+        if(!elements.length) return;
+        const idx = elements[0].index;
+        openBatchDeptModal(labels[idx], date, wk, groups[idx]);
+      },
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.raw} kandidat · klik untuk detail` } }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color: cssVar('--text-dim'), font: { size: xFontSize }, precision: 0 },
+          grid: { color: cssVar('--border') }
+        },
+        y: {
+          afterFit: (scale) => { scale.width = Math.min(scale.width, labelBudgetPx + 16); },
+          ticks: {
+            color: cssVar('--text'),
+            font: { size: yFontSize, weight: '600' },
+            callback: function(value){ return wrappedLabels[value] || this.getLabelForValue(value); }
+          },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+  chart.$countFontSize = countFontSize;
+  return chart;
+}
+
+// susun markup per batch (jadwal onboarding) + placeholder canvas, chart-nya baru
+// digambar abis HTML ke-attach ke DOM (butuh lebar asli container buat wrap label & gradient)
+function renderTotalKandidatByBatchHtml(list){
+  destroyTotalBatchCharts();
+  if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
+
+  const withDate = list.filter(c => c.tglOnboarding);
+  const withoutDate = list.filter(c => !c.tglOnboarding);
+  const dates = Array.from(new Set(withDate.map(c => c.tglOnboarding))).sort();
+
+  const batches = []; // {key, date, wk, group}
+  let html = '';
+
+  dates.forEach((date, idx) => {
+    const dayCandidates = withDate.filter(c => c.tglOnboarding === date);
+    const wk = onboardingWeekNumber(date);
+    const key = `batchDeptChart-${idx}`;
+    batches.push({ key, date, wk, group: dayCandidates });
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">📅 Minggu ke-${wk}</span>
+        <span class="week-date">${escapeHtml(fmtShortID(date))}</span>
+        <span class="week-count">${dayCandidates.length} kandidat</span>
+      </div>
+      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+      <div style="position:relative;">
+        <canvas id="${key}"></canvas>
+      </div>
+    </div>`;
+  });
+
+  if(withoutDate.length){
+    const key = `batchDeptChart-${dates.length}`;
+    batches.push({ key, date: null, wk: null, group: withoutDate });
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">📅 Minggu ke-?</span>
+        <span class="week-date">Tgl onboarding belum diisi</span>
+        <span class="week-count">${withoutDate.length} kandidat</span>
+      </div>
+      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+      <div style="position:relative;">
+        <canvas id="${key}"></canvas>
+      </div>
+    </div>`;
+  }
+
+  setTimeout(() => {
+    batches.forEach(b => {
+      const canvas = document.getElementById(b.key);
+      if(!canvas) return;
+      const chart = buildBatchDeptChart(canvas, b.group, b.wk, b.date);
+      if(chart) totalBatchCharts.push(chart);
+    });
+  }, 0);
+
+  return html;
+}
+
+function openBatchDeptModal(dept, date, wk, group){
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl onboarding belum diisi';
+  modalTitleEl.textContent = `🏢 ${dept}`;
+
+  let html = `<div class="week-group">
+    <div class="week-header">
+      <span class="week-pill">🏢 ${escapeHtml(dept)}</span>
+      <span class="week-date">${escapeHtml(batchLabel)}</span>
       <span class="week-count">${group.length} kandidat</span>
     </div>`;
   group.forEach(c => {
