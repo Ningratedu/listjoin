@@ -272,6 +272,7 @@
     justify-content:space-between;
   }
   .panel h2 .h2-title{display:flex;align-items:center;gap:8px;}
+  .chat-header h2 .h2-title{display:flex;align-items:center;gap:8px;}
   .h2-icon{
     width:26px;height:26px;border-radius:8px;
     background:rgba(23,185,120,0.12);color:var(--accent);
@@ -515,6 +516,29 @@
   }
   .refresh-btn:hover{color:var(--accent);border-color:var(--accent);background:#eafaf3;}
 
+  /* Filter global bulan — persis di bawah header, rata kanan. Pakai style yang
+     sama kayak filter jadwal onboarding di preview chat biar konsisten. */
+  .global-filter-row{
+    display:flex;
+    justify-content:flex-end;
+    margin:0 0 18px;
+  }
+  select.field-special.global-month-filter{
+    background:rgba(255,153,0,0.08);
+    border:1.5px dashed #ff9800;
+    color:var(--text);
+    border-radius:999px;
+    padding:4px 10px;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  select.field-special.global-month-filter:focus{
+    border-color:#ff9800;
+    background:rgba(255,153,0,0.12);
+    box-shadow:0 0 0 3px rgba(255,153,0,0.16);
+  }
+
   .week-group{
     margin-bottom:14px;background:var(--panel);border:1px solid var(--border);
     border-radius:14px;padding:14px;box-shadow:var(--shadow-sm);
@@ -544,6 +568,16 @@
   .pic-title-text::before{content:'👤';font-size:10px;}
   .pic-title-pct{font-size:10.5px;font-weight:800;color:var(--accent);flex-shrink:0;}
   .pic-title-bar-wrap{margin-bottom:12px;}
+
+  /* mini donut chart - dipakai buat semua nilai persen di dalam popup card */
+  .mini-donut{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:0;}
+  .mini-donut svg{display:block;}
+  .mini-donut .donut-track{fill:none;stroke:var(--border);}
+  .mini-donut .donut-progress{fill:none;stroke-linecap:round;transition:stroke-dashoffset .5s ease;}
+  .mini-donut .donut-value{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-weight:800;line-height:1;color:var(--text);white-space:nowrap;
+  }
 
   .cand-card{
     background:var(--panel-2);
@@ -727,12 +761,12 @@
   }
   .chart-sub{font-size:11.5px;color:var(--text-dim);font-weight:500;}
   .chart-hint{
-    display:inline-flex;align-items:center;gap:6px;
-    font-size:11.5px;font-weight:600;color:var(--accent);
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:9px;font-weight:600;color:var(--accent);
     background:rgba(23,185,120,0.08);
     border:1px solid rgba(23,185,120,0.25);
     border-radius:999px;
-    padding:6px 12px;margin-bottom:14px;
+    padding:3px 7px;margin-bottom:14px;
   }
 
   /* detail table */
@@ -746,8 +780,19 @@
   .cand-table{
     width:100%;
     border-collapse:collapse;
-    font-size:11.5px;
-    min-width:1060px;
+    font-size:10.3px;
+    min-width:1090px;
+  }
+  .cand-table th.col-nomor{
+    width:36px;
+    max-width:36px;
+  }
+  .cand-table td.row-number{
+    width:36px;
+    max-width:36px;
+    text-align:center;
+    color:var(--text-dim);
+    font-weight:700;
   }
   .week-chip{
     display:inline-block;background:var(--navy-2);color:#fff;
@@ -760,24 +805,25 @@
     z-index:3;
     background:var(--panel-2);
     color:var(--text-dim);
-    font-size:11px;
+    font-size:9.8px;
     font-weight:700;
     text-transform:uppercase;
     letter-spacing:0.3px;
     text-align:left;
-    padding:9px 10px;
+    padding:8px 9px;
     white-space:nowrap;
     border-bottom:1px solid var(--border);
     box-shadow:0 1px 0 var(--border);
     vertical-align:top;
   }
   .th-head{display:flex;align-items:center;justify-content:space-between;gap:6px;}
-  .th-head-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+  .th-head-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;min-height:21px;}
   .th-sort{
     display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;
     padding:2px 0;border-radius:4px;transition:color .15s;
     min-width:0;
   }
+  .th-label{display:flex;align-items:center;padding:2px 0;min-width:0;}
   .th-sort:hover{color:var(--accent);}
   .th-sort .sort-arrow{font-size:9px;opacity:0.35;flex-shrink:0;}
   .th-sort.active .sort-arrow{opacity:1;color:var(--accent);}
@@ -849,7 +895,7 @@
   }
   .verify-select.dirty{border-color:var(--warn);box-shadow:0 0 0 2px rgba(201,134,28,0.18);}
   .cand-table tbody td{
-    padding:10px 12px;
+    padding:8px 10px;
     border-bottom:1px solid var(--border);
     vertical-align:top;
     white-space:nowrap;
@@ -857,7 +903,8 @@
   .cand-table tbody tr:last-child td{border-bottom:none;}
   .cand-table tbody tr:hover{background:var(--panel-2);}
   .cand-table td.wrap{white-space:normal;}
-  .cand-table th:first-child, .cand-table td:first-child{min-width:170px;}
+  /* Nama sekarang kolom ke-2 (kolom ke-1 udah dipakai "No") -> min-width dipindah ke sini */
+  .cand-table th:nth-child(2), .cand-table td:nth-child(2){min-width:170px;}
   .table-actions-cell{display:flex;gap:8px;align-items:center;}
   .wa-remind-btn{
     display:inline-flex;align-items:center;justify-content:center;
@@ -871,7 +918,7 @@
   .table-actions-cell .edit,
   .table-actions-cell .del{
     border:none;border-radius:6px;padding:4px 8px;
-    font-size:10.5px;font-weight:600;font-family:inherit;
+    font-size:9.5px;font-weight:600;font-family:inherit;
     cursor:pointer;white-space:nowrap;line-height:1.3;
     transition:transform .12s, opacity .12s;
   }
@@ -879,6 +926,11 @@
   .table-actions-cell .edit:hover{background:rgba(77,107,255,0.2);}
   .table-actions-cell .del{background:rgba(224,87,74,0.12);color:var(--danger);}
   .table-actions-cell .del:hover{background:rgba(224,87,74,0.2);}
+  /* Isi tabel (badge, chip, dropdown kehadiran) di-scope khusus .cand-table biar
+     tampilan kartu kandidat di HP (di luar tabel) gak ikut ngecil. */
+  .cand-table .week-chip{font-size:9.5px;padding:2px 8px;}
+  .cand-table .status-badge{font-size:9px;padding:2.5px 8px;}
+  .cand-table .verify-select{font-size:10.3px;padding:5px 8px;}
 
   /* detail popup */
   .modal-overlay{
@@ -968,7 +1020,7 @@
     flex-wrap:wrap;
     flex-shrink:0;
   }
-  .chat-header h2{margin:0;font-size:13px;color:var(--text-dim);text-transform:none;letter-spacing:0;font-weight:600;}
+  .chat-header h2{margin:0;font-size:14.5px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .chat-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .chat-body{
     padding:16px;
@@ -1058,6 +1110,9 @@
 
     </div>
   </header>
+  <div class="global-filter-row">
+    <select id="globalMonthFilter" class="global-month-filter field-special"></select>
+  </div>
   <div class="notice" id="configWarning" style="display:none;">⚙️ Belum diset: buka file HTML ini, cari <code>API_URL</code> di bagian script, ganti dengan Web App URL dari Apps Script kamu.</div>
 
   <div class="stats-row" id="statsRow"></div>
@@ -1144,13 +1199,13 @@
     <!-- PREVIEW -->
     <div class="chat-bg" id="previewPanel">
       <div class="chat-header">
-        <h2><span class="h2-title"><span class="h2-icon">💬</span>Preview Pesan Gabungan</span></h2>
+        <h2><span class="h2-icon">💬</span>Preview Pesan Gabungan</h2>
         <div class="chat-header-actions">
           <select id="onboardingFilter" class="onboarding-filter field-special"></select>
           <button class="refresh-btn" id="chartRefreshBtn">↻ Refresh</button>
         </div>
       </div>
-      <div class="hint" style="margin:0; padding:0 16px 8px;">Filter di atas untuk memilih jadwal onboarding (tanggal) yang ditampilkan di preview pesan</div>
+      <div class="chart-hint" id="previewFilterHint" style="align-self:flex-start;margin:10px 16px 14px;">💡 Filter di atas untuk memilih jadwal onboarding (tanggal) yang ditampilkan di preview pesan</div>
       <div class="chat-body">
         <div class="bubble" id="preview"><span class="empty">Belum ada data...</span></div>
       </div>
@@ -1204,10 +1259,10 @@
         <span class="h2-icon">📋</span>
         <div class="chart-heading-text">
           <span>Detail &amp; Kelola Kandidat</span>
-          <span class="chart-sub" id="tableSub" style="font-size:10.5px;">Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</span>
         </div>
       </div>
     </h2>
+    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
     <div class="table-scroll" id="tableScrollWrap">
       <table class="cand-table">
@@ -1323,6 +1378,7 @@ const statusAktivasiEl = document.getElementById('statusAktivasi');
 const onbHintEl = document.getElementById('onbHint');
 const previewEl = document.getElementById('preview');
 const onboardingFilterEl = document.getElementById('onboardingFilter');
+const globalMonthFilterEl = document.getElementById('globalMonthFilter');
 const screenshotInputEl = document.getElementById('screenshotInput');
 const uploadBtnEl = document.getElementById('uploadBtn');
 const uploadStatusEl = document.getElementById('uploadStatus');
@@ -1437,18 +1493,69 @@ function onboardingWeekNumber(dateStr){
   return weekOfMonth(d.getDate());
 }
 
+// Bulan yang lagi ditampilin di seluruh halaman (stats, chart, header), dikontrol
+// lewat filter global di bawah header. Default-nya bulan berjalan pas halaman dibuka.
+let selectedMonth = new Date().getMonth();
+let selectedYear = new Date().getFullYear();
+
 function isCurrentMonth(dateStr){
   if(!dateStr) return false;
   const datePart = String(dateStr).slice(0, 10);
   const d = new Date(datePart + 'T00:00:00');
   if(isNaN(d)) return false;
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
 }
 
 function currentMonthLabel(){
+  return `${BULAN_LONG[selectedMonth]} ${selectedYear}`;
+}
+
+// Kandidat dianggap "milik" bulan yang lagi dipilih kalau tgl Join ATAU tgl
+// Rencana Onboarding-nya jatuh di bulan itu -> dipakai buat nyaring semua section
+// (stats, chart, tabel) biar filter global bulan konsisten ke semua tempat.
+function isInSelectedMonth(c){
+  return (c.tglJoin && isCurrentMonth(c.tglJoin)) || (c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
+}
+
+// Daftar opsi bulan buat filter global: gabungan bulan berjalan (selalu ada,
+// biar default konsisten) + semua bulan yang muncul dari tglJoin/tglOnboarding kandidat.
+function getGlobalMonthOptions(){
+  const map = new Map();
+  const addKey = (y, m) => {
+    const key = y + '-' + m;
+    if(!map.has(key)) map.set(key, {year:y, month:m});
+  };
   const now = new Date();
-  return `${BULAN_LONG[now.getMonth()]} ${now.getFullYear()}`;
+  addKey(now.getFullYear(), now.getMonth());
+  candidates.forEach(c => {
+    [c.tglJoin, c.tglOnboarding].forEach(dateStr => {
+      if(!dateStr) return;
+      const d = new Date(String(dateStr).slice(0,10) + 'T00:00:00');
+      if(!isNaN(d)) addKey(d.getFullYear(), d.getMonth());
+    });
+  });
+  return Array.from(map.values()).sort((a,b) => a.year - b.year || a.month - b.month);
+}
+
+function populateGlobalMonthFilter(){
+  if(!globalMonthFilterEl) return;
+  const options = getGlobalMonthOptions();
+  const selectedKey = selectedYear + '-' + selectedMonth;
+  globalMonthFilterEl.innerHTML = options.map(o => {
+    const key = o.year + '-' + o.month;
+    return `<option value="${key}">${BULAN_LONG[o.month]} ${o.year}</option>`;
+  }).join('');
+  globalMonthFilterEl.value = selectedKey;
+}
+
+if(globalMonthFilterEl){
+  globalMonthFilterEl.addEventListener('change', () => {
+    const [y, m] = globalMonthFilterEl.value.split('-').map(Number);
+    selectedYear = y;
+    selectedMonth = m;
+    initHeaderChip();
+    applyCandidates(candidates);
+  });
 }
 
 function toDateStr(d){
@@ -1767,6 +1874,7 @@ function mapCandidateRows(rawRows){
 
 function applyCandidates(items){
   candidates = items;
+  populateGlobalMonthFilter();
   populateOnboardingFilter();
   renderPreview();
   renderTable();
@@ -1848,11 +1956,14 @@ function renderStats(){
     list: candidatesThisMonth.filter(c => (c.pic || '(Belum diisi)') === p)
   }));
 
-  // % Jadi Onboarding dihitung dari total kandidat (bukan hanya yang sudah terverifikasi)
-  const hadirList = candidates.filter(c => c.kehadiran === 'Hadir');
-  const tidakList = candidates.filter(c => c.kehadiran === 'Tidak Hadir');
-  const belumList = candidates.filter(c => !c.kehadiran);
-  const totalCandidateCount = candidates.length;
+  // % Jadi Onboarding & % Aktivasi sekarang ikut disaring ke kandidat yang "milik"
+  // bulan yang lagi dipilih di filter global (lihat isInSelectedMonth), bukan lagi
+  // seluruh data sepanjang waktu -> konsisten sama tile & chart lain.
+  const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
+  const hadirList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir');
+  const tidakList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Tidak Hadir');
+  const belumList = candidatesInSelectedMonth.filter(c => !c.kehadiran);
+  const totalCandidateCount = candidatesInSelectedMonth.length;
   const pctOnboarding = totalCandidateCount ? Math.round((hadirList.length / totalCandidateCount) * 100) : 0;
 
   // % Aktivasi SEBELUM Onboarding — cuma dihitung kandidat yang statusnya "Sudah"
@@ -1860,14 +1971,14 @@ function renderStats(){
   // Catatan: kandidat lama yang statusnya "Sudah" tapi belum punya tglAktivasi
   // (diisi sebelum fitur pencatatan tanggal ini ada) belum bisa dipastikan
   // timing-nya, jadi sementara tidak dihitung "sebelum onboarding" sampai di-edit ulang.
-  const aktivasiSebelumList = candidates.filter(c => getAktivasiTiming(c) === 'sebelum');
+  const aktivasiSebelumList = candidatesInSelectedMonth.filter(c => getAktivasiTiming(c) === 'sebelum');
   const pctAktivasi = totalCandidateCount ? Math.round((aktivasiSebelumList.length / totalCandidateCount) * 100) : 0;
 
   statDetailsCache = {
     total: candidatesThisMonth,
     picList: picList,
     onboarding: { hadir: hadirList, tidak: tidakList, belum: belumList },
-    aktivasi: candidates
+    aktivasi: candidatesInSelectedMonth
   };
 
   const tiles = [
@@ -1890,14 +2001,14 @@ function renderStats(){
       variant: 'ring',
       pct: pctOnboarding, badgeBg: 'var(--navy)', ringColor: 'var(--accent-2)',
       icon: '🎯', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
-      title: 'Jadi Onboarding', sub: `${hadirList.length} dari ${totalCandidateCount} kandidat`
+      title: 'Jadi Onboarding', sub: `${hadirList.length} dari ${totalCandidateCount} kandidat ${currentMonthLabel()}`
     },
     {
       type: 'aktivasi',
       variant: 'ring',
       pct: pctAktivasi, badgeBg: 'var(--navy-2)', ringColor: 'var(--blue)',
       icon: '🔑', iconBg: 'rgba(77,107,255,0.12)', iconColor: 'var(--blue)',
-      title: 'Aktivasi sebelum Onboarding', sub: `${aktivasiSebelumList.length} dari ${totalCandidateCount} sebelum onboarding`
+      title: 'Aktivasi sebelum Onboarding', sub: `${aktivasiSebelumList.length} dari ${totalCandidateCount} sebelum onboarding · ${currentMonthLabel()}`
     }
   ];
 
@@ -2061,6 +2172,26 @@ function renderSimpleCandList(list, context){
 // menentukan teks judul tiap grup recruiter sesuai konteks card (jumlah kandidat, %, dll).
 // `weekExtraFn(dayCandidates)` opsional: kalau diisi, hasilnya (string HTML) ditaruh
 // di header jadwal (dipakai buat nampilin % Jadi Onboarding per jadwal onboarding).
+// Donut kecil dipakai di semua popup card buat nampilin nilai persen (ganti teks "xx%"
+// polos) -- arc terisi proporsional ke nilai persennya, angkanya ditaruh di tengah donut.
+function renderMiniDonut(pct, color, size){
+  size = size || 44;
+  const p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  const strokeWidth = Math.max(3, Math.round(size * 0.1));
+  const r = size / 2 - strokeWidth;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - p / 100);
+  const fontSize = Math.max(8, Math.round(size * (p === 100 ? 0.21 : 0.25)));
+  return `<span class="mini-donut" style="width:${size}px;height:${size}px;">
+    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+      <circle class="donut-track" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${strokeWidth}"/>
+      <circle class="donut-progress" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${strokeWidth}" stroke="${color}"
+        stroke-dasharray="${c}" stroke-dashoffset="${offset}" transform="rotate(-90 ${size/2} ${size/2})"/>
+    </svg>
+    <span class="donut-value" style="font-size:${fontSize}px;">${p}%</span>
+  </span>`;
+}
+
 function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn, context){
   if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
 
@@ -2085,7 +2216,7 @@ function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn, context){
       const picCands = dayCandidates.filter(c => (c.pic || '(Belum diisi)') === pic);
       html += `
       <div class="pic-group">
-        <div class="pic-title">${escapeHtml(picLabelFn(picCands, pic))}</div>
+        <div class="pic-title pic-title-with-bar">${picLabelFn(picCands, pic)}</div>
         ${renderSimpleCandList(picCands, context)}
       </div>`;
     });
@@ -2102,7 +2233,7 @@ function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn, context){
         ${weekExtraFn ? weekExtraFn(withoutDate) : ''}
       </div>
       <div class="pic-group">
-        <div class="pic-title">${escapeHtml(picLabelFn(withoutDate, null))}</div>
+        <div class="pic-title pic-title-with-bar">${picLabelFn(withoutDate, null)}</div>
         ${renderSimpleCandList(withoutDate, context)}
       </div>
     </div>`;
@@ -2187,7 +2318,7 @@ function renderTotalPicSummaryHtml(picList){
 
 function renderPicBreakdownByWeekHtml(list){
   return renderGroupedByWeekHtml(list, (picCands, pic) =>
-    pic ? `${pic} · ${picCands.length} kandidat` : `${picCands.length} kandidat`
+    `<span class="pic-title-text">${pic ? escapeHtml(pic) + ' · ' : ''}${picCands.length} kandidat</span>`
   , null, 'total');
 }
 
@@ -2200,12 +2331,12 @@ function renderOnboardingByWeekHtml(list){
     const total = picCands.length;
     const pct = total ? Math.round((hadir / total) * 100) : 0;
     const name = pic || 'PIC lainnya';
-    return `${name} · ${hadir}/${total} Jadi Onboarding (${pct}%)`;
+    return `<span class="pic-title-text">${escapeHtml(name)} · ${hadir}/${total} Jadi Onboarding</span>${renderMiniDonut(pct, 'var(--accent-2)', 40)}`;
   }, (dayCandidates) => {
     const hadir = dayCandidates.filter(c => c.kehadiran === 'Hadir').length;
     const total = dayCandidates.length;
     const pct = total ? Math.round((hadir / total) * 100) : 0;
-    return `<span class="week-count">${hadir}/${total} Jadi Onboarding (${pct}%)</span>`;
+    return `<span class="week-count">${hadir}/${total} Jadi Onboarding</span>${renderMiniDonut(pct, 'var(--accent-2)', 36)}`;
   }, 'onboarding');
 }
 
@@ -2225,9 +2356,8 @@ function renderAktivasiBreakdownHtml(list){
     <div class="pic-group pic-group-boxed">
       <div class="pic-title pic-title-with-bar">
         <span class="pic-title-text">${escapeHtml(pic)} · ${sebelum}/${total} Aktivasi sebelum Onboarding</span>
-        <span class="pic-title-pct">${pct}%</span>
+        ${renderMiniDonut(pct, 'var(--blue)', 46)}
       </div>
-      <div class="pic-summary-bar-wrap pic-title-bar-wrap"><span class="pic-summary-bar" style="width:${pct}%"></span></div>
       ${renderSimpleCandList(list, 'aktivasi')}
     </div>`;
   }).join('');
@@ -2354,9 +2484,9 @@ function bindStatTileEvents(){
       }else if(type === 'pic'){
         openStatModal(`PIC Aktif — ${currentMonthLabel()} (${statDetailsCache.picList.length})`, renderTotalPicSummaryHtml(statDetailsCache.picList), {icon:'👥', accent:'pic'});
       }else if(type === 'onboarding'){
-        openStatModal('% Jadi Onboarding per PIC', renderOnboardingByWeekHtml(candidates), {icon:'🎯', accent:'onboarding'});
+        openStatModal(`% Jadi Onboarding per PIC — ${currentMonthLabel()}`, renderOnboardingByWeekHtml(statDetailsCache.aktivasi), {icon:'🎯', accent:'onboarding'});
       }else if(type === 'aktivasi'){
-        openStatModal('Aktivasi sebelum Onboarding per PIC', renderAktivasiBreakdownHtml(statDetailsCache.aktivasi), {icon:'🔑', accent:'aktivasi'});
+        openStatModal(`Aktivasi sebelum Onboarding per PIC — ${currentMonthLabel()}`, renderAktivasiBreakdownHtml(statDetailsCache.aktivasi), {icon:'🔑', accent:'aktivasi'});
       }
     });
   });
@@ -2364,7 +2494,7 @@ function bindStatTileEvents(){
 
 function getOnboardingDates(){
   const set = new Set();
-  candidates.forEach(c => { if(c.tglOnboarding) set.add(c.tglOnboarding); });
+  candidates.forEach(c => { if(c.tglOnboarding && isCurrentMonth(c.tglOnboarding)) set.add(c.tglOnboarding); });
   return Array.from(set).sort();
 }
 
@@ -2388,7 +2518,9 @@ function populateOnboardingFilter(){
 
 function getFilteredCandidates(){
   const val = onboardingFilterEl.value;
-  if(!val) return candidates;
+  // "Semua Tanggal" = semua tanggal onboarding DI BULAN YANG DIPILIH filter global,
+  // biar preview pesan selalu konsisten sama bulan yang lagi ditampilin di dashboard.
+  if(!val) return candidates.filter(c => c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
   return candidates.filter(c => c.tglOnboarding === val);
 }
 
@@ -2409,6 +2541,7 @@ function effectiveKehadiran(c){
 // Definisi tiap kolom tabel: dipakai bareng buat render header, sort, dan filter
 // biar konsisten & satu sumber kebenaran.
 const TABLE_COLUMNS = [
+  { key:'nomor', label:'No', sortable:false, filterable:false },
   { key:'nama', label:'Nama', sortable:true, filterable:true,
     sortValue: c => (c.nama||'').toLowerCase(),
     filterValue: c => c.nama || '', filterLabel: v => v || '(Kosong)' },
@@ -2452,7 +2585,7 @@ const TABLE_COLUMNS = [
 const FILTER_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 2.5h13l-5 6v4.2l-3 1.3V8.5l-5-6z" fill="currentColor"/></svg>';
 
 function getFilterColumnOptions(col){
-  const uniqueVals = Array.from(new Set(candidates.map(c => col.filterValue(c))));
+  const uniqueVals = Array.from(new Set(candidates.filter(isInSelectedMonth).map(c => col.filterValue(c))));
   let sortedVals;
   if(col.sortAsNumber){
     sortedVals = uniqueVals.filter(v=>v!=='').sort((a,b)=>Number(a)-Number(b));
@@ -2471,7 +2604,7 @@ function renderTableHeader(){
   const ths = TABLE_COLUMNS.map(col => {
     const labelHtml = col.sortable
       ? `<div class="th-sort ${sortState.column===col.key?'active':''}" data-col="${col.key}">${escapeHtml(col.label)}<span class="sort-arrow">${sortState.column===col.key ? (sortState.dir==='asc'?'▲':'▼') : '⇅'}</span></div>`
-      : `<div>${escapeHtml(col.label)}</div>`;
+      : `<div class="th-label">${escapeHtml(col.label)}</div>`;
 
     let filterBtnHtml = '';
     if(col.filterable){
@@ -2484,7 +2617,7 @@ function renderTableHeader(){
       saveBtnHtml = `<button type="button" class="th-save-btn" id="saveKehadiranBtn" style="display:none;" title="Simpan Kehadiran">💾<span class="th-save-count" id="saveKehadiranCount"></span></button>`;
     }
 
-    return `<th><div class="th-head">${labelHtml}<div class="th-head-actions">${saveBtnHtml}${filterBtnHtml}</div></div></th>`;
+    return `<th class="col-${col.key}"><div class="th-head">${labelHtml}<div class="th-head-actions">${saveBtnHtml}${filterBtnHtml}</div></div></th>`;
   }).join('');
   theadEl.innerHTML = `<tr>${ths}</tr>`;
   bindTableHeaderEvents();
@@ -2653,7 +2786,7 @@ function openFilterDropdown(colKey, btnEl){
 }
 
 function getTableCandidates(){
-  let list = candidates.filter(c => {
+  let list = candidates.filter(isInSelectedMonth).filter(c => {
     return TABLE_COLUMNS.every(col => {
       if(!col.filterable) return true;
       const filterVal = columnFilters[col.key];
@@ -2714,11 +2847,12 @@ async function handleSaveKehadiranClick(){
   }
 }
 
-function renderCandRow(c){
+function renderCandRow(c, rowNumber){
   const kehadiran = effectiveKehadiran(c);
   const isDirty = pendingKehadiran[c._id] !== undefined;
   return `
     <tr>
+      <td class="row-number">${rowNumber}</td>
       <td class="wrap">${escapeHtml(c.nama||'(nama belum diisi)')}</td>
       <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
       <td class="wrap">${escapeHtml(c.departemen||'-')}</td>
@@ -2807,7 +2941,7 @@ function renderTable(){
 
   const view = getTableCandidates();
   if(view.length === 0){
-    emptyEl.textContent = 'Tidak ada kandidat yang cocok dengan filter di atas.';
+    emptyEl.textContent = `Tidak ada kandidat yang cocok dengan filter di atas untuk bulan ${currentMonthLabel()}.`;
     emptyEl.style.display = 'block';
     wrapEl.style.display = 'none';
     tbodyEl.innerHTML = '';
@@ -2817,7 +2951,7 @@ function renderTable(){
   emptyEl.style.display = 'none';
   wrapEl.style.display = 'block';
 
-  tbodyEl.innerHTML = view.map(c => renderCandRow(c)).join('');
+  tbodyEl.innerHTML = view.map((c, i) => renderCandRow(c, i + 1)).join('');
 
   bindTableEvents();
   updateSaveKehadiranBtn();
@@ -3213,7 +3347,8 @@ function renderDeptChart(){
   const subEl = document.getElementById('deptChartSub');
 
   const deptMap = {}; // departemen -> [kandidat]
-  candidates.forEach(c => {
+  const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
+  candidatesInSelectedMonth.forEach(c => {
     const d = (c.departemen || '').trim() || '(Belum diisi)';
     if(!deptMap[d]) deptMap[d] = [];
     deptMap[d].push(c);
@@ -3222,7 +3357,7 @@ function renderDeptChart(){
   const entries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
 
   if(entries.length === 0){
-    emptyEl.textContent = 'Belum ada data buat statistik.';
+    emptyEl.textContent = `Belum ada data buat statistik di bulan ${currentMonthLabel()}.`;
     emptyEl.style.display = 'block';
     hintEl.style.display = 'none';
     canvas.style.display = 'none';
@@ -3234,9 +3369,9 @@ function renderDeptChart(){
   hintEl.style.display = 'block';
   canvas.style.display = 'block';
 
-  const total = candidates.length;
+  const total = candidatesInSelectedMonth.length;
   const topDept = entries[0][0];
-  subEl.textContent = `${total} kandidat total · terbanyak: ${topDept} (${entries[0][1].length})`;
+  subEl.textContent = `${currentMonthLabel()} · ${total} kandidat total · terbanyak: ${topDept} (${entries[0][1].length})`;
 
   const labels = entries.map(e => e[0]);
   const data = entries.map(e => e[1].length);
@@ -3379,9 +3514,19 @@ function buildText(){
     groups[key].push(c);
   });
 
-  // jadwal onboarding di header = tanggal onboarding terdekat dari kandidat yang sedang ditampilkan
+  // jadwal onboarding di header = tanggal onboarding terdekat dari kandidat yang sedang
+  // ditampilkan. Tapi kalau filter lagi di "Semua Tanggal", nampilin tanggal spesifik
+  // gak relevan (bisa macem-macem tanggal sekaligus) -> cukup tampilin Bulan + Tahun aja.
   const onbDates = filtered.map(c => c.tglOnboarding).filter(Boolean).sort();
-  const jadwalOnboarding = onbDates.length ? fmtShortID(onbDates[0]) : '-';
+  let jadwalOnboarding = '-';
+  if(onbDates.length){
+    if(!onboardingFilterEl.value){
+      const d = new Date(onbDates[0] + 'T00:00:00');
+      jadwalOnboarding = `${BULAN_LONG[d.getMonth()]} ${d.getFullYear()}`;
+    }else{
+      jadwalOnboarding = fmtShortID(onbDates[0]);
+    }
+  }
 
   let lines = ['📝 *Info Karyawan Baru Join & Onboarding* 📢', ''];
   lines.push(`jadwal onboarding : ${jadwalOnboarding}`);
@@ -3611,6 +3756,7 @@ if(window.ResizeObserver){
 syncPreviewHeight();
 
 initHeaderChip();
+populateGlobalMonthFilter();
 initDateOverlays();
 setDefaultOnboarding();
 lastOnboardingPic = picNameEl.value.trim();
