@@ -933,8 +933,10 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     box-shadow:0 4px 10px -4px rgba(23,185,120,0.5);
   }
   .cand-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .cand-name-row .wa-remind-btn{width:22px;height:22px;flex-shrink:0;}
+  .cand-name-row .wa-remind-btn svg{width:12px;height:12px;}
   .cand-card .info b{display:block;font-size:12.5px;}
-  .cand-card .info span{display:block;color:var(--text-dim);font-size:11px;}
+  .cand-card .info span:not(.meta-item){display:block;color:var(--text-dim);font-size:11px;}
   .cand-role{color:var(--text-dim);font-size:10.5px;margin:2px 0 8px;}
   .cand-meta-grid{display:flex;flex-direction:column;gap:4px;}
   .meta-item{font-size:10.5px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
@@ -2608,37 +2610,62 @@ function renderAktivasiBadge(c){
   return getAktivasiTimingBadge(c) || `<span class="status-badge ${c.statusAktivasi === 'Sudah' ? 'status-sudah' : 'status-belum'}">🔑 Aktivasi: ${escapeHtml(c.statusAktivasi || 'Belum')}</span>`;
 }
 
-// Badge kehadiran standar, dikasih label "Kehadiran:" biar jelas keterangannya
+// Baris "role" standar: Designation · Departemen, dipakai konsisten di SEMUA
+// popup card (dept-mini-card & cand-card) biar formatnya sama semua.
+function renderRoleLine(c){
+  const parts = [c.designation, c.departemen].filter(Boolean);
+  return parts.length ? escapeHtml(parts.join(' · ')) : '(designation belum diisi)';
+}
 // (bukan cuma nampilin nilainya doang), dipakai konsisten di semua popup card.
 function renderKehadiranBadge(c){
   return `<span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>`;
 }
 
+// Badge status onboarding (Completed/Not Started), sama persis kayak yang di kolom
+// "Status Onboarding" pada tabel utama -> masih data dummy (dummyOnboardingStatus)
+// sampe fitur journey onboarding beneran ada.
+function renderOnboardingStatusBadge(c){
+  const status = dummyOnboardingStatus(c);
+  return status === 'Completed'
+    ? `<span class="status-badge status-sudah">✅ Onboarding: Completed</span>`
+    : `<span class="status-badge status-belum-verif">⏳ Onboarding: Not Started</span>`;
+}
+
+// Tombol kirim reminder onboarding via WhatsApp, dipakai konsisten di SEMUA popup
+// detail kandidat (dept-mini-card & cand-card). Klik-nya ditangkap lewat event
+// delegation di #statModalBody / #chartModalBody, jadi di sini cuma render markup-nya.
+function renderWaButton(c){
+  return `<button type="button" class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Kirim reminder onboarding via WhatsApp">
+    <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+  </button>`;
+}
+
 // Kartu detail kandidat dipakai di SEMUA popup card statistik (Total, PIC Aktif,
 // % Jadi Onboarding, Aktivasi sebelum Onboarding), formatnya disamakan persis dengan
-// kartu di popup "Sebaran Departemen" (dept-mini-card): nama, role, 2 meta item, 1 badge.
+// kartu di popup "Sebaran Departemen" (dept-mini-card): nama, role, meta item, badge.
 // `context` nentuin meta item & badge mana yang relevan buat card itu:
 //  - 'total'      → popup "Kandidat Join Bulan Ini": Join + PIC, badge kehadiran
-//  - 'onboarding' → popup "% Jadi Onboarding per PIC": Onboarding + PIC, badge kehadiran
-//  - 'pic'        → popup "PIC Aktif" (detail per PIC): Join + Departemen, badge kehadiran
-//  - 'aktivasi'   → popup "Aktivasi sebelum Onboarding": Onboarding + PIC, badge timing aktivasi
+//  - 'onboarding' → popup "% Jadi Onboarding per PIC": Onboarding + PIC + Atasan, badge kehadiran
+//  - 'pic'        → popup "PIC Aktif" (detail per PIC): Join + Atasan, badge kehadiran
+//  - 'aktivasi'   → popup "Aktivasi sebelum Onboarding": Onboarding + PIC + Atasan, badge timing aktivasi
 function renderCandMiniCard(c, context){
-  const roleParts = [c.designation, c.departemen].filter(Boolean);
   let metaHtml = '';
   let badgeHtml = '';
 
   if(context === 'aktivasi'){
     metaHtml = `
       <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
-      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
+      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
   } else if(context === 'pic'){
     metaHtml = `
       <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
-      <span class="meta-item">🏢 <b>Dept</b> ${escapeHtml(c.departemen || '-')}</span>`;
+      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
   } else if(context === 'onboarding'){
     metaHtml = `
       <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
-      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
+      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
   } else { // 'total' (default)
     metaHtml = `
       <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
@@ -2646,12 +2673,15 @@ function renderCandMiniCard(c, context){
   }
   // Badge aktivasi + kehadiran ditampilin bareng di semua context, konsisten
   // dengan card "aktivasi" (dua badge, gak pernah kosong).
-  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>`;
+  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>`;
 
   return `
     <div class="cand-card dept-mini-card">
-      <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
-      <div class="dept-mini-role">${escapeHtml(roleParts.length ? roleParts.join(' · ') : '(designation belum diisi)')}</div>
+      <div class="dept-mini-name-row">
+        <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
+        ${renderWaButton(c)}
+      </div>
+      <div class="dept-mini-role">${renderRoleLine(c)}</div>
       <div class="dept-mini-row">${metaHtml}</div>
       ${badgeHtml}
     </div>`;
@@ -2881,13 +2911,31 @@ document.getElementById('statModalOverlay').addEventListener('click', (e) => {
 });
 document.getElementById('statModalBody').addEventListener('click', (e) => {
   const toggleBtn = e.target.closest('.pic-summary-toggle');
-  if(!toggleBtn) return;
-  const detailEl = document.getElementById(toggleBtn.dataset.target);
-  if(!detailEl) return;
-  const isOpen = detailEl.style.display !== 'none';
-  detailEl.style.display = isOpen ? 'none' : 'block';
-  detailEl.classList.toggle('pic-summary-detail-open', !isOpen);
-  toggleBtn.classList.toggle('open', !isOpen);
+  if(toggleBtn){
+    const detailEl = document.getElementById(toggleBtn.dataset.target);
+    if(!detailEl) return;
+    const isOpen = detailEl.style.display !== 'none';
+    detailEl.style.display = isOpen ? 'none' : 'block';
+    detailEl.classList.toggle('pic-summary-detail-open', !isOpen);
+    toggleBtn.classList.toggle('open', !isOpen);
+    return;
+  }
+  const waBtn = e.target.closest('.wa-remind-btn');
+  if(waBtn){
+    const c = candidates.find(x => x._id === waBtn.dataset.id);
+    if(c) sendOnboardingReminder(c);
+  }
+});
+
+// Delegasi klik tombol WA buat SEMUA popup detail kandidat yang numpang di
+// #chartModalBody (bubble PIC, Sebaran Departemen utama, & Sebaran Departemen per-batch)
+// -> satu listener aja, gak perlu di-attach ulang tiap kali salah satu popup itu di-render.
+document.getElementById('chartModalBody').addEventListener('click', (e) => {
+  const waBtn = e.target.closest('.wa-remind-btn');
+  if(waBtn){
+    const c = candidates.find(x => x._id === waBtn.dataset.id);
+    if(c) sendOnboardingReminder(c);
+  }
 });
 
 // ---- Popup Edit Kandidat ----
@@ -3757,7 +3805,6 @@ function openChartModal(group, pic, date){
       <span class="week-count">${group.length} kandidat</span>
     </div>`;
   group.forEach(c => {
-    const roleParts = [c.designation, c.departemen].filter(Boolean);
     html += `
       <div class="cand-card">
         <div class="cand-card-main">
@@ -3765,17 +3812,20 @@ function openChartModal(group, pic, date){
           <div class="info">
             <div class="cand-name-row">
               <b>${escapeHtml(c.nama||'(nama belum diisi)')}</b>
+              ${renderWaButton(c)}
             </div>
-            ${roleParts.length ? `<div class="cand-role">${escapeHtml(roleParts.join(' · '))}</div>` : ''}
+            <div class="cand-role">${renderRoleLine(c)}</div>
             <div class="cand-meta-grid">
               <span class="meta-item">📱 ${escapeHtml(c.noHp||'-')}</span>
               <span class="meta-item">📆 <b>Join</b> ${escapeHtml(fmtShortID(c.tglJoin))}</span>
               ${c.tglOnboarding ? `<span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(fmtShortID(c.tglOnboarding))}</span>` : ''}
+              <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
             </div>
           </div>
           <div class="cand-badges">
             ${renderAktivasiBadge(c)}
             ${renderKehadiranBadge(c)}
+            ${renderOnboardingStatusBadge(c)}
           </div>
         </div>
         <div class="cand-card-actions-row">
@@ -4054,14 +4104,17 @@ function openDeptModal(dept, group){
   group.forEach(c => {
     html += `
       <div class="cand-card dept-mini-card">
-        <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
-        <div class="dept-mini-role">${escapeHtml(c.designation || '(designation belum diisi)')}</div>
+        <div class="dept-mini-name-row">
+          <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
+          ${renderWaButton(c)}
+        </div>
+        <div class="dept-mini-role">${renderRoleLine(c)}</div>
         <div class="dept-mini-row">
           <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
           <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
-        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>
+        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>
       </div>`;
   });
   html += `</div>`;
@@ -4287,29 +4340,19 @@ function openBatchDeptModal(dept, date, wk, group){
       <div class="cand-card dept-mini-card">
         <div class="dept-mini-name-row">
           <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
-          <button type="button" class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Kirim reminder onboarding via WhatsApp">
-            <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
-          </button>
+          ${renderWaButton(c)}
         </div>
-        <div class="dept-mini-role">${escapeHtml(c.designation || '(designation belum diisi)')}</div>
+        <div class="dept-mini-role">${renderRoleLine(c)}</div>
         <div class="dept-mini-row">
           <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
           <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
-        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>
+        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>
       </div>`;
   });
   html += `</div>`;
   modalBodyEl.innerHTML = html;
-
-  modalBodyEl.querySelectorAll('.wa-remind-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = e.currentTarget.dataset.id;
-      const c = candidates.find(x => x._id === id);
-      if(c) sendOnboardingReminder(c);
-    });
-  });
 
   document.getElementById('chartModalOverlay').classList.add('show');
 }
