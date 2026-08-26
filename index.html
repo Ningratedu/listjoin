@@ -2043,12 +2043,10 @@ function maybeSetDefaultOnboarding(){
 
 tglOnboardingEl.addEventListener('change', () => {
   if(!tglOnboardingEl.value) return;
-  const snapped = snapToTueFri(tglOnboardingEl.value);
-  if(snapped !== tglOnboardingEl.value){
-    setDateInputValue(tglOnboardingEl, snapped);
-  }
-  delete tglOnboardingEl.dataset.manual;
-  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini';
+  // Kalau user milih tanggal manual dari date picker, jangan di-snap paksa ke
+  // Selasa/Jumat -- biarin tanggal yang dipilih user tetap kepake apa adanya.
+  tglOnboardingEl.dataset.manual = '1';
+  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. Tanggal ini bisa diubah manual sesuai jadwal onboarding.';
 });
 function shiftOnboarding(delta){
   if(!tglOnboardingEl.value) return;
