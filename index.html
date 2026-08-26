@@ -4056,6 +4056,7 @@ function openDeptModal(dept, group){
         <div class="dept-mini-row">
           <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
+          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
         <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>
       </div>`;
@@ -4286,6 +4287,7 @@ function openBatchDeptModal(dept, date, wk, group){
         <div class="dept-mini-row">
           <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
+          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
         <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}</div>
       </div>`;
