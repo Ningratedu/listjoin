@@ -4374,6 +4374,16 @@ function buildText(){
     groups[key].push(c);
   });
 
+  // PIC yang masih ada kandidat belum/tidak hadir ditaruh di atas, biar langsung
+  // kelihatan siapa yang perlu di-follow-up -- PIC yang semua pesertanya udah
+  // Hadir digeser ke bawah.
+  const hasBelumHadir = pic => groups[pic].some(c => (c.kehadiran||'') !== 'Hadir');
+  order.sort((a, b) => {
+    const aBelum = hasBelumHadir(a), bBelum = hasBelumHadir(b);
+    if(aBelum === bBelum) return 0;
+    return aBelum ? -1 : 1;
+  });
+
   // jadwal onboarding di header = tanggal onboarding terdekat dari kandidat yang sedang
   // ditampilkan. Tapi kalau filter lagi di "Semua Tanggal", nampilin tanggal spesifik
   // gak relevan (bisa macem-macem tanggal sekaligus) -> cukup tampilin Bulan + Tahun aja.
@@ -4413,6 +4423,8 @@ function buildText(){
     });
     lines.push(''); // jeda ekstra antar PIC recruitment
   });
+  lines.push('Klik link berikut untuk input kandidat dan info detail : https://ningratedu.github.io/listjoin');
+  lines.push('');
   lines.push('Terimakasih.. 🙏😊');
   return lines.join('\n').trim();
 }
