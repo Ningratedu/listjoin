@@ -4388,9 +4388,12 @@ function buildText(){
     }
   }
 
+  const hadirCount = filtered.filter(c => (c.kehadiran||'') === 'Hadir').length;
+
   let lines = ['📝 *Info Karyawan Baru Join & Onboarding* 📢', ''];
   lines.push(`jadwal onboarding : ${jadwalOnboarding}`);
   lines.push(`Total Plan Peserta : ${filtered.length} Orang`);
+  lines.push(`Total Peserta Hadir : ${hadirCount} Orang`);
   lines.push('');
 
   order.forEach(pic => {
