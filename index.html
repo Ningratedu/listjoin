@@ -1043,10 +1043,8 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     color:var(--text-dim);margin:0 0 8px 2px;}
   .journey-evidence-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .journey-evidence-status{font-size:10.5px;color:var(--text-dim);}
-  .journey-evidence-link{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
-    color:var(--accent-2);text-decoration:none;background:rgba(37,211,102,0.1);
-    padding:6px 10px;border-radius:8px;}
-  .journey-evidence-link:hover{text-decoration:underline;}
+  .journey-evidence-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;}
+  .journey-evidence-link:hover{text-decoration:none;}
   /* HP (layar sempit): nama modul sering kepotong/numpuk gara-gara field tanggal
      ikut ngambil lebar di baris yang sama. Jadi di sini tanggalnya dipindah ke
      baris sendiri di bawah nama (gak nyempil kesamping) + ukurannya dikecilin lagi,
@@ -2465,6 +2463,7 @@ function mapCandidateRows(rawRows){
     kehadiran: row.kehadiran || '',
     statusKaryawan: row.statusKaryawan || '',
     tglResign: row.tglResign || '',
+    evidenceFormUrl: row.evidenceFormUrl || '',
     onboardingChecklist: parseOnboardingChecklist(row.onboardingChecklist)
   }));
   items.sort((a,b) => (a.tglJoin||'').localeCompare(b.tglJoin||''));
@@ -4839,7 +4838,7 @@ function renderEvidenceUploadHtml(c){
     <div class="journey-evidence">
       <div class="journey-evidence-title">📎 Evidence Form Orientasi (scan/foto form fisik)</div>
       <div class="journey-evidence-row">
-        ${hasEvidence ? `<a href="${escapeAttr(c.evidenceFormUrl)}" target="_blank" rel="noopener" class="journey-evidence-link">📄 Lihat file yang diupload</a>` : ''}
+        ${hasEvidence ? `<a href="${escapeAttr(c.evidenceFormUrl)}" target="_blank" rel="noopener" class="upload-btn journey-evidence-link">📄 Lihat File</a>` : ''}
         <input type="file" id="journeyEvidenceInput" accept="image/*,.pdf" style="display:none;">
         <button type="button" class="upload-btn" id="journeyEvidenceBtn">${hasEvidence ? '🔄 Ganti File' : '📤 Upload Evidence'}</button>
         <span class="journey-evidence-status" id="journeyEvidenceStatus"></span>
