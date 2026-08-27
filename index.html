@@ -1710,6 +1710,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       </div>
     </h2>
     <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
+    <div class="stats-row" id="onboardingStatsRow"></div>
     <div class="table-toolbar">
       <div class="table-search-wrap">
         <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -2598,9 +2599,20 @@ function renderStats(){
     return `<div class="stat-badge" style="background:${t.badgeBg};">${escapeHtml(t.badge)}</div>`;
   }
 
-  statsRowEl.innerHTML = tiles.map(t => `
+  renderStatTileRow('statsRow', tiles, renderStatBadge);
+
+  renderOnboardingStats();
+  bindStatTileEvents();
+}
+
+// Card render generik dipakai bareng buat statsRow (di atas) & onboardingStatsRow
+// (di atas tabel detail) biar formatnya sama persis, tinggal beda isi tiles-nya.
+function renderStatTileRow(containerId, tiles, renderBadgeFn){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = tiles.map(t => `
     <div class="stat-tile" data-stat="${t.type}">
-      ${renderStatBadge(t)}
+      ${renderBadgeFn(t)}
       <div class="stat-info">
         <div class="stat-icon" style="background:${t.iconBg};color:${t.iconColor};">${t.icon}</div>
         <div style="min-width:0;">
@@ -2610,8 +2622,71 @@ function renderStats(){
       </div>
     </div>
   `).join('');
+}
 
-  bindStatTileEvents();
+// Card status onboarding (Total Peserta / Completed / In Progress / Not Started), taruh
+// di atas tabel "Detail & Kelola Kandidat". Peserta = kandidat bulan terpilih DI LUAR yang
+// kehadirannya "Tidak Hadir" (mereka gak jalanin journey onboarding sama sekali).
+function renderOnboardingStats(){
+  const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
+  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran !== 'Tidak Hadir');
+  const total = pesertaList.length;
+  const completedList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'Completed');
+  const inProgressList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'In Progress');
+  const notStartedList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'Not Started');
+  const pct = n => total ? Math.round(n / total * 100) : 0;
+
+  statDetailsCache.onboardingStatus = {
+    peserta: pesertaList, completed: completedList, inProgress: inProgressList, notStarted: notStartedList
+  };
+
+  const tiles = [
+    {
+      type: 'onbTotal', variant: 'number',
+      badge: String(total), badgeBg: 'var(--navy)',
+      icon: '🎓', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
+      title: 'Total Peserta Onboarding', sub: `Di luar tidak hadir · ${currentMonthLabel()}`
+    },
+    {
+      type: 'onbCompleted', variant: 'ring',
+      pct: pct(completedList.length), badgeBg: 'var(--navy)', ringColor: 'var(--accent-2)',
+      icon: '✅', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent-2)',
+      title: 'Onboarding Completed', sub: `${completedList.length}/${total} peserta`
+    },
+    {
+      type: 'onbInProgress', variant: 'ring',
+      pct: pct(inProgressList.length), badgeBg: 'var(--navy-2)', ringColor: 'var(--warn)',
+      icon: '🔄', iconBg: 'rgba(201,134,28,0.12)', iconColor: 'var(--warn)',
+      title: 'Onboarding In Progress', sub: `${inProgressList.length}/${total} peserta`
+    },
+    {
+      type: 'onbNotStarted', variant: 'ring',
+      pct: pct(notStartedList.length), badgeBg: 'var(--navy-2)', ringColor: 'var(--danger)',
+      icon: '⏳', iconBg: 'rgba(224,90,78,0.12)', iconColor: 'var(--danger)',
+      title: 'Onboarding Not Started', sub: `${notStartedList.length}/${total} peserta`
+    }
+  ];
+
+  const RING_R = 22;
+  const RING_C = 2 * Math.PI * RING_R;
+  function renderBadge(t){
+    if(t.variant === 'ring'){
+      const p = Math.max(0, Math.min(100, t.pct || 0));
+      const offset = RING_C * (1 - p / 100);
+      return `
+        <div class="stat-badge stat-badge-ring" style="background:${t.badgeBg};">
+          <svg viewBox="0 0 52 52" class="ring-svg">
+            <circle class="ring-track" cx="26" cy="26" r="${RING_R}" stroke-width="6"/>
+            <circle class="ring-progress" cx="26" cy="26" r="${RING_R}" stroke-width="6" stroke="${t.ringColor}"
+              stroke-dasharray="${RING_C}" stroke-dashoffset="${offset}" transform="rotate(-90 26 26)"/>
+          </svg>
+          <span class="ring-value">${p}%</span>
+        </div>`;
+    }
+    return `<div class="stat-badge" style="background:${t.badgeBg};">${escapeHtml(t.badge)}</div>`;
+  }
+
+  renderStatTileRow('onboardingStatsRow', tiles, renderBadge);
 }
 
 function kehadiranBadgeClass(k){
@@ -2917,6 +2992,16 @@ function renderPicBreakdownByWeekHtml(list){
   , null, 'total');
 }
 
+// Popup buat 4 card "Status Onboarding" di atas tabel detail (Total Peserta / Completed /
+// In Progress / Not Started). Sama konsepnya kayak popup lain (dikelompokin per jadwal
+// onboarding lalu per PIC), badge status tiap kandidat udah otomatis kebawa lewat
+// renderOnboardingStatusBadge() di dalam renderCandMiniCard.
+function renderOnboardingStatusBreakdownHtml(list){
+  return renderGroupedByWeekHtml(list, (picCands, pic) =>
+    `<span class="pic-title-text">${pic ? escapeHtml(pic) + ' · ' : ''}${picCands.length} kandidat</span>`
+  , null, 'onboarding');
+}
+
 // Popup "Jadi Onboarding": sama konsepnya (per jadwal onboarding, urut tanggal), tapi tiap
 // recruiter ditampilkan sebagai % Jadi Onboarding (Hadir / Total kandidat recruiter tsb di jadwal itu).
 // Header tiap jadwal juga dikasih % Jadi Onboarding keseluruhan buat jadwal itu.
@@ -3102,6 +3187,18 @@ function bindStatTileEvents(){
         openStatModal(`% Jadi Onboarding per PIC — ${currentMonthLabel()}`, renderOnboardingByWeekHtml(statDetailsCache.aktivasi), {icon:'🎯', accent:'onboarding'});
       }else if(type === 'aktivasi'){
         openStatModal(`Aktivasi sebelum Onboarding per PIC — ${currentMonthLabel()}`, renderAktivasiBreakdownHtml(statDetailsCache.aktivasi), {icon:'🔑', accent:'aktivasi'});
+      }else if(type === 'onbTotal'){
+        const list = statDetailsCache.onboardingStatus.peserta;
+        openStatModal(`Total Peserta Onboarding — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🎓', accent:'onboarding'});
+      }else if(type === 'onbCompleted'){
+        const list = statDetailsCache.onboardingStatus.completed;
+        openStatModal(`Onboarding Completed — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'✅', accent:'onboarding'});
+      }else if(type === 'onbInProgress'){
+        const list = statDetailsCache.onboardingStatus.inProgress;
+        openStatModal(`Onboarding In Progress — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🔄', accent:'onboarding'});
+      }else if(type === 'onbNotStarted'){
+        const list = statDetailsCache.onboardingStatus.notStarted;
+        openStatModal(`Onboarding Not Started — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'⏳', accent:'onboarding'});
       }
     });
   });
