@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Info Karyawan Baru Join & Onboarding</title>
+<title>Info Karyawan Baru Join & Induction Training</title>
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Ningratedu/asset-foto/refs/heads/main/favicon.png">
 <!-- Set tema sepagi mungkin (sebelum CSS/body kerender) biar gak ada "kedipan" dari
      terang ke gelap pas reload. Urutan: preferensi tersimpan -> preferensi sistem OS. -->
@@ -214,11 +214,9 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   @media (max-width:520px){
     header .header-top-logo-wrap{width:71px;height:22px;top:12px;right:14px;}
     header .header-top-logo{top:-28px;left:-6px;width:84px;height:84px;}
-    header h1{white-space:nowrap;}
-    header p{white-space:nowrap;}
   }
-  header h1{color:#fff;}
-  header p{color:rgba(255,255,255,0.85) !important;}
+  header h1{color:#fff;font-size:clamp(12px, 4.5vw - 7.4px, 19px);white-space:nowrap;}
+  header p{color:rgba(255,255,255,0.85) !important;font-size:clamp(8px, 3.6vw - 6.5px, 13px);white-space:nowrap;}
   header .month-chip{
     position:relative;z-index:1;
     background:rgba(255,255,255,0.14);
@@ -245,7 +243,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     font-weight:800;
     letter-spacing:0.1px;
   }
-  header p{margin:2px 0 0;color:var(--text-dim);font-size:13px;}
+  header p{margin:2px 0 0;color:var(--text-dim);}
   .header-logos{
     display:flex;
     align-items:center;
@@ -284,11 +282,11 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     border:1px solid var(--notice-border);
     color:var(--notice-text);
     color:var(--warn);
-    font-size:12px;
-    padding:9px 12px;
+    font-size:10px;
+    padding:6px 10px;
     border-radius:8px;
     margin:14px 0 22px;
-    line-height:1.5;
+    line-height:1.4;
   }
 
   /* stat tiles */
@@ -302,25 +300,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   @media (max-width:860px){
     .stats-row{grid-template-columns:repeat(2, 1fr);}
     header{min-height:150px;}
-    header h1{font-size:15px;}
-    header p{font-size:11px;}
     header .logo{width:34px;height:34px;}
     header .logo svg{width:20px;height:20px;}
   }
   @media (max-width:520px){
     .stats-row{grid-template-columns:1fr;}
-    header h1{font-size:14px;}
-    header p{font-size:9.5px;}
-    header .brand{left:50%;right:auto;transform:translateX(-50%);max-width:calc(100% - 40px);width:max-content;}
+    header .brand{left:50%;right:auto;transform:translateX(-50%);max-width:calc(100% - 40px);width:max-content;margin-left:-6px;}
     header .brand-spacer{display:block;width:34px;flex-shrink:0;}
-  }
-  @media (max-width:430px){
-    header h1{font-size:13px;}
-    header p{font-size:8.5px;}
-  }
-  @media (max-width:360px){
-    header h1{font-size:11px;}
-    header p{font-size:7px;}
   }
   .stat-tile{
     display:flex;
@@ -1546,7 +1532,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         </svg>
       </div>
       <div>
-        <h1>Info Karyawan Baru Join &amp; Onboarding</h1>
+        <h1>Info Karyawan Baru Join &amp; Induction Training</h1>
         <p id="headerPeriodLabel">Human Resource Development Trusmi Group Periode Memuat...</p>
       </div>
       <div class="brand-spacer" aria-hidden="true"></div>
@@ -1651,13 +1637,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
           </div>
         </div>
         <div class="field">
-          <label>Rencana Onboarding<span class="required-star">*</span></label>
+          <label>Rencana Induction<span class="required-star">*</span></label>
           <div class="date-input-wrap">
             <input type="date" id="tglOnboarding" class="field-special">
             <span class="date-overlay is-empty" id="tglOnboardingOverlay"></span>
           </div>
           <div class="shift-row">
-            <span class="shift-label" id="onbHint">tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini</span>
+            <span class="shift-label" id="onbHint">tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal induction di minggu ini</span>
           </div>
         </div>
       </div>
@@ -1673,7 +1659,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
           <button class="refresh-btn" id="chartRefreshBtn">↻ Refresh</button>
         </div>
       </div>
-      <div class="chart-hint" id="previewFilterHint" style="align-self:flex-start;margin:10px 16px 14px;">💡 Filter di atas untuk memilih jadwal onboarding (tanggal) yang ditampilkan di preview pesan</div>
+      <div class="chart-hint" id="previewFilterHint" style="align-self:flex-start;margin:10px 16px 14px;">💡 Filter di atas untuk memilih jadwal induction (tanggal) yang ditampilkan di preview pesan</div>
       <div class="chat-body">
         <div class="bubble" id="preview"><span class="empty">Belum ada data...</span></div>
       </div>
@@ -1691,7 +1677,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         <span class="h2-icon">📊</span>
         <div class="chart-heading-text">
           <span>Peta Sebaran Karyawan Baru</span>
-          <span class="chart-sub" id="chartSub">Tiap gelembung = kandidat pada PIC &amp; tanggal onboarding tsb</span>
+          <span class="chart-sub" id="chartSub">Tiap gelembung = kandidat pada PIC &amp; tanggal induction tsb</span>
         </div>
       </div>
     </h2>
@@ -1720,7 +1706,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     </div>
   </div>
 
-  <!-- CARD STATUS ONBOARDING (Total Peserta / Completed / In Progress / Not Started) -- ditaruh
+  <!-- CARD STATUS ONBOARDING (Total Peserta / Completed / In Progress / Peserta Resign) -- ditaruh
        DI LUAR panel "Detail & Kelola Kandidat", persis di atasnya, biar gak numpang jadi bagian
        dari panel tabel (tapi urutan tampilannya tetap sama kayak sebelumnya). -->
   <div class="stats-row" id="onboardingStatsRow"></div>
@@ -1735,7 +1721,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         </div>
       </div>
     </h2>
-    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
+    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
     <div class="table-toolbar">
       <div class="table-search-wrap">
         <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -1743,7 +1729,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         <button type="button" id="tableSearchClearBtn" class="table-search-clear" style="display:none;" title="Hapus pencarian">✕</button>
       </div>
       <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
-      <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Onboarding dari E-Training">📥 Upload Export E-Training</button>
+      <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Induction dari E-Training">📥 Upload Export E-Training</button>
       <span class="upload-status" id="lmsImportStatus"></span>
     </div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
@@ -1823,7 +1809,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         </div>
       </div>
       <div class="row2">
-        <div class="field"><label>Rencana Onboarding</label>
+        <div class="field"><label>Rencana Induction</label>
           <div class="date-input-wrap">
             <input type="date" id="efTglOnboarding">
             <span class="date-overlay is-empty" id="efTglOnboardingOverlay"></span>
@@ -1841,7 +1827,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 <div class="toast" id="toast">Tersalin!</div>
 
 <footer class="site-footer">
-  <strong>Onboarding Tracker</strong> · Human Resource Development Trusmi Group
+  <strong>Induction Training Tracker</strong> · Human Resource Development Trusmi Group
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -2121,7 +2107,7 @@ function setDefaultOnboarding(){
   const todayStr = toDateStr(new Date());
   setDateInputValue(tglOnboardingEl, snapToTueFri(todayStr));
   delete tglOnboardingEl.dataset.manual;
-  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal onboarding di minggu ini';
+  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. namun kamu masih bisa mengaturnya manual sesuai jadwal induction di minggu ini';
 }
 
 // Nama PIC Recruitment yang aktif saat tanggal Rencana Onboarding terakhir kali di-set default.
@@ -2142,7 +2128,7 @@ tglOnboardingEl.addEventListener('change', () => {
   // Kalau user milih tanggal manual dari date picker, jangan di-snap paksa ke
   // Selasa/Jumat -- biarin tanggal yang dipilih user tetap kepake apa adanya.
   tglOnboardingEl.dataset.manual = '1';
-  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. Tanggal ini bisa diubah manual sesuai jadwal onboarding.';
+  onbHintEl.textContent = 'tgl Default : Selasa/jumat terdekat. Tanggal ini bisa diubah manual sesuai jadwal induction.';
 });
 function shiftOnboarding(delta){
   if(!tglOnboardingEl.value) return;
@@ -2596,14 +2582,14 @@ function renderStats(){
       variant: 'ring',
       pct: pctOnboarding, badgeBg: 'var(--navy)', ringColor: 'var(--accent-2)',
       icon: '🎯', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
-      title: 'Jadi Onboarding', sub: `${hadirList.length} dari ${totalCandidateCount} kandidat ${currentMonthLabel()}`
+      title: 'Jadi Induction', sub: `${hadirList.length} dari ${totalCandidateCount} kandidat ${currentMonthLabel()}`
     },
     {
       type: 'aktivasi',
       variant: 'ring',
       pct: pctAktivasi, badgeBg: 'var(--navy-2)', ringColor: 'var(--blue)',
       icon: '🔑', iconBg: 'rgba(77,107,255,0.12)', iconColor: 'var(--blue)',
-      title: 'Aktivasi sebelum Onboarding', sub: `${aktivasiSebelumList.length} dari ${totalCandidateCount} sebelum onboarding · ${currentMonthLabel()}`
+      title: 'Aktivasi sebelum Induction', sub: `${aktivasiSebelumList.length} dari ${totalCandidateCount} sebelum induction · ${currentMonthLabel()}`
     }
   ];
 
@@ -2651,20 +2637,28 @@ function renderStatTileRow(containerId, tiles, renderBadgeFn){
   `).join('');
 }
 
-// Card status onboarding (Total Peserta / Completed / In Progress / Not Started), taruh
-// di atas tabel "Detail & Kelola Kandidat". Peserta = kandidat bulan terpilih DI LUAR yang
-// kehadirannya "Tidak Hadir" (mereka gak jalanin journey onboarding sama sekali).
+// Card status onboarding (Total Peserta / Completed / In Progress / Peserta Resign), taruh
+// di atas tabel "Detail & Kelola Kandidat". Peserta aktif = kandidat bulan terpilih yang
+// kehadirannya SUDAH confirm "Hadir" DAN belum resign. Yang "Tidak Hadir", yang kehadirannya
+// belum diisi (masih kosong/pending), maupun yang sudah resign tidak dihitung sebagai
+// pembagi Completed/In Progress, karena journey induction-nya udah gak relevan lagi.
 function renderOnboardingStats(){
   const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
-  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran !== 'Tidak Hadir');
+  // Peserta aktif = kandidat yang statusnya sudah confirm "Hadir" DAN masih Active (belum resign).
+  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir' && getStatusKaryawan(c) !== 'Resign');
   const total = pesertaList.length;
   const completedList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'Completed');
   const inProgressList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'In Progress');
-  const notStartedList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'Not Started');
   const pct = n => total ? Math.round(n / total * 100) : 0;
 
+  // "Peserta Resign" dihitung dari SEMUA kandidat bulan terpilih (bukan cuma pesertaList),
+  // soalnya kandidat yang resign bisa aja tercatat "Tidak Hadir" juga.
+  const resignList = candidatesInSelectedMonth.filter(c => getStatusKaryawan(c) === 'Resign');
+  const totalCandidatesMonth = candidatesInSelectedMonth.length;
+  const pctResign = totalCandidatesMonth ? Math.round(resignList.length / totalCandidatesMonth * 100) : 0;
+
   statDetailsCache.onboardingStatus = {
-    peserta: pesertaList, completed: completedList, inProgress: inProgressList, notStarted: notStartedList
+    peserta: pesertaList, completed: completedList, inProgress: inProgressList, resign: resignList
   };
 
   const tiles = [
@@ -2672,25 +2666,25 @@ function renderOnboardingStats(){
       type: 'onbTotal', variant: 'number',
       badge: String(total), badgeBg: 'var(--navy)',
       icon: '🎓', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
-      title: 'Total Peserta Onboarding', sub: `Di luar tidak hadir · ${currentMonthLabel()}`
+      title: 'Total Peserta Induction', sub: `Kandidat yang sudah Hadir`
     },
     {
       type: 'onbCompleted', variant: 'ring',
       pct: pct(completedList.length), badgeBg: 'var(--navy)', ringColor: 'var(--accent-2)',
       icon: '✅', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent-2)',
-      title: 'Onboarding Completed', sub: `${completedList.length}/${total} peserta`
+      title: 'Induction Completed', sub: `${completedList.length}/${total} peserta aktif`
     },
     {
       type: 'onbInProgress', variant: 'ring',
       pct: pct(inProgressList.length), badgeBg: 'var(--navy-2)', ringColor: 'var(--warn)',
       icon: '🔄', iconBg: 'rgba(201,134,28,0.12)', iconColor: 'var(--warn)',
-      title: 'Onboarding In Progress', sub: `${inProgressList.length}/${total} peserta`
+      title: 'Induction In Progress', sub: `${inProgressList.length}/${total} peserta aktif`
     },
     {
-      type: 'onbNotStarted', variant: 'ring',
-      pct: pct(notStartedList.length), badgeBg: 'var(--navy-2)', ringColor: 'var(--danger)',
-      icon: '⏳', iconBg: 'rgba(224,90,78,0.12)', iconColor: 'var(--danger)',
-      title: 'Onboarding Not Started', sub: `${notStartedList.length}/${total} peserta`
+      type: 'onbResign', variant: 'ring',
+      pct: pctResign, badgeBg: 'var(--navy-2)', ringColor: 'var(--danger)',
+      icon: '🔴', iconBg: 'rgba(224,90,78,0.12)', iconColor: 'var(--danger)',
+      title: 'Peserta Resign', sub: `${resignList.length}/${totalCandidatesMonth} kandidat bulan ini`
     }
   ];
 
@@ -2744,9 +2738,9 @@ function getAktivasiTiming(c){
 // apakah target aktivasi SEBELUM hari onboarding beneran tercapai atau meleset.
 function getAktivasiTimingBadge(c){
   const t = getAktivasiTiming(c);
-  if(t === 'sebelum') return `<span class="status-badge status-sudah">✅ Aktivasi sebelum onboarding</span>`;
-  if(t === 'hari-h') return `<span class="status-badge status-warn">⚡ Aktivasi di hari onboarding</span>`;
-  if(t === 'setelah') return `<span class="status-badge status-belum">⏰ Aktivasi setelah onboarding</span>`;
+  if(t === 'sebelum') return `<span class="status-badge status-sudah">✅ Aktivasi sebelum induction</span>`;
+  if(t === 'hari-h') return `<span class="status-badge status-warn">⚡ Aktivasi di hari induction</span>`;
+  if(t === 'setelah') return `<span class="status-badge status-belum">⏰ Aktivasi setelah induction</span>`;
   return '';
 }
 
@@ -2766,9 +2760,9 @@ function getAktivasiColClass(c){
 function aktivasiColTooltip(c){
   if(c.statusAktivasi !== 'Sudah') return '';
   const t = getAktivasiTiming(c);
-  if(t === 'sebelum') return 'Aktivasi sebelum onboarding';
-  if(t === 'hari-h') return 'Aktivasi di hari onboarding';
-  if(t === 'setelah') return 'Aktivasi setelah onboarding (telat)';
+  if(t === 'sebelum') return 'Aktivasi sebelum induction';
+  if(t === 'hari-h') return 'Aktivasi di hari induction';
+  if(t === 'setelah') return 'Aktivasi setelah induction (telat)';
   return 'Status Sudah, tapi tanggal aktivasi belum tercatat';
 }
 
@@ -2797,19 +2791,22 @@ function renderKehadiranBadge(c){
 // "Status Onboarding" pada tabel utama.
 function renderOnboardingStatusBadge(c){
   const status = dummyOnboardingStatus(c);
-  if(status === 'Completed') return `<span class="status-badge status-sudah">✅ Onboarding: Completed</span>`;
-  if(status === 'In Progress') return `<span class="status-badge status-progress">🔄 Onboarding: In Progress</span>`;
-  return `<span class="status-badge status-belum-verif">⏳ Onboarding: Not Started</span>`;
+  if(status === 'Completed') return `<span class="status-badge status-sudah">✅ Induction: Completed</span>`;
+  if(status === 'In Progress') return `<span class="status-badge status-progress">🔄 Induction: In Progress</span>`;
+  return `<span class="status-badge status-belum-verif">⏳ Induction: Not Started</span>`;
 }
 
 // Tombol kirim reminder onboarding via WhatsApp, dipakai konsisten di SEMUA popup
 // card status onboarding (dept-mini-card & cand-card). Klik-nya ditangkap lewat event
 // delegation di #statModalBody / #chartModalBody, jadi di sini cuma render markup-nya.
-// Kandidat yang statusnya udah "Completed" gak butuh diingetin lagi -> tombolnya
-// gak usah dirender sama sekali (return string kosong).
+// Kandidat yang udah Resign gak butuh diingetin WA lagi -> gantiin tombolnya jadi
+// badge "🔴 Resign" (klik/hover buat liat tanggal resign-nya). Kandidat
+// yang statusnya udah "Completed" (dan masih Active) juga gak butuh diingetin lagi
+// -> tombolnya gak usah dirender sama sekali (return string kosong).
 function renderWaButton(c){
+  if(getStatusKaryawan(c) === 'Resign') return renderResignBadge(c);
   if(dummyOnboardingStatus(c) === 'Completed') return '';
-  return `<button type="button" class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Ingatkan modul onboarding yang belum selesai via WhatsApp">
+  return `<button type="button" class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Ingatkan modul induction yang belum selesai via WhatsApp">
     <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
   </button>`;
 }
@@ -2828,7 +2825,7 @@ function renderCandMiniCard(c, context){
 
   if(context === 'aktivasi'){
     metaHtml = `
-      <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+      <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
       <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
   } else if(context === 'pic'){
@@ -2837,9 +2834,16 @@ function renderCandMiniCard(c, context){
       <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
   } else if(context === 'onboarding'){
     metaHtml = `
-      <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+      <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
       <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
+  } else if(context === 'resign'){
+    const diff = getResignDaysDiff(c);
+    metaHtml = `
+      <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+      <span class="meta-item">🔴 <b>Resign</b> ${escapeHtml(c.tglResign ? fmtShortID(c.tglResign) : '-')}</span>
+      ${diff !== null ? `<span class="meta-item">⏱️ <b>Selisih</b> ${Math.abs(diff)} hari dari induction</span>` : ''}
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
   } else { // 'total' (default)
     metaHtml = `
       <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
@@ -2928,7 +2932,7 @@ function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn, context){
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">📅 Minggu ke-?</span>
-        <span class="week-date">Tgl onboarding belum diisi</span>
+        <span class="week-date">Tgl induction belum diisi</span>
         <span class="week-count">${withoutDate.length} kandidat</span>
         ${weekExtraFn ? weekExtraFn(withoutDate) : ''}
       </div>
@@ -2968,7 +2972,7 @@ function renderPicWeeklyDetailHtml(list){
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">📅 Minggu ke-?</span>
-        <span class="week-date">Tgl onboarding belum diisi</span>
+        <span class="week-date">Tgl induction belum diisi</span>
         <span class="week-count">${withoutDate.length} kandidat</span>
       </div>
       ${renderSimpleCandList(withoutDate, 'pic')}
@@ -3041,12 +3045,12 @@ function renderOnboardingByWeekHtml(list){
     const total = picCands.length;
     const pct = total ? Math.round((hadir / total) * 100) : 0;
     const name = pic || 'PIC lainnya';
-    return `<span class="pic-title-text">${escapeHtml(name)} · ${hadir}/${total} Jadi Onboarding</span>${renderMiniDonut(pct, 'var(--accent-2)', 40)}`;
+    return `<span class="pic-title-text">${escapeHtml(name)} · ${hadir}/${total} Jadi Induction</span>${renderMiniDonut(pct, 'var(--accent-2)', 40)}`;
   }, (dayCandidates) => {
     const hadir = dayCandidates.filter(c => c.kehadiran === 'Hadir').length;
     const total = dayCandidates.length;
     const pct = total ? Math.round((hadir / total) * 100) : 0;
-    return `<span class="week-count">${hadir}/${total} Jadi Onboarding</span>${renderMiniDonut(pct, 'var(--accent-2)', 36)}`;
+    return `<span class="week-count">${hadir}/${total} Jadi Induction</span>${renderMiniDonut(pct, 'var(--accent-2)', 36)}`;
   }, 'onboarding');
 }
 
@@ -3065,7 +3069,7 @@ function renderAktivasiBreakdownHtml(list){
     return `
     <div class="pic-group pic-group-boxed">
       <div class="pic-title pic-title-with-bar">
-        <span class="pic-title-text">${escapeHtml(pic)} · ${sebelum}/${total} Aktivasi sebelum Onboarding</span>
+        <span class="pic-title-text">${escapeHtml(pic)} · ${sebelum}/${total} Aktivasi sebelum Induction</span>
         ${renderMiniDonut(pct, 'var(--blue)', 46)}
       </div>
       ${renderSimpleCandList(list, 'aktivasi')}
@@ -3215,21 +3219,21 @@ function bindStatTileEvents(){
       }else if(type === 'pic'){
         openStatModal(`PIC Aktif — ${currentMonthLabel()} (${statDetailsCache.picList.length})`, renderTotalPicSummaryHtml(statDetailsCache.picList), {icon:'👥', accent:'pic'});
       }else if(type === 'onboarding'){
-        openStatModal(`% Jadi Onboarding per PIC — ${currentMonthLabel()}`, renderOnboardingByWeekHtml(statDetailsCache.aktivasi), {icon:'🎯', accent:'onboarding'});
+        openStatModal(`% Jadi Induction per PIC — ${currentMonthLabel()}`, renderOnboardingByWeekHtml(statDetailsCache.aktivasi), {icon:'🎯', accent:'onboarding'});
       }else if(type === 'aktivasi'){
-        openStatModal(`Aktivasi sebelum Onboarding per PIC — ${currentMonthLabel()}`, renderAktivasiBreakdownHtml(statDetailsCache.aktivasi), {icon:'🔑', accent:'aktivasi'});
+        openStatModal(`Aktivasi sebelum Induction per PIC — ${currentMonthLabel()}`, renderAktivasiBreakdownHtml(statDetailsCache.aktivasi), {icon:'🔑', accent:'aktivasi'});
       }else if(type === 'onbTotal'){
         const list = statDetailsCache.onboardingStatus.peserta;
-        openStatModal(`Total Peserta Onboarding — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🎓', accent:'onboarding'});
+        openStatModal(`Total Peserta Induction — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🎓', accent:'onboarding'});
       }else if(type === 'onbCompleted'){
         const list = statDetailsCache.onboardingStatus.completed;
-        openStatModal(`Onboarding Completed — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'✅', accent:'onboarding'});
+        openStatModal(`Induction Completed — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'✅', accent:'onboarding'});
       }else if(type === 'onbInProgress'){
         const list = statDetailsCache.onboardingStatus.inProgress;
-        openStatModal(`Onboarding In Progress — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🔄', accent:'onboarding'});
-      }else if(type === 'onbNotStarted'){
-        const list = statDetailsCache.onboardingStatus.notStarted;
-        openStatModal(`Onboarding Not Started — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'⏳', accent:'onboarding'});
+        openStatModal(`Induction In Progress — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🔄', accent:'onboarding'});
+      }else if(type === 'onbResign'){
+        const list = statDetailsCache.onboardingStatus.resign;
+        openStatModal(`Peserta Resign — ${currentMonthLabel()} (${list.length})`, renderResignBreakdownHtml(list), {icon:'🔴', accent:'onboarding'});
       }
     });
   });
@@ -3353,6 +3357,28 @@ function isSalesDesignation(c){
   return /sales/i.test(c.designation || '');
 }
 
+// Modul "Be A Great Employee" (budaya kerja) -- id-nya beda per journey: m04 buat
+// designation umum, s01 buat Sales/Sales Counter. Nyentang modul ini nandain karyawan
+// beneran hadir sesi orientasi, jadi kolom Kehadiran diisi otomatis jadi "Hadir"
+// (lihat autoMarkHadirFromChecklist()) -- gak perlu diverifikasi manual lagi.
+function greatEmployeeModuleId(c){
+  return isSalesDesignation(c) ? 's01' : 'm04';
+}
+
+// Cek checklist onboarding kandidat: kalau modul "Be A Great Employee" udah dicentang
+// (done:true) DAN kehadirannya belum "Hadir", update kehadiran lokal jadi "Hadir" &
+// bersihin pending edit dropdown Kehadiran yang belum disimpan (biar gak ketimpa balik
+// pas render). Balikin true kalau ada perubahan, biar caller tau perlu render ulang /
+// kirim field kehadiran ke server juga.
+function autoMarkHadirFromChecklist(c, checklist){
+  const gEmpId = greatEmployeeModuleId(c);
+  const isDone = !!(checklist[gEmpId] && checklist[gEmpId].done);
+  if(!isDone || c.kehadiran === 'Hadir') return false;
+  c.kehadiran = 'Hadir';
+  delete pendingKehadiran[c._id];
+  return true;
+}
+
 function getOnboardingModules(c){
   return isSalesDesignation(c) ? SALES_ONBOARDING_MODULES : ONBOARDING_MODULES;
 }
@@ -3403,6 +3429,12 @@ const TABLE_COLUMNS = [
     filterValue: c => effectiveKehadiran(c),
     filterLabel: v => v === 'Hadir' ? '✅ Hadir' : v === 'Tidak Hadir' ? '❌ Tidak Hadir' : '⏳ Belum' },
   { key:'aksi', label:'Aksi', sortable:false, filterable:false },
+  { key:'onboardingStatus', label:'Status Induction', sortable:true, filterable:true,
+    // NOTE: masih data dummy sementara -> diturunin dari kehadiran (Hadir = Completed,
+    // selain itu = Not Started). Nanti diganti pas journey onboarding beneran udah ada.
+    sortValue: c => dummyOnboardingStatus(c),
+    filterValue: c => dummyOnboardingStatus(c),
+    filterLabel: v => v === 'Completed' ? '✅ Completed' : '⏳ Not Started' },
   { key:'atasan', label:'Atasan', sortable:true, filterable:true,
     sortValue: c => (c.atasan||'').toLowerCase(),
     filterValue: c => c.atasan || '', filterLabel: v => v || '(Kosong)' },
@@ -3416,7 +3448,7 @@ const TABLE_COLUMNS = [
     sortValue: c => c.tglJoin || '',
     filterValue: c => c.tglJoin || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
     sortAsDate:true },
-  { key:'tglOnboarding', label:'Tgl Onboarding', sortable:true, filterable:true,
+  { key:'tglOnboarding', label:'Tgl Induction', sortable:true, filterable:true,
     sortValue: c => c.tglOnboarding || '',
     filterValue: c => c.tglOnboarding || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
     sortAsDate:true },
@@ -3427,19 +3459,9 @@ const TABLE_COLUMNS = [
   { key:'statusAktivasi', label:'Aktivasi', sortable:true, filterable:true,
     sortValue: c => (c.statusAktivasi||'').toLowerCase(),
     filterValue: c => c.statusAktivasi || '', filterLabel: v => v || '(Kosong)' },
-  { key:'statusKaryawan', label:'Status Karyawan', sortable:true, filterable:true,
-    sortValue: c => getStatusKaryawan(c).toLowerCase(),
-    filterValue: c => getStatusKaryawan(c),
-    filterLabel: v => v === 'Resign' ? '🔴 Resign' : '🟢 Active' },
   { key:'noHp', label:'No HP', sortable:true, filterable:true,
     sortValue: c => (c.noHp||'').toLowerCase(),
-    filterValue: c => c.noHp || '', filterLabel: v => v || '(Kosong)' },
-  { key:'onboardingStatus', label:'Status Onboarding', sortable:true, filterable:true,
-    // NOTE: masih data dummy sementara -> diturunin dari kehadiran (Hadir = Completed,
-    // selain itu = Not Started). Nanti diganti pas journey onboarding beneran udah ada.
-    sortValue: c => dummyOnboardingStatus(c),
-    filterValue: c => dummyOnboardingStatus(c),
-    filterLabel: v => v === 'Completed' ? '✅ Completed' : '⏳ Not Started' }
+    filterValue: c => c.noHp || '', filterLabel: v => v || '(Kosong)' }
 ];
 
 const FILTER_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 2.5h13l-5 6v4.2l-3 1.3V8.5l-5-6z" fill="currentColor"/></svg>';
@@ -3735,16 +3757,25 @@ function renderCandRow(c, rowNumber){
       </td>
       <td>
         <div class="table-actions-cell">
-          <button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Kirim reminder onboarding via WhatsApp">
+          ${getStatusKaryawan(c) === 'Resign' ? renderResignBadge(c) : `<button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Kirim reminder induction via WhatsApp">
             <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
-          </button>
-          <button class="edit" data-id="${escapeAttr(c._id)}" title="Edit">
+          </button>`}
+          ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="edit" data-id="${escapeAttr(c._id)}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <button class="del" data-id="${escapeAttr(c._id)}" title="Hapus">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7h10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+          </button>`}
         </div>
+      </td>
+      <td>
+        <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">
+          ${onbStatus==='Completed'
+            ? `<span class="status-badge status-sudah">✅ Completed</span>`
+            : onbStatus==='In Progress'
+            ? `<span class="status-badge status-progress">🔄 In Progress</span>`
+            : `<span class="status-badge status-belum-verif">⏳ Not Started</span>`}
+        </button>
       </td>
       <td class="wrap">${escapeHtml(c.atasan||'-')}</td>
       <td class="wrap">${escapeHtml(c.designation||'-')}</td>
@@ -3753,17 +3784,7 @@ function renderCandRow(c, rowNumber){
       <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
       <td>${c.statusAktivasi ? `<span class="status-badge ${getAktivasiColClass(c)}" title="${escapeAttr(aktivasiColTooltip(c))}">${escapeHtml(c.statusAktivasi)}</span>` : `<span class="status-badge status-belum-verif">-</span>`}</td>
-      <td>${renderStatusKaryawanBadge(c)}</td>
       <td class="wrap">${escapeHtml(c.noHp||'-')}</td>
-      <td>
-        <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey onboarding">
-          ${onbStatus==='Completed'
-            ? `<span class="status-badge status-sudah">✅ Completed</span>`
-            : onbStatus==='In Progress'
-            ? `<span class="status-badge status-progress">🔄 In Progress</span>`
-            : `<span class="status-badge status-belum-verif">⏳ Not Started</span>`}
-        </button>
-      </td>
     </tr>`;
 }
 
@@ -3782,7 +3803,7 @@ function buildOnboardingReminderText(c){
     `Halo *${nama}* 👋`,
     '',
     'Selamat bergabung di *Trusmi Group*! 🎉',
-    'Kami dari *HR Training Trusmi Group* mau mengingatkan jadwal *Onboarding Training* kamu:',
+    'Kami dari *HR Training Trusmi Group* mau mengingatkan jadwal *Induction Training* kamu:',
     ''
   ];
   lines.push(`🗓️ Tanggal: *${tglOnb}*`);
@@ -3823,7 +3844,7 @@ function buildModuleReminderText(c){
   const lines = [
     `Halo *${nama}* 👋`,
     '',
-    'Kami dari *HR Training Trusmi Group* mau mengingatkan progress *Onboarding Training* kamu.',
+    'Kami dari *HR Training Trusmi Group* mau mengingatkan progress *Induction Training* kamu.',
     'Masih ada modul yang belum diselesaikan:',
     ''
   ];
@@ -4015,7 +4036,7 @@ function renderChart(){
   const chartHintEl = document.getElementById('chartHint');
   const chartSubEl = document.getElementById('chartSub');
 
-  chartSubEl.textContent = `${currentMonthLabel()} · tiap gelembung = kandidat pada PIC & tanggal onboarding tsb`;
+  chartSubEl.textContent = `${currentMonthLabel()} · tiap gelembung = kandidat pada PIC & tanggal induction tsb`;
 
   const dates = getOnboardingDates().filter(isCurrentMonth);
   const pics = Array.from(new Set(
@@ -4023,7 +4044,7 @@ function renderChart(){
   ));
 
   if(dates.length === 0 || pics.length === 0){
-    emptyStateEl.textContent = `Belum ada kandidat onboarding di bulan ${currentMonthLabel()}.`;
+    emptyStateEl.textContent = `Belum ada kandidat induction di bulan ${currentMonthLabel()}.`;
     emptyStateEl.style.display = 'block';
     chartHintEl.style.display = 'none';
     chartCanvas.style.display = 'none';
@@ -4110,7 +4131,7 @@ function renderChart(){
           offset: true,
           ticks: { color: cssVar('--text-dim'), font: { size: 10.5 } },
           grid: { color: cssVar('--border') },
-          title: { display: true, text: `Tanggal Onboarding ${currentMonthLabel()}`, color: cssVar('--text-dim'), font: { size: 11 } }
+          title: { display: true, text: `Tanggal Induction ${currentMonthLabel()}`, color: cssVar('--text-dim'), font: { size: 11 } }
         },
         y: {
           type: 'category',
@@ -4151,7 +4172,7 @@ function openChartModal(group, pic, date){
             <div class="cand-meta-grid">
               <span class="meta-item">📱 ${escapeHtml(c.noHp||'-')}</span>
               <span class="meta-item">📆 <b>Join</b> ${escapeHtml(fmtShortID(c.tglJoin))}</span>
-              ${c.tglOnboarding ? `<span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(fmtShortID(c.tglOnboarding))}</span>` : ''}
+              ${c.tglOnboarding ? `<span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(fmtShortID(c.tglOnboarding))}</span>` : ''}
               <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
             </div>
           </div>
@@ -4161,10 +4182,10 @@ function openChartModal(group, pic, date){
             ${renderOnboardingStatusBadge(c)}
           </div>
         </div>
-        <div class="cand-card-actions-row">
+        ${getStatusKaryawan(c) === 'Resign' ? '' : `<div class="cand-card-actions-row">
           <button class="edit" data-id="${escapeAttr(c._id)}">✏️ Edit</button>
           <button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>
-        </div>
+        </div>`}
       </div>`;
   });
   html += `</div>`;
@@ -4445,7 +4466,7 @@ function openDeptModal(dept, group){
         </div>
         <div class="dept-mini-role">${renderRoleLine(c)}</div>
         <div class="dept-mini-row">
-          <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+          <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
           <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
@@ -4619,7 +4640,7 @@ function renderTotalKandidatByBatchHtml(list){
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">📅 Minggu ke-?</span>
-        <span class="week-date">Tgl onboarding belum diisi</span>
+        <span class="week-date">Tgl induction belum diisi</span>
         <span class="week-count">${withoutDate.length} kandidat</span>
       </div>
       <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
@@ -4648,7 +4669,7 @@ function openOnboardingJourneyModal(c){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
   const modalSubtitleEl = document.getElementById('chartModalSubtitle');
-  modalTitleEl.textContent = `🧭 Journey Onboarding — ${c.nama || '(nama belum diisi)'}`;
+  modalTitleEl.textContent = `🧭 Journey Induction — ${c.nama || '(nama belum diisi)'}`;
 
   if(modalSubtitleEl){
     const subtitleParts = [
@@ -4701,14 +4722,17 @@ function renderJourneyChecklistHtml(c){
   });
 
   // Tombol WA "ingetin modul belum selesai" -> renderWaButton() sendiri yang mutusin
-  // kosong/nggaknya (cuma muncul kalau status kandidat belum Completed).
+  // kosong/nggaknya (cuma muncul kalau status kandidat belum Completed). Kalau
+  // kandidatnya udah Resign, renderWaButton() balikin badge "🔴 Resign" (bukan
+  // tombol WA), jadi label di sebelahnya juga disesuaikan.
+  const isResignKaryawan = getStatusKaryawan(c) === 'Resign';
   const waHtml = renderWaButton(c);
 
   let html = `
     <div class="journey-progress">
       <div class="journey-progress-label"><b>${done}/${total} modul selesai</b><span>${pct}%</span></div>
       <div class="journey-progress-bar"><div class="journey-progress-fill" style="width:${pct}%"></div></div>
-      ${waHtml ? `<div class="journey-wa-row">${waHtml}<span class="journey-wa-label">Ingatkan modul yang belum selesai via WhatsApp</span></div>` : ''}
+      ${waHtml ? `<div class="journey-wa-row">${waHtml}<span class="journey-wa-label">${isResignKaryawan ? 'Karyawan ini sudah resign' : 'Ingatkan modul yang belum selesai via WhatsApp'}</span></div>` : ''}
     </div>`;
 
   groupOrder.forEach(group => {
@@ -4807,6 +4831,13 @@ async function onJourneyDateChange(e){
 // Status Onboarding di tabel/stats biar langsung sinkron tanpa perlu reload manual.
 async function saveOnboardingChecklist(c, checklist){
   c.onboardingChecklist = checklist;
+
+  // Modul "Be A Great Employee" dicentang -> auto-tandain kehadiran "Hadir" &
+  // ikut dikirim bareng checklist dalam 1 request update yang sama (backend
+  // Code.gs juga ngejaga hal yang sama sebagai jaring pengaman, termasuk buat
+  // jalur import LMS massal).
+  const autoHadir = autoMarkHadirFromChecklist(c, checklist);
+
   const modalBodyEl = document.getElementById('chartModalBody');
   if(modalBodyEl && document.getElementById('chartModalOverlay').classList.contains('show')){
     const progressEl = modalBodyEl.querySelector('.journey-progress');
@@ -4818,10 +4849,13 @@ async function saveOnboardingChecklist(c, checklist){
       progressEl.querySelector('.journey-progress-fill').style.width = pct + '%';
     }
   }
+  if(autoHadir) updateSaveKehadiranBtn();
   renderTable();
   renderStats();
-  const ok = await updateCandidate(c._id, { onboardingChecklist: JSON.stringify(checklist) });
-  if(ok) showToast('Checklist tersimpan'); 
+  const payload = { onboardingChecklist: JSON.stringify(checklist) };
+  if(autoHadir) payload.kehadiran = 'Hadir';
+  const ok = await updateCandidate(c._id, payload);
+  if(ok) showToast(autoHadir ? 'Checklist tersimpan · Kehadiran otomatis jadi Hadir 🎉' : 'Checklist tersimpan');
 }
 
 // Upload evidence form orientasi (foto/scan form fisik "Orientasi Awal HR" yg udah
@@ -5019,16 +5053,70 @@ function findCandidateByLmsName(namaLms){
 // Semua karyawan default Active, kecuali terupdate jadi Resign lewat Import E-Training
 // (kolom "Resignation" di file export ada tanggalnya). Gak ada jalur buat balikin ke
 // Active lagi lewat import -- itu diedit manual kalau memang perlu dikoreksi.
+// Kolom "Status Karyawan" sendiri udah dihapus dari tabel -- infonya udah terwakilkan
+// lewat badge "🔴 Resign" yang gantiin tombol WA di kolom Aksi & semua popup card
+// (lihat renderResignBadge() & renderWaButton()).
 function getStatusKaryawan(c){
   return c.statusKaryawan === 'Resign' ? 'Resign' : 'Active';
 }
 
-function renderStatusKaryawanBadge(c){
-  if(getStatusKaryawan(c) !== 'Resign'){
-    return `<span class="status-badge status-sudah">🟢 Active</span>`;
-  }
+// Badge "🔴 Resign" -- gantiin tombol WA (di kolom aksi tabel & semua popup card)
+// buat kandidat yang udah resign. Hover atau klik badge-nya nunjukin tanggal resign
+// lewat toast, konsisten di semua tempat badge ini dipakai.
+function renderResignBadge(c){
   const tglLabel = c.tglResign ? fmtShortID(c.tglResign) : 'tanggal tidak diketahui';
   return `<span class="status-badge status-belum status-karyawan-resign" title="Resign: ${escapeAttr(tglLabel)}" onclick="showToast('Resign: ${escapeAttr(tglLabel)}')">🔴 Resign</span>`;
+}
+
+// Selisih hari antara tgl Resign & tgl Rencana Induction (bisa minus kalau resign-nya
+// sebelum jadwal induction). Balikin null kalau salah satu tanggal belum lengkap ->
+// dipakai buat ngelompokin card "Peserta Resign" jadi "≤5 hari" vs ">5 hari" dari induction.
+function getResignDaysDiff(c){
+  if(!c.tglResign || !c.tglOnboarding) return null;
+  const dResign = new Date(String(c.tglResign).slice(0,10) + 'T00:00:00');
+  const dOnb = new Date(String(c.tglOnboarding).slice(0,10) + 'T00:00:00');
+  if(isNaN(dResign) || isNaN(dOnb)) return null;
+  return Math.round((dResign - dOnb) / 86400000);
+}
+
+// Popup card "Peserta Resign": dikelompokkan jadi 2 kategori berdasarkan jarak tanggal
+// resign ke tanggal induction (nilai absolut) -> "≤5 hari" (resign kurang/sama dengan 5
+// hari dari jadwal induction) dan ">5 hari" (lebih dari 5 hari). Kandidat yang tanggal
+// resign/induction-nya belum lengkap ditaruh di grup terpisah biar tetap kelihatan.
+function renderResignBreakdownHtml(list){
+  if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada peserta resign.</div>';
+  const near = list.filter(c => { const d = getResignDaysDiff(c); return d !== null && Math.abs(d) <= 5; });
+  const far = list.filter(c => { const d = getResignDaysDiff(c); return d !== null && Math.abs(d) > 5; });
+  const unknown = list.filter(c => getResignDaysDiff(c) === null);
+
+  let html = `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">⏱️ Resign ≤5 hari dari induction</span>
+        <span class="week-count">${near.length} kandidat</span>
+      </div>
+      ${renderSimpleCandList(near, 'resign')}
+    </div>
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">📆 Resign &gt;5 hari dari induction</span>
+        <span class="week-count">${far.length} kandidat</span>
+      </div>
+      ${renderSimpleCandList(far, 'resign')}
+    </div>`;
+
+  if(unknown.length){
+    html += `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">❔ Tgl resign/induction belum lengkap</span>
+        <span class="week-count">${unknown.length} kandidat</span>
+      </div>
+      ${renderSimpleCandList(unknown, 'resign')}
+    </div>`;
+  }
+
+  return html;
 }
 
 const lmsImportInputEl = document.getElementById('lmsImportInput');
@@ -5115,7 +5203,12 @@ async function handleLmsImportUpload(e){
     let savedCount = 0;
     for(const { c, checklist } of changedCandidates.values()){
       c.onboardingChecklist = checklist;
-      const ok = await updateCandidate(c._id, { onboardingChecklist: JSON.stringify(checklist) });
+      // Kalau modul "Be A Great Employee" ikut kecentang dari file LMS ini, kehadiran
+      // kandidatnya juga otomatis diset "Hadir" (sama kayak toggle checklist manual).
+      const autoHadir = autoMarkHadirFromChecklist(c, checklist);
+      const payload = { onboardingChecklist: JSON.stringify(checklist) };
+      if(autoHadir) payload.kehadiran = 'Hadir';
+      const ok = await updateCandidate(c._id, payload);
       if(ok) savedCount++;
     }
     let savedResignCount = 0;
@@ -5146,7 +5239,7 @@ function openBatchDeptModal(dept, date, wk, group){
   const modalBodyEl = document.getElementById('chartModalBody');
   const modalSubtitleEl = document.getElementById('chartModalSubtitle');
   if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
-  const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl onboarding belum diisi';
+  const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl induction belum diisi';
   modalTitleEl.textContent = `🏢 ${dept}`;
 
   let html = `<div class="week-group">
@@ -5164,7 +5257,7 @@ function openBatchDeptModal(dept, date, wk, group){
         </div>
         <div class="dept-mini-role">${renderRoleLine(c)}</div>
         <div class="dept-mini-row">
-          <span class="meta-item">🎯 <b>Onboarding</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+          <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
           <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
@@ -5214,10 +5307,11 @@ function buildText(){
 
   const hadirCount = filtered.filter(c => (c.kehadiran||'') === 'Hadir').length;
 
-  let lines = ['📝 *Info Karyawan Baru Join & Onboarding* 📢', ''];
-  lines.push(`jadwal onboarding : ${jadwalOnboarding}`);
+  let lines = ['📝 *Info Karyawan Baru Join & Induction* 📢', ''];
+  lines.push(`jadwal induction : ${jadwalOnboarding}`);
   lines.push(`Total Plan Peserta : ${filtered.length} Orang`);
   lines.push(`Total Peserta Hadir : ${hadirCount} Orang`);
+  lines.push('Info Detail : https://ningratedu.github.io/listjoin');
   lines.push('');
 
   order.forEach(pic => {
@@ -5237,7 +5331,6 @@ function buildText(){
     });
     lines.push(''); // jeda ekstra antar PIC recruitment
   });
-  lines.push('Klik link berikut untuk input kandidat dan info detail : https://ningratedu.github.io/listjoin');
   lines.push('');
   lines.push('Terimakasih.. 🙏😊');
   return lines.join('\n').trim();
