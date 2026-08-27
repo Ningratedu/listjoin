@@ -2894,8 +2894,10 @@ function renderCandMiniCard(c, context){
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
   }
   // Badge aktivasi + kehadiran ditampilin bareng di semua context, konsisten
-  // dengan card "aktivasi" (dua badge, gak pernah kosong).
-  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>`;
+  // dengan card "aktivasi" (dua badge, gak pernah kosong). Badge status onboarding-nya
+  // dibungkus tombol (sama kayak kolom "Status Induction" di tabel utama) biar bisa
+  // diklik buat buka popup journey induction kandidat itu.
+  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}<button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">${renderOnboardingStatusBadge(c)}</button></div>`;
 
   return `
     <div class="cand-card dept-mini-card">
@@ -3156,6 +3158,12 @@ document.getElementById('statModalBody').addEventListener('click', (e) => {
   if(waBtn){
     const c = candidates.find(x => x._id === waBtn.dataset.id);
     if(c) sendModuleReminder(c);
+    return;
+  }
+  const statusBtn = e.target.closest('.onboarding-status-btn');
+  if(statusBtn){
+    const c = candidates.find(x => x._id === statusBtn.dataset.id);
+    if(c) openOnboardingJourneyModal(c);
   }
 });
 
