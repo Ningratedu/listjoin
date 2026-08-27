@@ -955,6 +955,42 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
   .status-progress{background:rgba(201,134,28,0.15);color:var(--warn);}
   .status-karyawan-resign{cursor:pointer;}
+  /* Tooltip custom buat badge "Resign" -- ditempel & posisinya dihitung relatif ke
+     badge-nya sendiri (position:fixed berdasarkan getBoundingClientRect), bukan
+     tooltip bawaan browser (attribute `title`). Alasannya: tooltip bawaan browser
+     posisinya ngikutin kursor mouse, jadi kalo badge-nya ada di dalam popup/modal
+     yang mepet ke bawah layar, tooltip-nya bisa ketutup/kepotong sama modal itu
+     sendiri. Dengan versi custom ini, posisinya selalu nempel pas di atas/bawah
+     badge & z-index-nya paling tinggi -> selalu keliatan penuh di manapun badge-nya
+     dipasang (tabel, card, ATAUPUN di dalam popup detail). Dipakai sama-sama buat
+     hover (desktop) & klik (HP/touch) biar tampilannya konsisten. */
+  .resign-tooltip{
+    position:fixed;
+    top:0; left:0;
+    z-index:500;
+    background:var(--navy);
+    color:#fff;
+    font-size:11px;
+    font-weight:700;
+    padding:6px 11px;
+    border-radius:8px;
+    box-shadow:var(--shadow);
+    pointer-events:none;
+    white-space:nowrap;
+    opacity:0;
+    transform:translateY(4px);
+    transition:opacity .12s ease, transform .12s ease;
+  }
+  .resign-tooltip.show{opacity:1;transform:translateY(0);}
+  .resign-tooltip::after{
+    content:'';
+    position:absolute;
+    left:var(--arrow-left, 50%);
+    margin-left:-5px;
+    border:5px solid transparent;
+  }
+  .resign-tooltip[data-pos="top"]::after{top:100%;border-top-color:var(--navy);}
+  .resign-tooltip[data-pos="bottom"]::after{bottom:100%;border-bottom-color:var(--navy);}
   .onboarding-status-btn{
     display:inline-flex;align-items:center;gap:5px;
     border:none;cursor:pointer;padding:0;background:none;
@@ -1721,7 +1757,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         </div>
       </div>
     </h2>
-    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
+    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus. atau upload data export e-training agar kehadiran terupdate otomatis sesuai peserta training.</div>
     <div class="table-toolbar">
       <div class="table-search-wrap">
         <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -2638,24 +2674,33 @@ function renderStatTileRow(containerId, tiles, renderBadgeFn){
 }
 
 // Card status onboarding (Total Peserta / Completed / In Progress / Peserta Resign), taruh
-// di atas tabel "Detail & Kelola Kandidat". Peserta aktif = kandidat bulan terpilih yang
-// kehadirannya SUDAH confirm "Hadir" DAN belum resign. Yang "Tidak Hadir", yang kehadirannya
-// belum diisi (masih kosong/pending), maupun yang sudah resign tidak dihitung sebagai
-// pembagi Completed/In Progress, karena journey induction-nya udah gak relevan lagi.
+// di atas tabel "Detail & Kelola Kandidat".
+// - "Total Peserta Induction" = SEMUA kandidat bulan terpilih yang kehadirannya confirm
+//   "Hadir", TANPA peduli udah resign atau belum -- karena begitu kandidatnya hadir induction,
+//   dia tetap terhitung sebagai peserta induction-nya meskipun belakangan resign.
+// - Completed & In Progress cuma dihitung dari peserta yang masih Active (belum resign),
+//   soalnya journey induction buat yang udah resign dianggap gak relevan lagi buat ditracking.
 function renderOnboardingStats(){
   const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
-  // Peserta aktif = kandidat yang statusnya sudah confirm "Hadir" DAN masih Active (belum resign).
-  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir' && getStatusKaryawan(c) !== 'Resign');
+  // Semua peserta yang udah Hadir, resign ataupun belum -- ini yang dipakai buat badge
+  // & popup detail "Total Peserta Induction".
+  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir');
   const total = pesertaList.length;
-  const completedList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'Completed');
-  const inProgressList = pesertaList.filter(c => dummyOnboardingStatus(c) === 'In Progress');
-  const pct = n => total ? Math.round(n / total * 100) : 0;
+  // Peserta aktif = subset dari pesertaList yang masih Active (belum resign), dipakai
+  // khusus buat itung Completed/In Progress karena journey-nya masih relevan ditracking.
+  const activeList = pesertaList.filter(c => getStatusKaryawan(c) !== 'Resign');
+  const totalActive = activeList.length;
+  const completedList = activeList.filter(c => dummyOnboardingStatus(c) === 'Completed');
+  const inProgressList = activeList.filter(c => dummyOnboardingStatus(c) === 'In Progress');
+  const pct = n => totalActive ? Math.round(n / totalActive * 100) : 0;
 
-  // "Peserta Resign" dihitung dari SEMUA kandidat bulan terpilih (bukan cuma pesertaList),
-  // soalnya kandidat yang resign bisa aja tercatat "Tidak Hadir" juga.
+  // "Peserta Resign" -- yang dihitung sbg kandidat resign tetap dari SEMUA kandidat bulan
+  // terpilih (bukan cuma pesertaList), soalnya kandidat yang resign bisa aja tercatat
+  // "Tidak Hadir". TAPI pembagi (Y) buat persentasenya dari yang udah "Hadir" aja, bukan
+  // dari total semua kandidat bulan itu -- biar persentasenya nunjukkin proporsi resign
+  // relatif ke peserta yang beneran hadir induction.
   const resignList = candidatesInSelectedMonth.filter(c => getStatusKaryawan(c) === 'Resign');
-  const totalCandidatesMonth = candidatesInSelectedMonth.length;
-  const pctResign = totalCandidatesMonth ? Math.round(resignList.length / totalCandidatesMonth * 100) : 0;
+  const pctResign = total ? Math.round(resignList.length / total * 100) : 0;
 
   statDetailsCache.onboardingStatus = {
     peserta: pesertaList, completed: completedList, inProgress: inProgressList, resign: resignList
@@ -2672,19 +2717,19 @@ function renderOnboardingStats(){
       type: 'onbCompleted', variant: 'ring',
       pct: pct(completedList.length), badgeBg: 'var(--navy)', ringColor: 'var(--accent-2)',
       icon: '✅', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent-2)',
-      title: 'Induction Completed', sub: `${completedList.length}/${total} peserta aktif`
+      title: 'Induction Completed', sub: `${completedList.length}/${totalActive} peserta aktif`
     },
     {
       type: 'onbInProgress', variant: 'ring',
       pct: pct(inProgressList.length), badgeBg: 'var(--navy-2)', ringColor: 'var(--warn)',
       icon: '🔄', iconBg: 'rgba(201,134,28,0.12)', iconColor: 'var(--warn)',
-      title: 'Induction In Progress', sub: `${inProgressList.length}/${total} peserta aktif`
+      title: 'Induction In Progress', sub: `${inProgressList.length}/${totalActive} peserta aktif`
     },
     {
       type: 'onbResign', variant: 'ring',
       pct: pctResign, badgeBg: 'var(--navy-2)', ringColor: 'var(--danger)',
       icon: '🔴', iconBg: 'rgba(224,90,78,0.12)', iconColor: 'var(--danger)',
-      title: 'Peserta Resign', sub: `${resignList.length}/${totalCandidatesMonth} kandidat bulan ini`
+      title: 'Peserta Resign', sub: `${resignList.length}/${total} peserta hadir`
     }
   ];
 
@@ -3757,9 +3802,13 @@ function renderCandRow(c, rowNumber){
       </td>
       <td>
         <div class="table-actions-cell">
-          ${getStatusKaryawan(c) === 'Resign' ? renderResignBadge(c) : `<button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" title="Kirim reminder induction via WhatsApp">
+          ${getStatusKaryawan(c) === 'Resign' ? renderResignBadge(c) : (onbStatus === 'In Progress'
+            ? `<button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" data-type="module" title="Ingatkan modul induction yang belum selesai via WhatsApp">
             <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
-          </button>`}
+          </button>`
+            : `<button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" data-type="schedule" title="Kirim reminder induction via WhatsApp">
+            <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+          </button>`)}
           ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="edit" data-id="${escapeAttr(c._id)}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -3926,7 +3975,14 @@ function bindTableEvents(){
     btn.addEventListener('click', (e) => {
       const id = e.currentTarget.dataset.id;
       const c = candidates.find(x => x._id === id);
-      if(c) sendOnboardingReminder(c);
+      if(!c) return;
+      // Kandidat yang statusnya "In Progress" diingetin buat nyelesaiin modul yang
+      // belum kelar, bukan diingetin jadwal induction (soalnya udah lewat/lagi jalan).
+      if(e.currentTarget.dataset.type === 'module'){
+        sendModuleReminder(c);
+      }else{
+        sendOnboardingReminder(c);
+      }
     });
   });
 
@@ -5065,8 +5121,81 @@ function getStatusKaryawan(c){
 // lewat toast, konsisten di semua tempat badge ini dipakai.
 function renderResignBadge(c){
   const tglLabel = c.tglResign ? fmtShortID(c.tglResign) : 'tanggal tidak diketahui';
-  return `<span class="status-badge status-belum status-karyawan-resign" title="Resign: ${escapeAttr(tglLabel)}" onclick="showToast('Resign: ${escapeAttr(tglLabel)}')">🔴 Resign</span>`;
+  const label = escapeAttr('Resign: ' + tglLabel);
+  return `<span class="status-badge status-belum status-karyawan-resign" data-resign-label="${label}" onmouseenter="showResignTooltip(event)" onmouseleave="hideResignTooltip()" onclick="toggleResignTooltip(event)">🔴 Resign</span>`;
 }
+
+// ==== Tooltip custom buat badge "Resign" ====
+// 1 elemen tooltip dipakai ulang (bukan bikin baru tiap badge), posisinya dihitung ulang
+// tiap kali ditampilin lewat getBoundingClientRect() badge yg bersangkutan -> otomatis
+// selalu nempel pas di atas badge (atau di bawah kalau ruang di atas kurang, misal badge-nya
+// deket banget ke tepi atas layar/modal). Karena position:fixed & dihitung dari koordinat
+// viewport (bukan relatif ke parent), tooltip ini gak ke-crop sama overflow:hidden/auto
+// punya container manapun (termasuk modal-body yg scrollable) & selalu muncul DI ATAS
+// popup/modal apapun berkat z-index yang tinggi.
+let resignTooltipEl = null;
+let resignTooltipOwner = null;
+function ensureResignTooltip(){
+  if(!resignTooltipEl){
+    resignTooltipEl = document.createElement('div');
+    resignTooltipEl.className = 'resign-tooltip';
+    document.body.appendChild(resignTooltipEl);
+  }
+  return resignTooltipEl;
+}
+function positionResignTooltip(badge){
+  const tip = ensureResignTooltip();
+  tip.textContent = badge.getAttribute('data-resign-label') || '';
+  tip.style.visibility = 'hidden';
+  tip.classList.add('show');
+  const rect = badge.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  let top = rect.top - tipRect.height - 8;
+  let pos = 'top';
+  if(top < 8){
+    // gak cukup ruang di atas (misal badge-nya deket tepi atas layar/modal) -> taruh di bawah
+    top = rect.bottom + 8;
+    pos = 'bottom';
+  }
+  let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+  left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+  const arrowLeft = Math.max(10, Math.min(tipRect.width - 10, rect.left + rect.width / 2 - left));
+  tip.style.top = top + 'px';
+  tip.style.left = left + 'px';
+  tip.style.setProperty('--arrow-left', arrowLeft + 'px');
+  tip.setAttribute('data-pos', pos);
+  tip.style.visibility = 'visible';
+  resignTooltipOwner = badge;
+}
+function showResignTooltip(evt){
+  positionResignTooltip(evt.currentTarget);
+}
+function hideResignTooltip(){
+  if(resignTooltipEl) resignTooltipEl.classList.remove('show');
+  resignTooltipOwner = null;
+}
+function toggleResignTooltip(evt){
+  // stopPropagation biar klik badge-nya gak langsung ketangkep sama listener
+  // "klik di luar badge -> tutup tooltip" di bawah, & biar gak nembus ke modal
+  // overlay yang mungkin ada di belakangnya.
+  evt.stopPropagation();
+  const badge = evt.currentTarget;
+  if(resignTooltipOwner === badge && resignTooltipEl && resignTooltipEl.classList.contains('show')){
+    hideResignTooltip();
+  }else{
+    positionResignTooltip(badge);
+  }
+}
+document.addEventListener('click', (e) => {
+  if(resignTooltipEl && resignTooltipEl.classList.contains('show') && !e.target.closest('.status-karyawan-resign')){
+    hideResignTooltip();
+  }
+});
+// Scroll listener pakai capture:true biar ke-tangkep juga pas yang discroll adalah
+// container internal (misal modal-body), bukan cuma window -- soalnya event scroll
+// gak bubble ke atas secara default.
+window.addEventListener('scroll', hideResignTooltip, true);
+window.addEventListener('resize', hideResignTooltip);
 
 // Selisih hari antara tgl Resign & tgl Rencana Induction (bisa minus kalau resign-nya
 // sebelum jadwal induction). Balikin null kalau salah satu tanggal belum lengkap ->
