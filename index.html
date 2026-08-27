@@ -968,6 +968,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .status-tidak-hadir{background:rgba(224,90,78,0.15);color:var(--danger);}
   .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
   .status-progress{background:rgba(201,134,28,0.15);color:var(--warn);}
+  .status-karyawan-resign{cursor:pointer;}
   .onboarding-status-btn{
     display:inline-flex;align-items:center;gap:5px;
     border:none;cursor:pointer;padding:0;background:none;
@@ -991,6 +992,15 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .journey-item.done{background:rgba(37,211,102,0.08);}
   .journey-check{display:flex;align-items:center;gap:9px;cursor:pointer;flex:1;min-width:0;}
   .journey-check input[type="checkbox"]{width:17px;height:17px;flex-shrink:0;cursor:pointer;accent-color:var(--accent);}
+  .journey-check-lms{cursor:default;}
+  .journey-check-lms input[type="checkbox"]{cursor:not-allowed;opacity:0.7;}
+  .journey-lms-badge{display:inline-block;font-size:9.5px;font-weight:700;color:var(--accent-2);
+    background:rgba(37,211,102,0.12);border-radius:5px;padding:1px 6px;margin-left:6px;
+    letter-spacing:.01em;vertical-align:middle;}
+  .journey-lms-score{display:inline-block;font-size:9.5px;font-weight:800;border-radius:5px;
+    padding:1px 6px;margin-left:6px;letter-spacing:.01em;vertical-align:middle;}
+  .journey-lms-score-pass{color:var(--accent-2);background:rgba(37,211,102,0.14);}
+  .journey-lms-score-fail{color:var(--danger-text);background:var(--danger-bg);}
   .journey-item-name{font-size:12.5px;color:var(--text);line-height:1.3;}
   .journey-item.done .journey-item-name{color:var(--accent-2);}
   .journey-date{border:1px solid var(--border,rgba(107,124,133,0.3));border-radius:7px;
@@ -1136,30 +1146,35 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   }
 
   /* search box tabel detail kandidat */
-  .table-search-wrap{
-    position:relative;display:flex;align-items:center;
+  .table-toolbar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     margin-bottom:12px;
   }
+  .table-search-wrap{
+    position:relative;display:flex;align-items:center;
+    flex:0 1 200px;min-width:140px;
+  }
   .table-search-icon{
-    position:absolute;left:11px;width:14px;height:14px;
+    position:absolute;left:9px;width:12px;height:12px;
     color:var(--text-dim);pointer-events:none;
   }
   .table-search-input{
-    width:100%;padding:9px 32px 9px 32px;
-    border:1px solid var(--border);border-radius:9px;
+    width:100%;padding:6px 26px 6px 26px;
+    border:1px solid var(--border);border-radius:8px;
     background:var(--panel-2);color:var(--text);
-    font-size:12.5px;font-family:inherit;
+    font-size:11.5px;font-family:inherit;
     transition:border-color .15s;
   }
   .table-search-input::placeholder{color:var(--text-dim);}
   .table-search-input:focus{outline:none;border-color:var(--accent);}
   .table-search-clear{
-    position:absolute;right:8px;
+    position:absolute;right:6px;
     background:none;border:none;cursor:pointer;
-    color:var(--text-dim);font-size:11px;padding:4px 5px;
+    color:var(--text-dim);font-size:10px;padding:3px 4px;
     line-height:1;border-radius:999px;
   }
   .table-search-clear:hover{color:var(--danger);}
+  .upload-btn-compact{padding:5px 10px;font-size:11px;}
 
   /* detail table */
   .table-scroll{
@@ -1695,19 +1710,15 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       </div>
     </h2>
     <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
-    <div class="field" style="margin-bottom:14px;">
-      <label>Import Ceklis Otomatis Journey Onboarding dari LMS (opsional)</label>
-      <div class="upload-row">
-        <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
-        <button type="button" class="upload-btn" id="lmsImportBtn">📥 Upload Export LMS</button>
-        <span class="upload-status" id="lmsImportStatus"></span>
+    <div class="table-toolbar">
+      <div class="table-search-wrap">
+        <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input type="text" id="tableSearchInput" class="table-search-input" placeholder="Cari nama, PIC, departemen...">
+        <button type="button" id="tableSearchClearBtn" class="table-search-clear" style="display:none;" title="Hapus pencarian">✕</button>
       </div>
-      <div class="hint">Upload file export penyelesaian modul dari LMS (format kolom seperti "Nama"/"Username", "Training", "Status", "Tgl. Training"). Sistem otomatis mencentang modul journey onboarding (Sales/Sales Counter maupun designation lain) yang cocok untuk kandidat berstatus "Lulus" — modul yang belum ada training online-nya (mis. Compben & Praktek Lapangan) tetap dicentang manual.</div>
-    </div>
-    <div class="table-search-wrap">
-      <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-      <input type="text" id="tableSearchInput" class="table-search-input" placeholder="Cari nama, PIC, departemen, designation, atasan, atau no HP...">
-      <button type="button" id="tableSearchClearBtn" class="table-search-clear" style="display:none;" title="Hapus pencarian">✕</button>
+      <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
+      <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Onboarding dari E-Training">📥 Upload Export E-Training</button>
+      <span class="upload-status" id="lmsImportStatus"></span>
     </div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
     <div class="table-scroll" id="tableScrollWrap">
@@ -3288,6 +3299,10 @@ const TABLE_COLUMNS = [
   { key:'statusAktivasi', label:'Aktivasi', sortable:true, filterable:true,
     sortValue: c => (c.statusAktivasi||'').toLowerCase(),
     filterValue: c => c.statusAktivasi || '', filterLabel: v => v || '(Kosong)' },
+  { key:'statusKaryawan', label:'Status Karyawan', sortable:true, filterable:true,
+    sortValue: c => getStatusKaryawan(c).toLowerCase(),
+    filterValue: c => getStatusKaryawan(c),
+    filterLabel: v => v === 'Resign' ? '🔴 Resign' : '🟢 Active' },
   { key:'noHp', label:'No HP', sortable:true, filterable:true,
     sortValue: c => (c.noHp||'').toLowerCase(),
     filterValue: c => c.noHp || '', filterLabel: v => v || '(Kosong)' },
@@ -3610,6 +3625,7 @@ function renderCandRow(c, rowNumber){
       <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
       <td>${c.statusAktivasi ? `<span class="status-badge ${getAktivasiColClass(c)}" title="${escapeAttr(aktivasiColTooltip(c))}">${escapeHtml(c.statusAktivasi)}</span>` : `<span class="status-badge status-belum-verif">-</span>`}</td>
+      <td>${renderStatusKaryawanBadge(c)}</td>
       <td class="wrap">${escapeHtml(c.noHp||'-')}</td>
       <td>
         <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey onboarding">
@@ -4523,13 +4539,23 @@ function renderJourneyChecklistHtml(c){
       <div class="journey-group-title">${escapeHtml(group)}</div>`;
     groups[group].forEach(m => {
       const entry = checklist[m.id] || {};
+      // Modul yang punya lmsAliases cuma boleh keceklis lewat Import LMS -> checkbox-nya
+      // dibikin disabled biar gak bisa diklik manual, tapi tetap kelihatan checked/progress
+      // ikut kehitung normal begitu status-nya "done" (di-set dari importLmsCompletion()).
+      const isLmsAuto = !!(m.lmsAliases && m.lmsAliases.length);
+      // Nilai post test cuma ada buat modul auto E-Training yang punya angka nilai dari
+      // import LMS (kolom "Nilai"/"Skor"/"Score" di file export) -> hijau kalau >=80, merah kalau <80.
+      const hasNilai = isLmsAuto && entry.nilai !== undefined && entry.nilai !== null && entry.nilai !== '';
+      const nilaiBadge = hasNilai
+        ? ` <span class="journey-lms-score ${Number(entry.nilai) >= 80 ? 'journey-lms-score-pass' : 'journey-lms-score-fail'}">📝 ${entry.nilai}</span>`
+        : '';
       html += `
         <div class="journey-item ${entry.done ? 'done' : ''}">
-          <label class="journey-check">
-            <input type="checkbox" data-cand-id="${escapeAttr(c._id)}" data-module-id="${m.id}" ${entry.done ? 'checked' : ''}>
-            <span class="journey-item-name">${escapeHtml(m.label)}${m.link ? ` <a href="${escapeAttr(m.link)}" target="_blank" rel="noopener" class="journey-link" onclick="event.stopPropagation()">🔗 Buka Soal</a>` : ''}</span>
+          <label class="journey-check${isLmsAuto ? ' journey-check-lms' : ''}" ${isLmsAuto ? 'title="Modul ini otomatis tercentang lewat Import E-Training, tidak bisa dicentang manual"' : ''}>
+            <input type="checkbox" data-cand-id="${escapeAttr(c._id)}" data-module-id="${m.id}" ${entry.done ? 'checked' : ''} ${isLmsAuto ? 'disabled' : ''}>
+            <span class="journey-item-name">${escapeHtml(m.label)}${isLmsAuto ? ' <span class="journey-lms-badge">🤖 Auto E-Training</span>' : ''}${nilaiBadge}${m.link ? ` <a href="${escapeAttr(m.link)}" target="_blank" rel="noopener" class="journey-link" onclick="event.stopPropagation()">🔗 Buka Soal</a>` : ''}</span>
           </label>
-          <input type="date" class="journey-date" data-cand-id="${escapeAttr(c._id)}" data-module-id="${m.id}" value="${entry.tanggal||''}" ${entry.done ? '' : 'disabled'}>
+          <input type="date" class="journey-date" data-cand-id="${escapeAttr(c._id)}" data-module-id="${m.id}" value="${entry.tanggal||''}" ${entry.done ? '' : 'disabled'} ${isLmsAuto ? 'disabled' : ''}>
         </div>`;
     });
     html += `</div>`;
@@ -4764,7 +4790,11 @@ function findLmsHeaderRow(rows){
     const iStatus = norm.findIndex(v => v === 'status');
     if((iNama > -1 || iUser > -1) && iTraining > -1 && iStatus > -1){
       const iTgl = norm.findIndex(v => v.startsWith('tgl') && v.includes('training'));
-      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl };
+      // Kolom nilai post test, header di export LMS-nya "Posttest"
+      const iNilai = norm.findIndex(v => v === 'posttest' || v === 'post test');
+      // Kolom tanggal resign karyawan, header di export LMS-nya "Resignation"
+      const iResign = norm.findIndex(v => v.startsWith('resignation'));
+      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign };
     }
   }
   return null;
@@ -4809,6 +4839,21 @@ function findCandidateByLmsName(namaLms){
   return candidates.find(c => normalizeLmsText(c.nama) === norm) || null;
 }
 
+// Semua karyawan default Active, kecuali terupdate jadi Resign lewat Import E-Training
+// (kolom "Resignation" di file export ada tanggalnya). Gak ada jalur buat balikin ke
+// Active lagi lewat import -- itu diedit manual kalau memang perlu dikoreksi.
+function getStatusKaryawan(c){
+  return c.statusKaryawan === 'Resign' ? 'Resign' : 'Active';
+}
+
+function renderStatusKaryawanBadge(c){
+  if(getStatusKaryawan(c) !== 'Resign'){
+    return `<span class="status-badge status-sudah">🟢 Active</span>`;
+  }
+  const tglLabel = c.tglResign ? fmtShortID(c.tglResign) : 'tanggal tidak diketahui';
+  return `<span class="status-badge status-belum status-karyawan-resign" title="Resign: ${escapeAttr(tglLabel)}" onclick="showToast('Resign: ${escapeAttr(tglLabel)}')">🔴 Resign</span>`;
+}
+
 const lmsImportInputEl = document.getElementById('lmsImportInput');
 const lmsImportBtnEl = document.getElementById('lmsImportBtn');
 const lmsImportStatusEl = document.getElementById('lmsImportStatus');
@@ -4841,9 +4886,25 @@ async function handleLmsImportUpload(e){
 
     const dataRows = rows.slice(header.headerIdx + 1).filter(r => r.some(v => String(v).trim() !== ''));
     const changedCandidates = new Map(); // id -> { c, checklist }
+    const changedResign = new Map(); // id -> { c, tglResign } -- kandidat yang kedetek Resign dari kolom "Resignation"
     let matchedRows = 0, unmatchedName = 0, unmatchedModule = 0, notLulus = 0;
 
     dataRows.forEach(row => {
+      // Cek status karyawan (Resign) duluan, independen dari status Lulus/Tidak Lulus training
+      // -- ini bukan soal kelulusan modul, jadi jangan ikut ke-skip sama filter "Lulus" di bawah.
+      if(header.iResign > -1){
+        const namaLmsResign = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
+        const cResign = findCandidateByLmsName(namaLmsResign);
+        if(cResign){
+          const resignRaw = row[header.iResign];
+          const resignStr = String(resignRaw == null ? '' : resignRaw).trim();
+          // Kosong atau "-" = masih Active (tetap default), ada tanggal = Resign
+          if(resignStr && resignStr !== '-' && !changedResign.has(cResign._id)){
+            changedResign.set(cResign._id, { c: cResign, tglResign: lmsCellToISODate(resignRaw) });
+          }
+        }
+      }
+
       const status = String(row[header.iStatus] || '').trim();
       if(!/lulus/i.test(status)){ notLulus++; return; }
 
@@ -4856,37 +4917,48 @@ async function handleLmsImportUpload(e){
       if(!mod){ unmatchedModule++; return; }
 
       const tanggal = header.iTgl > -1 ? lmsCellToISODate(row[header.iTgl]) : todayISO();
+      const nilaiRaw = header.iNilai > -1 ? row[header.iNilai] : '';
+      const nilai = (nilaiRaw !== '' && nilaiRaw !== null && nilaiRaw !== undefined && !isNaN(Number(nilaiRaw)))
+        ? Number(nilaiRaw) : null;
       const entry = changedCandidates.get(c._id) || { c, checklist: { ...(c.onboardingChecklist || {}) } };
       // Kalau modul ini udah pernah dicentang manual dg tanggal lebih lama, tetap update
       // ke tanggal training dari LMS (dianggap sumber kebenaran buat modul yg auto-checked).
-      entry.checklist[mod.id] = { done:true, tanggal };
+      entry.checklist[mod.id] = { done:true, tanggal, nilai };
       changedCandidates.set(c._id, entry);
       matchedRows++;
     });
 
-    if(changedCandidates.size === 0){
+    if(changedCandidates.size === 0 && changedResign.size === 0){
       lmsImportStatusEl.textContent = '';
-      showToast('Tidak ada ceklis yang cocok buat diupdate dari file ini', true);
+      showToast('Tidak ada ceklis atau status resign yang cocok buat diupdate dari file ini', true);
       return;
     }
 
-    lmsImportStatusEl.textContent = `⏳ Menyimpan ${changedCandidates.size} kandidat...`;
+    lmsImportStatusEl.textContent = `⏳ Menyimpan ${changedCandidates.size + changedResign.size} kandidat...`;
     let savedCount = 0;
     for(const { c, checklist } of changedCandidates.values()){
       c.onboardingChecklist = checklist;
       const ok = await updateCandidate(c._id, { onboardingChecklist: JSON.stringify(checklist) });
       if(ok) savedCount++;
     }
+    let savedResignCount = 0;
+    for(const { c, tglResign } of changedResign.values()){
+      c.statusKaryawan = 'Resign';
+      c.tglResign = tglResign;
+      const ok = await updateCandidate(c._id, { statusKaryawan: 'Resign', tglResign });
+      if(ok) savedResignCount++;
+    }
 
     renderTable();
     renderStats();
 
-    lmsImportStatusEl.textContent = `✅ ${savedCount} kandidat terupdate`;
+    lmsImportStatusEl.textContent = `✅ ${savedCount + savedResignCount} kandidat terupdate`;
     const skippedNote = (unmatchedName || unmatchedModule) ? ` (${unmatchedName} nama tidak cocok, ${unmatchedModule} training tidak dikenali)` : '';
-    showToast(`Import LMS selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${skippedNote}`);
+    const resignNote = savedResignCount ? `, ${savedResignCount} kandidat ditandai Resign` : '';
+    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${skippedNote}`);
   }catch(err){
     lmsImportStatusEl.textContent = '';
-    showToast('Gagal membaca file LMS: ' + err.message, true);
+    showToast('Gagal membaca file E-Training: ' + err.message, true);
   }finally{
     lmsImportBtnEl.disabled = false;
   }
