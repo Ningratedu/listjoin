@@ -967,6 +967,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .status-hadir{background:rgba(37,211,102,0.15);color:var(--accent-2);}
   .status-tidak-hadir{background:rgba(224,90,78,0.15);color:var(--danger);}
   .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
+  .status-progress{background:rgba(201,134,28,0.15);color:var(--warn);}
   .onboarding-status-btn{
     display:inline-flex;align-items:center;gap:5px;
     border:none;cursor:pointer;padding:0;background:none;
@@ -974,6 +975,40 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   }
   .onboarding-status-btn .status-badge{transition:filter .15s;}
   .onboarding-status-btn:hover .status-badge{filter:brightness(1.12);}
+  /* Journey Onboarding checklist popup */
+  .journey-progress{padding:2px 2px 16px;}
+  .journey-progress-label{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:12.5px;color:var(--text);margin-bottom:6px;}
+  .journey-progress-label span{font-size:11px;color:var(--text-dim);font-weight:600;}
+  .journey-progress-bar{height:8px;border-radius:999px;background:rgba(107,124,133,0.18);overflow:hidden;}
+  .journey-progress-fill{height:100%;border-radius:999px;background:var(--accent);transition:width .25s;}
+  .journey-group{margin-bottom:14px;}
+  .journey-group-title{font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+    color:var(--text-dim);margin:0 0 6px 2px;}
+  .journey-item{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:8px 10px;border-radius:10px;background:var(--card-2, rgba(107,124,133,0.06));
+    margin-bottom:6px;transition:background .15s;}
+  .journey-item.done{background:rgba(37,211,102,0.08);}
+  .journey-check{display:flex;align-items:center;gap:9px;cursor:pointer;flex:1;min-width:0;}
+  .journey-check input[type="checkbox"]{width:17px;height:17px;flex-shrink:0;cursor:pointer;accent-color:var(--accent);}
+  .journey-item-name{font-size:12.5px;color:var(--text);line-height:1.3;}
+  .journey-item.done .journey-item-name{color:var(--accent-2);}
+  .journey-date{border:1px solid var(--border,rgba(107,124,133,0.3));border-radius:7px;
+    background:var(--bg-input, transparent);color:var(--text);font-size:11px;padding:4px 6px;
+    font-family:inherit;flex-shrink:0;width:126px;}
+  .journey-date:disabled{opacity:0.45;}
+  .journey-link{font-size:10.5px;font-weight:700;color:var(--accent-2);text-decoration:none;
+    white-space:nowrap;margin-left:2px;}
+  .journey-link:hover{text-decoration:underline;}
+  .journey-evidence{margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);}
+  .journey-evidence-title{font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+    color:var(--text-dim);margin:0 0 8px 2px;}
+  .journey-evidence-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .journey-evidence-status{font-size:11.5px;color:var(--text-dim);}
+  .journey-evidence-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+    color:var(--accent-2);text-decoration:none;background:rgba(37,211,102,0.1);
+    padding:6px 10px;border-radius:8px;}
+  .journey-evidence-link:hover{text-decoration:underline;}
   .status-warn{background:rgba(201,134,28,0.15);color:var(--warn);}
   .badge-row{display:flex;flex-wrap:wrap;gap:6px;}
   .cand-card .info{min-width:0;flex:1;}
@@ -1329,6 +1364,12 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .modal-close:hover{color:var(--danger);}
   .modal-body{padding:14px 16px;overflow-y:auto;}
   .modal-header-title{display:flex;align-items:center;gap:10px;min-width:0;}
+  .modal-header-text{min-width:0;}
+  .modal-header-subtitle{
+    margin-top:2px;font-size:10.5px;font-weight:600;color:var(--text-dim);
+    line-height:1.4;
+  }
+  #chartModalHeader[data-accent] .modal-header-subtitle{color:rgba(255,255,255,0.75);}
   .modal-header-icon{
     width:32px;height:32px;border-radius:9px;flex-shrink:0;
     background:rgba(20,27,46,0.08);
@@ -1654,6 +1695,15 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       </div>
     </h2>
     <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Onboarding/Induction Training. Ubah status Kehadiran dulu, lalu klik ikon 💾 di header kolom Kehadiran untuk menyimpan semuanya sekaligus.</div>
+    <div class="field" style="margin-bottom:14px;">
+      <label>Import Ceklis Otomatis Journey Onboarding dari LMS (opsional)</label>
+      <div class="upload-row">
+        <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
+        <button type="button" class="upload-btn" id="lmsImportBtn">📥 Upload Export LMS</button>
+        <span class="upload-status" id="lmsImportStatus"></span>
+      </div>
+      <div class="hint">Upload file export penyelesaian modul dari LMS (format kolom seperti "Nama"/"Username", "Training", "Status", "Tgl. Training"). Sistem otomatis mencentang modul journey onboarding (Sales/Sales Counter maupun designation lain) yang cocok untuk kandidat berstatus "Lulus" — modul yang belum ada training online-nya (mis. Compben & Praktek Lapangan) tetap dicentang manual.</div>
+    </div>
     <div class="table-search-wrap">
       <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       <input type="text" id="tableSearchInput" class="table-search-input" placeholder="Cari nama, PIC, departemen, designation, atasan, atau no HP...">
@@ -1675,7 +1725,10 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     <div class="modal-header" id="chartModalHeader" data-accent="bubble">
       <div class="modal-header-title">
         <span class="modal-header-icon">🫧</span>
-        <h3 id="chartModalTitle">Detail</h3>
+        <div class="modal-header-text">
+          <h3 id="chartModalTitle">Detail</h3>
+          <div class="modal-header-subtitle" id="chartModalSubtitle" style="display:none;"></div>
+        </div>
       </div>
       <button class="modal-close" id="chartModalClose">✕</button>
     </div>
@@ -1755,6 +1808,8 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<!-- Buat baca file export LMS (.xlsx) pas import ceklis otomatis Sales/Sales Counter -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // API_URL udah didefinisiin sedini mungkin di <head> (biar fetch-nya bisa mulai duluan,
 // lihat komentar "Perf: definisiin API_URL & langsung tembak fetch..." di atas).
@@ -2348,7 +2403,8 @@ function mapCandidateRows(rawRows){
     tglOnboarding: row.tglOnboarding,
     statusAktivasi: row.statusAktivasi,
     tglAktivasi: row.tglAktivasi || '',
-    kehadiran: row.kehadiran || ''
+    kehadiran: row.kehadiran || '',
+    onboardingChecklist: parseOnboardingChecklist(row.onboardingChecklist)
   }));
   items.sort((a,b) => (a.tglJoin||'').localeCompare(b.tglJoin||''));
   return items;
@@ -2623,14 +2679,14 @@ function renderKehadiranBadge(c){
   return `<span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>`;
 }
 
-// Badge status onboarding (Completed/Not Started), sama persis kayak yang di kolom
-// "Status Onboarding" pada tabel utama -> masih data dummy (dummyOnboardingStatus)
-// sampe fitur journey onboarding beneran ada.
+// Badge status onboarding (Not Started/In Progress/Completed), diturunin dari
+// checklist 14 modul Orientasi Awal HR -> sama persis kayak yang di kolom
+// "Status Onboarding" pada tabel utama.
 function renderOnboardingStatusBadge(c){
   const status = dummyOnboardingStatus(c);
-  return status === 'Completed'
-    ? `<span class="status-badge status-sudah">✅ Onboarding: Completed</span>`
-    : `<span class="status-badge status-belum-verif">⏳ Onboarding: Not Started</span>`;
+  if(status === 'Completed') return `<span class="status-badge status-sudah">✅ Onboarding: Completed</span>`;
+  if(status === 'In Progress') return `<span class="status-badge status-progress">🔄 Onboarding: In Progress</span>`;
+  return `<span class="status-badge status-belum-verif">⏳ Onboarding: Not Started</span>`;
 }
 
 // Tombol kirim reminder onboarding via WhatsApp, dipakai konsisten di SEMUA popup
@@ -3108,10 +3164,89 @@ function effectiveKehadiran(c){
   return pendingKehadiran[c._id] !== undefined ? pendingKehadiran[c._id] : (c.kehadiran || '');
 }
 
-// DUMMY sementara: status onboarding diturunin dari kehadiran (Hadir -> Completed,
-// selain itu -> Not Started). Ganti ke data journey onboarding beneran kalau fiturnya udah jadi.
+// Daftar 14 modul "Orientasi Awal HR" sesuai form fisik yang dipakai HR (checklist
+// TTD Karyawan & PIC). Dikelompokin per PIC pelaksana biar tampilannya sama kayak
+// dokumen aslinya. Ganti/tambah item di sini kalau form fisiknya direvisi.
+// 5 modul (m02, m03, m04, m05, m14) punya lmsAliases -> bisa keupdate OTOMATIS dari
+// import export LMS (lihat importLmsCompletion()), sisanya tetap dicentang manual.
+const ONBOARDING_MODULES = [
+  { id:'m01', label:'Penjelasan Comben & Personalia (Payroll, Peraturan Perusahaan & Akun Absen)', group:'PIC: Compben' },
+  { id:'m02', label:'Company Profile', group:'PIC: Training', lmsAliases:['Company Profile'] },
+  { id:'m03', label:'Peraturan Perusahaan', group:'PIC: Training', lmsAliases:['Peraturan Perusahaan'] },
+  { id:'m04', label:'Company Culture & Reframing', group:'PIC: Training', lmsAliases:['Company Culture & Reframing','Company Culture','Be A Great Employee'] },
+  { id:'m05', label:'Product Knowledge Unit Bisnis', group:'PIC: Training', lmsAliases:['Product Knowledge Unit Bisnis','Product Knowledge'] },
+  { id:'m06', label:'Orientasi Lingkungan Kerja', group:'PIC: Training' },
+  { id:'m07', label:'Job Profile', group:'PIC: OD' },
+  { id:'m08', label:'Struktur Organisasi', group:'PIC: OD' },
+  { id:'m09', label:'Business Process Mapping (BPM)', group:'PIC: OD' },
+  { id:'m10', label:'Standar Operasional Prosedur (SOP)', group:'PIC: OD' },
+  { id:'m11', label:'Instruksi Kerja (IK)', group:'PIC: OD' },
+  { id:'m12', label:'Memo internal terkait', group:'PIC: OD' },
+  { id:'m13', label:'Critical Control Point (CCP)', group:'PIC: OD' },
+  { id:'m14', label:'IT Awareness & Tutorial penggunaan system kerja', group:'PIC: Training', lmsAliases:['IT Awareness & Tutorial penggunaan system kerja','IT Awareness'] }
+];
+
+// Journey onboarding KHUSUS designation Sales / Sales Counter, dikelompokin per hari
+// sesuai jadwal training RSP. Link ke soal e-training udah dihapus (gak dipakai lagi)
+// -- ceklis modul-modul training ini sekarang diisi OTOMATIS dari file export LMS
+// (lihat importLmsCompletion()), dicocokin lewat field lmsAliases per modul.
+// Modul Compben (s00) tetep ada sama kayak journey designation lain, dan tetap manual
+// (dicentang oleh PIC Compben sendiri, bukan dari LMS).
+const SALES_ONBOARDING_MODULES = [
+  { id:'s00', label:'Penjelasan Comben & Personalia (Payroll, Peraturan Perusahaan & Akun Absen)', group:'PIC: Compben' },
+  { id:'s01', label:'Be A Great Employee RSP (Budaya Kerja)', group:'Hari ke 1', lmsAliases:['Be A Great Employee RSP','Be A Great Employee'] },
+  { id:'s02', label:'Company Profile RSP', group:'Hari ke 1', lmsAliases:['Company Profile RSP','Company Profile'] },
+  { id:'s03', label:'Peraturan Perusahaan RSP', group:'Hari ke 1', lmsAliases:['Peraturan Perusahaan RSP','Peraturan Perusahaan'] },
+  { id:'s04', label:'Marketing Rumah Ningrat', group:'Hari ke 1', lmsAliases:['Marketing Rumah Ningrat'] },
+  { id:'s05', label:'Product Knowledge RSP', group:'Hari ke 2', lmsAliases:['Product Knowledge RSP','Product Knowledge'] },
+  { id:'s06', label:'Marketing Application System', group:'Hari ke 2', lmsAliases:['Marketing Application System'] },
+  { id:'s07', label:'Teknik Penawaran Online & Offline', group:'Hari ke 2', lmsAliases:['Teknik Penawaran Online & Offline','Teknik Penawaran'] },
+  { id:'s08', label:'Training Praktek langsung di lapangan (Pengetahuan Produk dan aktivitas Harian sales)', group:'Hari ke 3' },
+  { id:'s09', label:'Teknik Follow Up', group:'Hari ke 4', lmsAliases:['Teknik Follow Up'] },
+  { id:'s10', label:'Teknik Closing', group:'Hari ke 4', lmsAliases:['Teknik Closing'] },
+  { id:'s11', label:'Wake The Giant', group:'Hari ke 4', lmsAliases:['Wake The Giant'] }
+];
+
+// Kandidat dengan designation Sales / Sales Counter (match longgar, gak case sensitive)
+// pakai journey SALES_ONBOARDING_MODULES; designation lain tetap pakai ONBOARDING_MODULES
+// (checklist Orientasi Awal HR standar).
+function isSalesDesignation(c){
+  return /sales/i.test(c.designation || '');
+}
+
+function getOnboardingModules(c){
+  return isSalesDesignation(c) ? SALES_ONBOARDING_MODULES : ONBOARDING_MODULES;
+}
+
+// checklist kandidat disimpen sebagai JSON string di field onboardingChecklist:
+// { [moduleId]: { done: bool, tanggal: 'YYYY-MM-DD' } }
+function parseOnboardingChecklist(raw){
+  if(!raw) return {};
+  if(typeof raw === 'object') return raw;
+  try{
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function onboardingProgress(c){
+  const checklist = c.onboardingChecklist || {};
+  const modules = getOnboardingModules(c);
+  const total = modules.length;
+  const done = modules.filter(m => checklist[m.id] && checklist[m.id].done).length;
+  return { done, total };
+}
+
+// Status onboarding kandidat diturunin dari checklist journey-nya masing-masing
+// (Orientasi Awal HR standar, atau journey Sales/Sales Counter): belum ada yang
+// dicentang -> Not Started, sebagian -> In Progress, semua -> Completed.
 function dummyOnboardingStatus(c){
-  return effectiveKehadiran(c) === 'Hadir' ? 'Completed' : 'Not Started';
+  const { done, total } = onboardingProgress(c);
+  if(done <= 0) return 'Not Started';
+  if(done >= total) return 'Completed';
+  return 'In Progress';
 }
 
 // Definisi tiap kolom tabel: dipakai bareng buat render header, sort, dan filter
@@ -3480,6 +3615,8 @@ function renderCandRow(c, rowNumber){
         <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey onboarding">
           ${onbStatus==='Completed'
             ? `<span class="status-badge status-sudah">✅ Completed</span>`
+            : onbStatus==='In Progress'
+            ? `<span class="status-badge status-progress">🔄 In Progress</span>`
             : `<span class="status-badge status-belum-verif">⏳ Not Started</span>`}
         </button>
       </td>
@@ -3802,6 +3939,8 @@ function renderChart(){
 function openChartModal(group, pic, date){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
   modalTitleEl.textContent = `${pic} · ${fmtShortID(date)}`;
 
   let html = `<div class="week-group">
@@ -4100,6 +4239,8 @@ function renderDeptChart(){
 function openDeptModal(dept, group){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
   modalTitleEl.textContent = `🏢 ${dept}`;
 
   let html = `<div class="week-group">
@@ -4318,20 +4459,444 @@ function renderTotalKandidatByBatchHtml(list){
 function openOnboardingJourneyModal(c){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
   modalTitleEl.textContent = `🧭 Journey Onboarding — ${c.nama || '(nama belum diisi)'}`;
 
-  modalBodyEl.innerHTML = `
-    <div class="empty-state" style="padding:28px 16px;">
-      🚧 <b>Fitur ini masih dalam proses development.</b><br>
-      Detail journey onboarding (timeline tahapan onboarding kandidat) bakal muncul di sini.
+  if(modalSubtitleEl){
+    const subtitleParts = [
+      c.designation ? `🏷️ ${c.designation}` : null,
+      c.departemen ? `🏢 ${c.departemen}` : null,
+      c.atasan ? `👤 ${c.atasan}` : null,
+      c.pic ? `🧑‍💼 ${c.pic}` : null
+    ].filter(Boolean);
+    if(subtitleParts.length){
+      modalSubtitleEl.textContent = subtitleParts.join('  ·  ');
+      modalSubtitleEl.style.display = '';
+    }else{
+      modalSubtitleEl.style.display = 'none';
+    }
+  }
+
+  modalBodyEl.innerHTML = renderJourneyChecklistHtml(c);
+  document.getElementById('chartModalOverlay').classList.add('show');
+
+  modalBodyEl.querySelectorAll('.journey-check input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', onJourneyCheckboxChange);
+  });
+  modalBodyEl.querySelectorAll('.journey-date').forEach(inp => {
+    inp.addEventListener('change', onJourneyDateChange);
+  });
+
+  const evidenceBtn = document.getElementById('journeyEvidenceBtn');
+  const evidenceInput = document.getElementById('journeyEvidenceInput');
+  if(evidenceBtn && evidenceInput){
+    evidenceBtn.addEventListener('click', () => evidenceInput.click());
+    evidenceInput.addEventListener('change', (e) => handleEvidenceUpload(c, e));
+  }
+}
+
+// Susun HTML checklist journey onboarding kandidat, dikelompokin per grup (PIC
+// pelaksana buat journey HR standar, atau per Hari buat journey Sales/Sales Counter)
+// + progress bar di atas. Dipanggil ulang tiap ada centang/tanggal berubah biar
+// progress bar & tampilan langsung update.
+function renderJourneyChecklistHtml(c){
+  const checklist = c.onboardingChecklist || {};
+  const modules = getOnboardingModules(c);
+  const { done, total } = onboardingProgress(c);
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  const groups = {};
+  const groupOrder = [];
+  modules.forEach(m => {
+    if(!groups[m.group]){ groups[m.group] = []; groupOrder.push(m.group); }
+    groups[m.group].push(m);
+  });
+
+  let html = `
+    <div class="journey-progress">
+      <div class="journey-progress-label"><b>${done}/${total} modul selesai</b><span>${pct}%</span></div>
+      <div class="journey-progress-bar"><div class="journey-progress-fill" style="width:${pct}%"></div></div>
     </div>`;
 
-  document.getElementById('chartModalOverlay').classList.add('show');
+  groupOrder.forEach(group => {
+    html += `<div class="journey-group">
+      <div class="journey-group-title">${escapeHtml(group)}</div>`;
+    groups[group].forEach(m => {
+      const entry = checklist[m.id] || {};
+      html += `
+        <div class="journey-item ${entry.done ? 'done' : ''}">
+          <label class="journey-check">
+            <input type="checkbox" data-cand-id="${escapeAttr(c._id)}" data-module-id="${m.id}" ${entry.done ? 'checked' : ''}>
+            <span class="journey-item-name">${escapeHtml(m.label)}${m.link ? ` <a href="${escapeAttr(m.link)}" target="_blank" rel="noopener" class="journey-link" onclick="event.stopPropagation()">🔗 Buka Soal</a>` : ''}</span>
+          </label>
+          <input type="date" class="journey-date" data-cand-id="${escapeAttr(c._id)}" data-module-id="${m.id}" value="${entry.tanggal||''}" ${entry.done ? '' : 'disabled'}>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // Tombol upload evidence form orientasi FISIK (TTD Karyawan & PIC) -- cuma buat
+  // designation lain (non-Sales/Sales Counter), karena journey mereka masih pakai
+  // form kertas "Orientasi Awal HR" yang perlu discan/difoto sebagai bukti.
+  if(!isSalesDesignation(c)){
+    html += renderEvidenceUploadHtml(c);
+  }
+
+  return html;
+}
+
+// Section upload evidence form orientasi (foto/scan form fisik yg udah di-TTD).
+// File-nya dikirim ke backend Apps Script sbg base64 (action:'uploadEvidence'),
+// URL hasil upload disimpen ke field candidate.evidenceFormUrl lewat updateCandidate,
+// sama kayak field lain. Backend Apps Script perlu nambahin handler action ini
+// (simpen file ke Drive folder tertentu, balikin { success:true, url }).
+function renderEvidenceUploadHtml(c){
+  const hasEvidence = !!c.evidenceFormUrl;
+  return `
+    <div class="journey-evidence">
+      <div class="journey-evidence-title">📎 Evidence Form Orientasi (scan/foto form fisik)</div>
+      <div class="journey-evidence-row">
+        ${hasEvidence ? `<a href="${escapeAttr(c.evidenceFormUrl)}" target="_blank" rel="noopener" class="journey-evidence-link">📄 Lihat file yang diupload</a>` : ''}
+        <input type="file" id="journeyEvidenceInput" accept="image/*,.pdf" style="display:none;">
+        <button type="button" class="upload-btn" id="journeyEvidenceBtn">${hasEvidence ? '🔄 Ganti File' : '📤 Upload Evidence'}</button>
+        <span class="journey-evidence-status" id="journeyEvidenceStatus"></span>
+      </div>
+    </div>`;
+}
+
+async function onJourneyCheckboxChange(e){
+  const cb = e.currentTarget;
+  const candId = cb.dataset.candId;
+  const moduleId = cb.dataset.moduleId;
+  const c = candidates.find(x => x._id === candId);
+  if(!c) return;
+
+  const dateInput = cb.closest('.journey-item').querySelector('.journey-date');
+  const checklist = { ...(c.onboardingChecklist || {}) };
+  if(cb.checked){
+    const tanggal = dateInput.value || todayISO();
+    checklist[moduleId] = { done:true, tanggal };
+    dateInput.value = tanggal;
+    dateInput.disabled = false;
+  }else{
+    checklist[moduleId] = { done:false, tanggal: dateInput.value || '' };
+    dateInput.disabled = true;
+  }
+  cb.closest('.journey-item').classList.toggle('done', cb.checked);
+  await saveOnboardingChecklist(c, checklist);
+}
+
+async function onJourneyDateChange(e){
+  const inp = e.currentTarget;
+  const candId = inp.dataset.candId;
+  const moduleId = inp.dataset.moduleId;
+  const c = candidates.find(x => x._id === candId);
+  if(!c) return;
+
+  const checklist = { ...(c.onboardingChecklist || {}) };
+  const prev = checklist[moduleId] || { done:true };
+  checklist[moduleId] = { done: prev.done, tanggal: inp.value || '' };
+  await saveOnboardingChecklist(c, checklist);
+}
+
+// Simpen checklist ke Sheets (field onboardingChecklist, JSON string) lewat endpoint
+// update yang sama kayak field lain, terus refresh progress bar di popup + badge
+// Status Onboarding di tabel/stats biar langsung sinkron tanpa perlu reload manual.
+async function saveOnboardingChecklist(c, checklist){
+  c.onboardingChecklist = checklist;
+  const modalBodyEl = document.getElementById('chartModalBody');
+  if(modalBodyEl && document.getElementById('chartModalOverlay').classList.contains('show')){
+    const progressEl = modalBodyEl.querySelector('.journey-progress');
+    if(progressEl){
+      const { done, total } = onboardingProgress(c);
+      const pct = total ? Math.round(done/total*100) : 0;
+      progressEl.querySelector('.journey-progress-label b').textContent = `${done}/${total} modul selesai`;
+      progressEl.querySelector('.journey-progress-label span').textContent = `${pct}%`;
+      progressEl.querySelector('.journey-progress-fill').style.width = pct + '%';
+    }
+  }
+  renderTable();
+  renderStats();
+  const ok = await updateCandidate(c._id, { onboardingChecklist: JSON.stringify(checklist) });
+  if(ok) showToast('Checklist tersimpan'); 
+}
+
+// Upload evidence form orientasi (foto/scan form fisik "Orientasi Awal HR" yg udah
+// di-TTD karyawan & PIC), khusus buat designation lain (non-Sales/Sales Counter).
+// Kalau file-nya foto, di-compress dulu di browser (resize + JPEG quality) SEBELUM
+// dikonversi ke base64 & dikirim -> ukuran kiriman jauh lebih kecil & upload lebih
+// cepat. File PDF dilewatin apa adanya (gak bisa di-resize kayak gambar).
+// Backend Apps Script dg action 'uploadEvidence' -> simpen ke Drive & balikin
+// { success:true, url }.
+const EVIDENCE_MAX_SIZE_MB = 8;
+const EVIDENCE_IMG_MAX_DIM = 1600; // px, sisi terpanjang setelah di-resize
+const EVIDENCE_IMG_QUALITY = 0.72; // kualitas JPEG hasil compress (0-1)
+
+// Resize + compress foto pakai <canvas>, dibalikin sbg File baru (JPEG). Kalau file-nya
+// bukan gambar (mis. PDF) atau proses gagal, file asli dibalikin apa adanya (fallback aman).
+function compressImageFile(file, maxDim = EVIDENCE_IMG_MAX_DIM, quality = EVIDENCE_IMG_QUALITY){
+  return new Promise((resolve) => {
+    if(!file.type || !file.type.startsWith('image/')){
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > maxDim || height > maxDim){
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
+          if(!blob){ resolve(file); return; }
+          const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+          resolve(new File([blob], newName, { type:'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = () => resolve(file);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleEvidenceUpload(c, e){
+  const input = e.currentTarget;
+  const file = input.files && input.files[0];
+  input.value = '';
+  if(!file) return;
+
+  const statusEl = document.getElementById('journeyEvidenceStatus');
+  const btnEl = document.getElementById('journeyEvidenceBtn');
+
+  if(file.size > EVIDENCE_MAX_SIZE_MB * 1024 * 1024){
+    showToast(`Ukuran file maksimal ${EVIDENCE_MAX_SIZE_MB}MB`, true);
+    return;
+  }
+
+  if(btnEl) btnEl.disabled = true;
+  if(statusEl) statusEl.textContent = '⏳ Mengompres foto...';
+
+  try{
+    const compressed = await compressImageFile(file);
+    if(statusEl) statusEl.textContent = '⏳ Mengupload...';
+    const base64 = await fileToBase64(compressed);
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'uploadEvidence',
+        id: c._id,
+        fileName: compressed.name || file.name,
+        mimeType: compressed.type || file.type || 'application/octet-stream',
+        fileData: base64
+      })
+    });
+    const json = await res.json();
+    if(!json.success || !json.url) throw new Error(json.error || 'Server tidak mengembalikan URL file');
+
+    c.evidenceFormUrl = json.url;
+    await updateCandidate(c._id, { evidenceFormUrl: json.url });
+
+    if(statusEl) statusEl.textContent = '';
+    showToast('Evidence form orientasi tersimpan!');
+    // re-render biar tombol berubah jadi "Ganti File" + link "Lihat file yang diupload"
+    if(document.getElementById('chartModalOverlay').classList.contains('show')){
+      openOnboardingJourneyModal(c);
+    }
+    renderTable();
+  }catch(err){
+    if(statusEl) statusEl.textContent = '';
+    showToast('Gagal upload evidence: ' + err.message, true);
+  }finally{
+    if(btnEl) btnEl.disabled = false;
+  }
+}
+
+// ==== Import ceklis otomatis journey onboarding (semua designation) dari file export LMS ====
+// Alurnya:
+// 1) Baca file .xlsx pakai SheetJS, cari baris header (kolom minimal: Nama, Training, Status).
+// 2) Tiap baris dg Status "Lulus" dicocokin ke NAMA kandidat dulu (semua designation, gak cuma
+//    Sales/Sales Counter), lalu training-nya dicocokin ke modul journey kandidat itu masing-masing
+//    (SALES_ONBOARDING_MODULES buat Sales/Sales Counter, ONBOARDING_MODULES buat designation lain)
+//    lewat field lmsAliases per modul.
+// 3) Kalau cocok, checklist modul itu di-set done:true + tanggal dari kolom "Tgl. Training".
+//    Modul yg gak punya lmsAliases (mis. Compben, Orientasi Lingkungan Kerja, modul PIC: OD, dan
+//    Praktek Lapangan) gak pernah disentuh dari sini, tetap harus dicentang manual seperti biasa.
+// 4) Semua kandidat yg berubah langsung disimpen ke Sheets, lalu tampil ringkasan hasilnya.
+
+function normalizeLmsText(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'') // buang diakritik kalau ada
+    .replace(/[^a-z0-9 ]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+// Cari baris header di sheet (posisinya bisa geser tergantung export-nya), lalu balikin
+// index kolom Nama/Username, Training, Status, dan Tgl. Training.
+function findLmsHeaderRow(rows){
+  for(let i=0;i<Math.min(rows.length, 15);i++){
+    const row = rows[i] || [];
+    const norm = row.map(v => normalizeLmsText(v));
+    const iNama = norm.findIndex(v => v === 'nama');
+    const iUser = norm.findIndex(v => v === 'username');
+    const iTraining = norm.findIndex(v => v === 'training');
+    const iStatus = norm.findIndex(v => v === 'status');
+    if((iNama > -1 || iUser > -1) && iTraining > -1 && iStatus > -1){
+      const iTgl = norm.findIndex(v => v.startsWith('tgl') && v.includes('training'));
+      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl };
+    }
+  }
+  return null;
+}
+
+// Tanggal dari Excel bisa berupa Date object, serial number, atau string -> seragamin ke 'YYYY-MM-DD'
+function lmsCellToISODate(val){
+  if(!val && val !== 0) return '';
+  if(val instanceof Date && !isNaN(val)) return val.toISOString().slice(0,10);
+  if(typeof val === 'number'){
+    const d = XLSX.SSF.parse_date_code(val);
+    if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const s = String(val).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/); // "08 Aug 2026 09:08"
+  if(m){
+    const months = {jan:1,feb:2,mar:3,apr:4,mei:5,may:5,jun:6,jul:7,agu:8,aug:8,sep:9,okt:10,oct:10,nov:11,des:12,dec:12};
+    const mo = months[m[2].toLowerCase().slice(0,3)];
+    if(mo) return `${m[3]}-${String(mo).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+  }
+  return todayISO();
+}
+
+function findModuleByLmsTraining(modules, trainingName){
+  const norm = normalizeLmsText(trainingName);
+  if(!norm) return null;
+  for(const m of modules){
+    if(!m.lmsAliases) continue;
+    for(const alias of m.lmsAliases){
+      const na = normalizeLmsText(alias);
+      if(norm === na || norm.includes(na) || na.includes(norm)) return m;
+    }
+  }
+  return null;
+}
+
+function findCandidateByLmsName(namaLms){
+  const norm = normalizeLmsText(namaLms);
+  if(!norm) return null;
+  return candidates.find(c => normalizeLmsText(c.nama) === norm) || null;
+}
+
+const lmsImportInputEl = document.getElementById('lmsImportInput');
+const lmsImportBtnEl = document.getElementById('lmsImportBtn');
+const lmsImportStatusEl = document.getElementById('lmsImportStatus');
+
+if(lmsImportBtnEl && lmsImportInputEl){
+  lmsImportBtnEl.addEventListener('click', () => lmsImportInputEl.click());
+  lmsImportInputEl.addEventListener('change', handleLmsImportUpload);
+}
+
+async function handleLmsImportUpload(e){
+  const file = e.currentTarget.files && e.currentTarget.files[0];
+  lmsImportInputEl.value = '';
+  if(!file) return;
+
+  lmsImportBtnEl.disabled = true;
+  lmsImportStatusEl.textContent = '⏳ Membaca file...';
+
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+    const header = findLmsHeaderRow(rows);
+    if(!header){
+      lmsImportStatusEl.textContent = '';
+      showToast('Format file tidak dikenali — pastikan ada kolom Nama/Username, Training & Status', true);
+      return;
+    }
+
+    const dataRows = rows.slice(header.headerIdx + 1).filter(r => r.some(v => String(v).trim() !== ''));
+    const changedCandidates = new Map(); // id -> { c, checklist }
+    let matchedRows = 0, unmatchedName = 0, unmatchedModule = 0, notLulus = 0;
+
+    dataRows.forEach(row => {
+      const status = String(row[header.iStatus] || '').trim();
+      if(!/lulus/i.test(status)){ notLulus++; return; }
+
+      const namaLms = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
+      const c = findCandidateByLmsName(namaLms);
+      if(!c){ unmatchedName++; return; }
+
+      const trainingName = row[header.iTraining];
+      const mod = findModuleByLmsTraining(getOnboardingModules(c), trainingName);
+      if(!mod){ unmatchedModule++; return; }
+
+      const tanggal = header.iTgl > -1 ? lmsCellToISODate(row[header.iTgl]) : todayISO();
+      const entry = changedCandidates.get(c._id) || { c, checklist: { ...(c.onboardingChecklist || {}) } };
+      // Kalau modul ini udah pernah dicentang manual dg tanggal lebih lama, tetap update
+      // ke tanggal training dari LMS (dianggap sumber kebenaran buat modul yg auto-checked).
+      entry.checklist[mod.id] = { done:true, tanggal };
+      changedCandidates.set(c._id, entry);
+      matchedRows++;
+    });
+
+    if(changedCandidates.size === 0){
+      lmsImportStatusEl.textContent = '';
+      showToast('Tidak ada ceklis yang cocok buat diupdate dari file ini', true);
+      return;
+    }
+
+    lmsImportStatusEl.textContent = `⏳ Menyimpan ${changedCandidates.size} kandidat...`;
+    let savedCount = 0;
+    for(const { c, checklist } of changedCandidates.values()){
+      c.onboardingChecklist = checklist;
+      const ok = await updateCandidate(c._id, { onboardingChecklist: JSON.stringify(checklist) });
+      if(ok) savedCount++;
+    }
+
+    renderTable();
+    renderStats();
+
+    lmsImportStatusEl.textContent = `✅ ${savedCount} kandidat terupdate`;
+    const skippedNote = (unmatchedName || unmatchedModule) ? ` (${unmatchedName} nama tidak cocok, ${unmatchedModule} training tidak dikenali)` : '';
+    showToast(`Import LMS selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${skippedNote}`);
+  }catch(err){
+    lmsImportStatusEl.textContent = '';
+    showToast('Gagal membaca file LMS: ' + err.message, true);
+  }finally{
+    lmsImportBtnEl.disabled = false;
+  }
 }
 
 function openBatchDeptModal(dept, date, wk, group){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
   const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl onboarding belum diisi';
   modalTitleEl.textContent = `🏢 ${dept}`;
 
