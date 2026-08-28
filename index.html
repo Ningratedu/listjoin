@@ -1071,6 +1071,12 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   html[data-theme="dark"] .dept-mini-card.cand-stale{border-color:rgba(255,144,134,0.35);}
   .cand-stale-flag{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;
     color:var(--danger-text);margin-bottom:7px;letter-spacing:.01em;}
+  /* Banner sama di popup Journey Induction (per-kandidat), ditaruh di atas progress bar
+     kalau kandidatnya masih In Progress & udah >=5 hari dari tanggal Induction. */
+  .journey-stale-banner{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+    color:var(--danger-text);background:var(--danger-bg);border:1px solid rgba(168,50,38,0.35);
+    border-radius:9px;padding:8px 11px;margin-bottom:12px;}
+  html[data-theme="dark"] .journey-stale-banner{border-color:rgba(255,144,134,0.35);}
   .dept-mini-name{font-size:12.5px;font-weight:700;color:var(--text);}
   .dept-mini-name-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .dept-mini-name-row .wa-remind-btn{width:24px;height:24px;flex-shrink:0;}
@@ -4837,9 +4843,17 @@ function renderJourneyChecklistHtml(c){
   // tombol WA), jadi label di sebelahnya juga disesuaikan.
   const isResignKaryawan = getStatusKaryawan(c) === 'Resign';
   const waHtml = renderWaButton(c);
+  // Sama kayak highlight di popup "Induction In Progress": kalau kandidat ini masih
+  // In Progress dan udah >=5 hari dari tanggal Rencana Induction, kasih banner
+  // peringatan di atas progress bar journey-nya juga.
+  const staleDays = isStaleInProgress(c) ? daysSinceOnboarding(c) : null;
+  const staleBannerHtml = staleDays !== null
+    ? `<div class="journey-stale-banner">⚠️ Sudah ${staleDays} hari dari jadwal Induction, masih In Progress</div>`
+    : '';
 
   let html = `
     <div class="journey-progress">
+      ${staleBannerHtml}
       <div class="journey-progress-label"><b>${done}/${total} modul selesai</b><span>${pct}%</span></div>
       <div class="journey-progress-bar"><div class="journey-progress-fill" style="width:${pct}%"></div></div>
       ${waHtml ? `<div class="journey-wa-row">${waHtml}<span class="journey-wa-label">${isResignKaryawan ? 'Karyawan ini sudah resign' : 'Ingatkan modul yang belum selesai via WhatsApp'}</span></div>` : ''}
@@ -4957,6 +4971,20 @@ async function saveOnboardingChecklist(c, checklist){
       progressEl.querySelector('.journey-progress-label b').textContent = `${done}/${total} modul selesai`;
       progressEl.querySelector('.journey-progress-label span').textContent = `${pct}%`;
       progressEl.querySelector('.journey-progress-fill').style.width = pct + '%';
+      // Banner "sudah X hari, masih In Progress" juga disinkronin: ilang begitu
+      // modulnya kelar semua (jadi Completed) atau belum ada progress sama sekali.
+      let banner = progressEl.querySelector('.journey-stale-banner');
+      const staleDays = isStaleInProgress(c) ? daysSinceOnboarding(c) : null;
+      if(staleDays !== null){
+        if(!banner){
+          banner = document.createElement('div');
+          banner.className = 'journey-stale-banner';
+          progressEl.insertBefore(banner, progressEl.firstChild);
+        }
+        banner.textContent = `⚠️ Sudah ${staleDays} hari dari jadwal Induction, masih In Progress`;
+      } else if(banner){
+        banner.remove();
+      }
     }
   }
   if(autoHadir) updateSaveKehadiranBtn();
