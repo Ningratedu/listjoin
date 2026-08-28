@@ -3385,10 +3385,10 @@ function effectiveKehadiran(c){
   return pendingKehadiran[c._id] !== undefined ? pendingKehadiran[c._id] : (c.kehadiran || '');
 }
 
-// Daftar 14 modul "Orientasi Awal HR" sesuai form fisik yang dipakai HR (checklist
+// Daftar 15 modul "Orientasi Awal HR" sesuai form fisik yang dipakai HR (checklist
 // TTD Karyawan & PIC). Dikelompokin per PIC pelaksana biar tampilannya sama kayak
 // dokumen aslinya. Ganti/tambah item di sini kalau form fisiknya direvisi.
-// 5 modul (m02, m03, m04, m05, m14) punya lmsAliases -> bisa keupdate OTOMATIS dari
+// 6 modul (m02, m03, m04, m05, m14, m15) punya lmsAliases -> bisa keupdate OTOMATIS dari
 // import export LMS (lihat importLmsCompletion()), sisanya tetap dicentang manual.
 // Modul yang sama juga punya examUrl ke soal e-training RSP (trusmicorp.com) -- dipakai
 // buat nempelin link penyelesaian otomatis di teks reminder WA (buildModuleReminderText).
@@ -3406,7 +3406,8 @@ const ONBOARDING_MODULES = [
   { id:'m11', label:'Instruksi Kerja (IK)', group:'PIC: OD' },
   { id:'m12', label:'Memo internal terkait', group:'PIC: OD' },
   { id:'m13', label:'Critical Control Point (CCP)', group:'PIC: OD' },
-  { id:'m14', label:'IT Awareness & Tutorial penggunaan system kerja', group:'PIC: Training', lmsAliases:['IT Awareness & Tutorial penggunaan system kerja','IT Awareness'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25080901/1' }
+  { id:'m14', label:'IT Awareness & Tutorial penggunaan system kerja', group:'PIC: Training', lmsAliases:['IT Awareness & Tutorial penggunaan system kerja','IT Awareness'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25080901/1' },
+  { id:'m15', label:'Flow Business RSP', group:'PIC: Training', lmsAliases:['Flow Business RSP','Flow Business'], examUrl:'https://trusmicorp.com/e-training/question/exam/405/1' }
 ];
 
 // Journey onboarding KHUSUS designation Sales / Sales Counter, dikelompokin per hari
