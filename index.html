@@ -2849,7 +2849,7 @@ function renderKehadiranBadge(c){
 function renderOnboardingStatusBadge(c){
   const status = dummyOnboardingStatus(c);
   if(status === 'Completed') return `<span class="status-badge status-sudah">✅ Induction: Completed</span>`;
-  if(status === 'In Progress') return `<span class="status-badge status-progress">🔄 Induction: In Progress</span>`;
+  if(status === 'In Progress') return `<span class="status-badge status-progress">🔄 Induction: In Progress (${onboardingProgressPct(c)}%)</span>`;
   return `<span class="status-badge status-belum-verif">⏳ Induction: Not Started</span>`;
 }
 
@@ -3526,6 +3526,13 @@ function onboardingProgress(c){
   return { done, total };
 }
 
+// Persentase modul yang udah selesai (dibulatkan), dipakai buat nampilin angka di
+// badge "In Progress" -- baik di kolom tabel maupun di popup journey/status onboarding.
+function onboardingProgressPct(c){
+  const { done, total } = onboardingProgress(c);
+  return total ? Math.round(done/total*100) : 0;
+}
+
 // Status onboarding kandidat diturunin dari checklist journey-nya masing-masing
 // (Orientasi Awal HR standar, atau journey Sales/Sales Counter): belum ada yang
 // dicentang -> Not Started, sebagian -> In Progress, semua -> Completed.
@@ -3919,7 +3926,7 @@ function renderCandRow(c, rowNumber){
           ${onbStatus==='Completed'
             ? `<span class="status-badge status-sudah">✅ Completed</span>`
             : onbStatus==='In Progress'
-            ? `<span class="status-badge status-progress">🔄 In Progress</span>`
+            ? `<span class="status-badge status-progress">🔄 In Progress (${onboardingProgressPct(c)}%)</span>`
             : `<span class="status-badge status-belum-verif">⏳ Not Started</span>`}
         </button>
       </td>
