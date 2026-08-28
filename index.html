@@ -3433,18 +3433,55 @@ const SALES_ONBOARDING_MODULES = [
   { id:'s11', label:'Wake The Giant', group:'Hari ke 4', lmsAliases:['Wake The Giant'], examUrl:'https://trusmicorp.com/e-training/question/exam/265/1' }
 ];
 
-// Kandidat dengan designation Sales / Sales Counter (match longgar, gak case sensitive)
-// pakai journey SALES_ONBOARDING_MODULES; designation lain tetap pakai ONBOARDING_MODULES
-// (checklist Orientasi Awal HR standar).
+// Journey onboarding KHUSUS designation Sales Supervisor (beda dari Sales/Sales Counter
+// biasa) -- delapan modul E-Training RSP (auto keceklis dari import LMS) + Comben +
+// modul-modul OD/Orientasi Lingkungan Kerja yang SAMA kayak designation lain di
+// ONBOARDING_MODULES (tetap dicentang manual oleh PIC OD masing-masing, karena bukan
+// soal e-training). Tiap modul E-Training punya examUrl buat nempelin link penyelesaian
+// di teks reminder WA (buildModuleReminderText).
+const SALES_SUPERVISOR_ONBOARDING_MODULES = [
+  { id:'sv00', label:'Penjelasan Comben & Personalia (Payroll, Peraturan Perusahaan & Akun Absen)', group:'PIC: Compben' },
+  { id:'sv01', label:'Be A Great Employee RSP (Company Culture)', group:'E-Training', lmsAliases:['Be A Great Employee RSP','Be A Great Employee'], examUrl:'https://trusmicorp.com/e-training/question/exam/363/1/W240725003' },
+  { id:'sv02', label:'Company Profile RSP', group:'E-Training', lmsAliases:['Company Profile RSP','Company Profile'], examUrl:'https://trusmicorp.com/e-training/question/exam/274/1/W240725001' },
+  { id:'sv03', label:'Peraturan Perusahaan RSP', group:'E-Training', lmsAliases:['Peraturan Perusahaan RSP','Peraturan Perusahaan'], examUrl:'https://trusmicorp.com/e-training/question/exam/208/1/W240725002' },
+  { id:'sv04', label:'Product Knowledge RSP', group:'E-Training', lmsAliases:['Product Knowledge RSP','Product Knowledge'], examUrl:'https://trusmicorp.com/e-training/question/exam/13/1' },
+  { id:'sv05', label:'IT Awareness & Tutorial penggunaan system kerja', group:'E-Training', lmsAliases:['IT Awareness & Tutorial penggunaan system kerja','IT Awareness'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25080901/1' },
+  { id:'sv06', label:'Flow Business RSP', group:'E-Training', lmsAliases:['Flow Business RSP','Flow Business'], examUrl:'https://trusmicorp.com/e-training/question/exam/405/1' },
+  { id:'sv07', label:'Sales Supervisor Mastery - Sesi 1 : Planning, Monitoring & Reporting', group:'E-Training', lmsAliases:['Sales Supervisor Mastery - Sesi 1 : Planning, Monitoring & Reporting','Sales Supervisor Mastery Sesi 1'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25121201/1' },
+  { id:'sv08', label:'Sales Supervisor Mastery - Sesi 2 : Decision Making & Developing', group:'E-Training', lmsAliases:['Sales Supervisor Mastery - Sesi 2 : Decision Making & Developing','Sales Supervisor Mastery Sesi 2'], examUrl:'https://trusmicorp.com/e-training/question/exam/M26040801/1' },
+  { id:'sv09', label:'Orientasi Lingkungan Kerja', group:'PIC: Training' },
+  { id:'sv10', label:'Job Profile', group:'PIC: OD' },
+  { id:'sv11', label:'Struktur Organisasi', group:'PIC: OD' },
+  { id:'sv12', label:'Business Process Mapping (BPM)', group:'PIC: OD' },
+  { id:'sv13', label:'Standar Operasional Prosedur (SOP)', group:'PIC: OD' },
+  { id:'sv14', label:'Instruksi Kerja (IK)', group:'PIC: OD' },
+  { id:'sv15', label:'Memo internal terkait', group:'PIC: OD' },
+  { id:'sv16', label:'Critical Control Point (CCP)', group:'PIC: OD' }
+];
+
+// Kandidat dengan designation PERSIS "Sales" atau "Sales Counter" (exact match, gak
+// case sensitive, trim whitespace) pakai journey SALES_ONBOARDING_MODULES; designation
+// lain -- termasuk yang cuma MENGANDUNG kata "sales" kayak "Sales Supervisor", "Sales
+// Manager", dst -- tetap pakai ONBOARDING_MODULES (checklist Orientasi Awal HR standar).
 function isSalesDesignation(c){
-  return /sales/i.test(c.designation || '');
+  const d = (c.designation || '').trim().toLowerCase();
+  return d === 'sales' || d === 'sales counter';
+}
+
+// Kandidat dengan designation PERSIS "Sales Supervisor" (exact match, gak case sensitive)
+// pakai journey SALES_SUPERVISOR_ONBOARDING_MODULES sendiri -- dipisah dari
+// isSalesDesignation() supaya gak ketuker sama journey Sales/Sales Counter biasa.
+function isSalesSupervisorDesignation(c){
+  const d = (c.designation || '').trim().toLowerCase();
+  return d === 'sales supervisor';
 }
 
 // Modul "Be A Great Employee" (budaya kerja) -- id-nya beda per journey: m04 buat
-// designation umum, s01 buat Sales/Sales Counter. Nyentang modul ini nandain karyawan
-// beneran hadir sesi orientasi, jadi kolom Kehadiran diisi otomatis jadi "Hadir"
-// (lihat autoMarkHadirFromChecklist()) -- gak perlu diverifikasi manual lagi.
+// designation umum, s01 buat Sales/Sales Counter, sv01 buat Sales Supervisor. Nyentang
+// modul ini nandain karyawan beneran hadir sesi orientasi, jadi kolom Kehadiran diisi
+// otomatis jadi "Hadir" (lihat autoMarkHadirFromChecklist()) -- gak perlu diverifikasi manual lagi.
 function greatEmployeeModuleId(c){
+  if(isSalesSupervisorDesignation(c)) return 'sv01';
   return isSalesDesignation(c) ? 's01' : 'm04';
 }
 
@@ -3463,6 +3500,7 @@ function autoMarkHadirFromChecklist(c, checklist){
 }
 
 function getOnboardingModules(c){
+  if(isSalesSupervisorDesignation(c)) return SALES_SUPERVISOR_ONBOARDING_MODULES;
   return isSalesDesignation(c) ? SALES_ONBOARDING_MODULES : ONBOARDING_MODULES;
 }
 
@@ -4886,9 +4924,10 @@ function renderJourneyChecklistHtml(c){
     html += `</div>`;
   });
 
-  // Tombol upload evidence form orientasi FISIK (TTD Karyawan & PIC) -- cuma buat
-  // designation lain (non-Sales/Sales Counter), karena journey mereka masih pakai
-  // form kertas "Orientasi Awal HR" yang perlu discan/difoto sebagai bukti.
+  // Tombol upload evidence form orientasi FISIK (TTD Karyawan & PIC) -- cuma di-skip buat
+  // Sales/Sales Counter (journey mereka full E-Training, gak ada form kertas). Sales
+  // Supervisor TETEP butuh evidence ini kayak designation lain -- bedanya cuma modul
+  // e-training-nya aja yang auto keceklis dari import LMS (lihat SALES_SUPERVISOR_ONBOARDING_MODULES).
   if(!isSalesDesignation(c)){
     html += renderEvidenceUploadHtml(c);
   }
