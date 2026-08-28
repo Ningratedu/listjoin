@@ -3364,12 +3364,14 @@ function effectiveKehadiran(c){
 // dokumen aslinya. Ganti/tambah item di sini kalau form fisiknya direvisi.
 // 5 modul (m02, m03, m04, m05, m14) punya lmsAliases -> bisa keupdate OTOMATIS dari
 // import export LMS (lihat importLmsCompletion()), sisanya tetap dicentang manual.
+// Modul yang sama juga punya examUrl ke soal e-training RSP (trusmicorp.com) -- dipakai
+// buat nempelin link penyelesaian otomatis di teks reminder WA (buildModuleReminderText).
 const ONBOARDING_MODULES = [
   { id:'m01', label:'Penjelasan Comben & Personalia (Payroll, Peraturan Perusahaan & Akun Absen)', group:'PIC: Compben' },
-  { id:'m02', label:'Company Profile', group:'PIC: Training', lmsAliases:['Company Profile'] },
-  { id:'m03', label:'Peraturan Perusahaan', group:'PIC: Training', lmsAliases:['Peraturan Perusahaan'] },
-  { id:'m04', label:'Company Culture & Reframing', group:'PIC: Training', lmsAliases:['Company Culture & Reframing','Company Culture','Be A Great Employee'] },
-  { id:'m05', label:'Product Knowledge Unit Bisnis', group:'PIC: Training', lmsAliases:['Product Knowledge Unit Bisnis','Product Knowledge'] },
+  { id:'m02', label:'Company Profile', group:'PIC: Training', lmsAliases:['Company Profile'], examUrl:'https://trusmicorp.com/e-training/question/exam/274/1/W240725001' },
+  { id:'m03', label:'Peraturan Perusahaan', group:'PIC: Training', lmsAliases:['Peraturan Perusahaan'], examUrl:'https://trusmicorp.com/e-training/question/exam/208/1/W240725002' },
+  { id:'m04', label:'Company Culture & Reframing', group:'PIC: Training', lmsAliases:['Company Culture & Reframing','Company Culture','Be A Great Employee'], examUrl:'https://trusmicorp.com/e-training/question/exam/363/1/W240725003' },
+  { id:'m05', label:'Product Knowledge Unit Bisnis', group:'PIC: Training', lmsAliases:['Product Knowledge Unit Bisnis','Product Knowledge'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25070701/1' },
   { id:'m06', label:'Orientasi Lingkungan Kerja', group:'PIC: Training' },
   { id:'m07', label:'Job Profile', group:'PIC: OD' },
   { id:'m08', label:'Struktur Organisasi', group:'PIC: OD' },
@@ -3378,7 +3380,7 @@ const ONBOARDING_MODULES = [
   { id:'m11', label:'Instruksi Kerja (IK)', group:'PIC: OD' },
   { id:'m12', label:'Memo internal terkait', group:'PIC: OD' },
   { id:'m13', label:'Critical Control Point (CCP)', group:'PIC: OD' },
-  { id:'m14', label:'IT Awareness & Tutorial penggunaan system kerja', group:'PIC: Training', lmsAliases:['IT Awareness & Tutorial penggunaan system kerja','IT Awareness'] }
+  { id:'m14', label:'IT Awareness & Tutorial penggunaan system kerja', group:'PIC: Training', lmsAliases:['IT Awareness & Tutorial penggunaan system kerja','IT Awareness'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25080901/1' }
 ];
 
 // Journey onboarding KHUSUS designation Sales / Sales Counter, dikelompokin per hari
@@ -3387,19 +3389,22 @@ const ONBOARDING_MODULES = [
 // (lihat importLmsCompletion()), dicocokin lewat field lmsAliases per modul.
 // Modul Compben (s00) tetep ada sama kayak journey designation lain, dan tetap manual
 // (dicentang oleh PIC Compben sendiri, bukan dari LMS).
+// Tiap modul punya examUrl ke soal e-training RSP (trusmicorp.com) -- dipakai buat
+// nempelin link penyelesaian otomatis di teks reminder WA modul yang belum selesai
+// (lihat buildModuleReminderText). s00 & s08 gak punya examUrl karena bukan soal e-training.
 const SALES_ONBOARDING_MODULES = [
   { id:'s00', label:'Penjelasan Comben & Personalia (Payroll, Peraturan Perusahaan & Akun Absen)', group:'PIC: Compben' },
-  { id:'s01', label:'Be A Great Employee RSP (Budaya Kerja)', group:'Hari ke 1', lmsAliases:['Be A Great Employee RSP','Be A Great Employee'] },
-  { id:'s02', label:'Company Profile RSP', group:'Hari ke 1', lmsAliases:['Company Profile RSP','Company Profile'] },
-  { id:'s03', label:'Peraturan Perusahaan RSP', group:'Hari ke 1', lmsAliases:['Peraturan Perusahaan RSP','Peraturan Perusahaan'] },
-  { id:'s04', label:'Marketing Rumah Ningrat', group:'Hari ke 1', lmsAliases:['Marketing Rumah Ningrat'] },
-  { id:'s05', label:'Product Knowledge RSP', group:'Hari ke 2', lmsAliases:['Product Knowledge RSP','Product Knowledge'] },
-  { id:'s06', label:'Marketing Application System', group:'Hari ke 2', lmsAliases:['Marketing Application System'] },
-  { id:'s07', label:'Teknik Penawaran Online & Offline', group:'Hari ke 2', lmsAliases:['Teknik Penawaran Online & Offline','Teknik Penawaran'] },
+  { id:'s01', label:'Be A Great Employee RSP (Budaya Kerja)', group:'Hari ke 1', lmsAliases:['Be A Great Employee RSP','Be A Great Employee'], examUrl:'https://trusmicorp.com/e-training/question/exam/363/1/W240725003' },
+  { id:'s02', label:'Company Profile RSP', group:'Hari ke 1', lmsAliases:['Company Profile RSP','Company Profile'], examUrl:'https://trusmicorp.com/e-training/question/exam/274/1/W240725001' },
+  { id:'s03', label:'Peraturan Perusahaan RSP', group:'Hari ke 1', lmsAliases:['Peraturan Perusahaan RSP','Peraturan Perusahaan'], examUrl:'https://trusmicorp.com/e-training/question/exam/208/1/W240725002' },
+  { id:'s04', label:'Marketing Rumah Ningrat', group:'Hari ke 1', lmsAliases:['Marketing Rumah Ningrat'], examUrl:'https://trusmicorp.com/e-training/question/exam/342/1' },
+  { id:'s05', label:'Product Knowledge RSP', group:'Hari ke 2', lmsAliases:['Product Knowledge RSP','Product Knowledge'], examUrl:'https://trusmicorp.com/e-training/question/exam/13/1' },
+  { id:'s06', label:'Marketing Application System', group:'Hari ke 2', lmsAliases:['Marketing Application System'], examUrl:'https://trusmicorp.com/e-training/question/exam/17/1' },
+  { id:'s07', label:'Teknik Penawaran Online & Offline', group:'Hari ke 2', lmsAliases:['Teknik Penawaran Online & Offline','Teknik Penawaran'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25010601/1' },
   { id:'s08', label:'Training Praktek langsung di lapangan (Pengetahuan Produk dan aktivitas Harian sales)', group:'Hari ke 3' },
-  { id:'s09', label:'Teknik Follow Up', group:'Hari ke 4', lmsAliases:['Teknik Follow Up'] },
-  { id:'s10', label:'Teknik Closing', group:'Hari ke 4', lmsAliases:['Teknik Closing'] },
-  { id:'s11', label:'Wake The Giant', group:'Hari ke 4', lmsAliases:['Wake The Giant'] }
+  { id:'s09', label:'Teknik Follow Up', group:'Hari ke 4', lmsAliases:['Teknik Follow Up'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25010803/1' },
+  { id:'s10', label:'Teknik Closing', group:'Hari ke 4', lmsAliases:['Teknik Closing'], examUrl:'https://trusmicorp.com/e-training/question/exam/M25010804/1' },
+  { id:'s11', label:'Wake The Giant', group:'Hari ke 4', lmsAliases:['Wake The Giant'], examUrl:'https://trusmicorp.com/e-training/question/exam/265/1' }
 ];
 
 // Kandidat dengan designation Sales / Sales Counter (match longgar, gak case sensitive)
@@ -3905,7 +3910,9 @@ function buildModuleReminderText(c){
     ''
   ];
   if(belum.length){
-    belum.forEach((m, i) => lines.push(`${i + 1}. ${m.label}`));
+    belum.forEach((m, i) => {
+      lines.push(`${i + 1}. ${m.label}${m.examUrl ? ` : ${m.examUrl}` : ''}`);
+    });
   }else{
     lines.push('(semua modul sudah selesai, tinggal konfirmasi ke PIC ya)');
   }
