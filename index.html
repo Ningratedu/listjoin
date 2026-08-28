@@ -2575,7 +2575,7 @@ let statDetailsCache = {};
 function renderStats(){
   const statsRowEl = document.getElementById('statsRow');
 
-  const candidatesThisMonth = candidates.filter(c => c.tglJoin && isCurrentMonth(c.tglJoin));
+  const candidatesThisMonth = candidates.filter(c => c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
   const totalBulanIni = candidatesThisMonth.length;
 
   const picSet = new Set(candidatesThisMonth.map(c => c.pic || '(Belum diisi)'));
@@ -2616,7 +2616,7 @@ function renderStats(){
       variant: 'number',
       badge: String(totalBulanIni), badgeBg: 'var(--navy)',
       icon: '📋', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
-      title: 'Total Kandidat', sub: `Join ${currentMonthLabel()}`
+      title: 'Total Kandidat', sub: `Induction ${currentMonthLabel()}`
     },
     {
       type: 'pic',
