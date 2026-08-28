@@ -1064,6 +1064,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .badge-row{display:flex;flex-wrap:wrap;gap:6px;}
   .cand-card .info{min-width:0;flex:1;}
   .dept-mini-card{padding:11px 13px;}
+  /* Highlight box buat kandidat "In Progress" yang udah >=5 hari dari tanggal Induction
+     tapi journey-nya belum kelar -- ditaruh di popup "Induction In Progress" biar PIC
+     langsung ngeh mana yang butuh ditindaklanjuti duluan (lihat isStaleInProgress()). */
+  .dept-mini-card.cand-stale{background:var(--danger-bg);border:1px solid rgba(168,50,38,0.35);}
+  html[data-theme="dark"] .dept-mini-card.cand-stale{border-color:rgba(255,144,134,0.35);}
+  .cand-stale-flag{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;
+    color:var(--danger-text);margin-bottom:7px;letter-spacing:.01em;}
   .dept-mini-name{font-size:12.5px;font-weight:700;color:var(--text);}
   .dept-mini-name-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .dept-mini-name-row .wa-remind-btn{width:24px;height:24px;flex-shrink:0;}
@@ -2876,7 +2883,7 @@ function renderCandMiniCard(c, context){
     metaHtml = `
       <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
       <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
-  } else if(context === 'onboarding'){
+  } else if(context === 'onboarding' || context === 'onboarding-inprogress'){
     metaHtml = `
       <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
@@ -2899,8 +2906,18 @@ function renderCandMiniCard(c, context){
   // diklik buat buka popup journey induction kandidat itu.
   badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}<button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">${renderOnboardingStatusBadge(c)}</button></div>`;
 
+  // Khusus popup "Induction In Progress" (context 'onboarding-inprogress'): kandidat yang
+  // udah >=5 hari dari tanggal Rencana Induction tapi journey-nya belum kelar dikasih
+  // highlight box + flag teks, biar PIC gampang nemuin mana yang perlu ditindaklanjuti.
+  const stale = context === 'onboarding-inprogress' && isStaleInProgress(c);
+  const staleDays = stale ? daysSinceOnboarding(c) : null;
+  const staleFlagHtml = stale
+    ? `<div class="cand-stale-flag">⚠️ Sudah ${staleDays} hari dari jadwal Induction, masih In Progress</div>`
+    : '';
+
   return `
-    <div class="cand-card dept-mini-card">
+    <div class="cand-card dept-mini-card${stale ? ' cand-stale' : ''}">
+      ${staleFlagHtml}
       <div class="dept-mini-name-row">
         <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
         ${renderWaButton(c)}
@@ -3076,10 +3093,13 @@ function renderPicBreakdownByWeekHtml(list){
 // In Progress / Not Started). Sama konsepnya kayak popup lain (dikelompokin per jadwal
 // onboarding lalu per PIC), badge status tiap kandidat udah otomatis kebawa lewat
 // renderOnboardingStatusBadge() di dalam renderCandMiniCard.
-function renderOnboardingStatusBreakdownHtml(list){
+// `context` default 'onboarding' dipakai buat Total/Completed/Not Started; popup
+// "Induction In Progress" secara khusus lewatin 'onboarding-inprogress' biar highlight box
+// kandidat yang udah >=5 hari nyangkut (isStaleInProgress) cuma nyala di situ aja.
+function renderOnboardingStatusBreakdownHtml(list, context){
   return renderGroupedByWeekHtml(list, (picCands, pic) =>
     `<span class="pic-title-text">${pic ? escapeHtml(pic) + ' · ' : ''}${picCands.length} kandidat</span>`
-  , null, 'onboarding');
+  , null, context || 'onboarding');
 }
 
 // Popup "Jadi Onboarding": sama konsepnya (per jadwal onboarding, urut tanggal), tapi tiap
@@ -3282,7 +3302,7 @@ function bindStatTileEvents(){
         openStatModal(`Induction Completed — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'✅', accent:'onboarding'});
       }else if(type === 'onbInProgress'){
         const list = statDetailsCache.onboardingStatus.inProgress;
-        openStatModal(`Induction In Progress — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🔄', accent:'onboarding'});
+        openStatModal(`Induction In Progress — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list, 'onboarding-inprogress'), {icon:'🔄', accent:'onboarding'});
       }else if(type === 'onbResign'){
         const list = statDetailsCache.onboardingStatus.resign;
         openStatModal(`Peserta Resign — ${currentMonthLabel()} (${list.length})`, renderResignBreakdownHtml(list), {icon:'🔴', accent:'onboarding'});
@@ -3469,6 +3489,26 @@ function dummyOnboardingStatus(c){
   if(done <= 0) return 'Not Started';
   if(done >= total) return 'Completed';
   return 'In Progress';
+}
+
+// Selisih hari dari tanggal Rencana Induction sampai hari ini (null kalau tanggalnya
+// belum diisi/gak valid). Dipakai buat nandain kandidat "In Progress" yang udah
+// kelamaan nyangkut (>=5 hari dari jadwal induction) di popup "Induction In Progress".
+function daysSinceOnboarding(c){
+  if(!c.tglOnboarding) return null;
+  const dOnb = new Date(String(c.tglOnboarding).slice(0,10) + 'T00:00:00');
+  if(isNaN(dOnb)) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((today - dOnb) / 86400000);
+}
+
+// True kalau kandidat masih "In Progress" DAN udah >=5 hari dari tanggal Rencana
+// Induction -> ini yang di-highlight di popup "Induction In Progress" biar keliatan
+// mana yang paling butuh ditindaklanjuti/diingetin duluan.
+function isStaleInProgress(c){
+  if(dummyOnboardingStatus(c) !== 'In Progress') return false;
+  const d = daysSinceOnboarding(c);
+  return d !== null && d >= 5;
 }
 
 // Definisi tiap kolom tabel: dipakai bareng buat render header, sort, dan filter
