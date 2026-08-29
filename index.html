@@ -3304,6 +3304,20 @@ editModalSaveBtn.addEventListener('click', async () => {
     fields.tglAktivasi = '';
   }
 
+  // Kandidat yang statusnya kebaca "Resign" tapi ternyata masuk lagi & lanjut induction --
+  // PIC biasanya nge-update tgl Join-nya ke tanggal join yang baru buat siklus induction
+  // yang sekarang. Kalau tgl Join baru itu SETELAH tgl Resign sebelumnya (atau tgl Resign-nya
+  // gak ada catatannya), otomatis di-reset balik jadi Active + tgl Resign-nya dikosongin,
+  // biar kandidat ini kehitung lagi sebagai peserta induction yang aktif (bukan ketutup
+  // status Resign lama selamanya -- lihat getStatusKaryawan()).
+  const wasResign = editingCandOriginal && getStatusKaryawan(editingCandOriginal) === 'Resign';
+  const isRejoining = wasResign && fields.tglJoin
+    && (!editingCandOriginal.tglResign || fields.tglJoin > String(editingCandOriginal.tglResign).slice(0, 10));
+  if(isRejoining){
+    fields.statusKaryawan = '';
+    fields.tglResign = '';
+  }
+
   const id = editingCandId;
   editModalSaveBtn.disabled = true;
   editModalSaveBtn.textContent = 'Menyimpan...';
@@ -5274,7 +5288,9 @@ function findCandidateByLmsName(namaLms){
 
 // Semua karyawan default Active, kecuali terupdate jadi Resign lewat Import E-Training
 // (kolom "Resignation" di file export ada tanggalnya). Gak ada jalur buat balikin ke
-// Active lagi lewat import -- itu diedit manual kalau memang perlu dikoreksi.
+// Active lagi lewat import -- kalau kandidat yang tadinya Resign ternyata masuk lagi
+// & lanjut induction, itu di-reset otomatis lewat popup Edit Kandidat begitu tgl Join-nya
+// diupdate ke tanggal setelah tgl Resign sebelumnya (lihat editModalSaveBtn handler).
 // Kolom "Status Karyawan" sendiri udah dihapus dari tabel -- infonya udah terwakilkan
 // lewat badge "🔴 Resign" yang gantiin tombol WA di kolom Aksi & semua popup card
 // (lihat renderResignBadge() & renderWaButton()).
