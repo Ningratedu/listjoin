@@ -5992,7 +5992,7 @@ if(themeToggleBtnEl){
 // (per browser/device, bukan per akun), dicek ulang tiap kali halaman dibuka + dicek berkala
 // tiap beberapa menit selagi tab-nya tetap kebuka (biar kedeteksi juga kalau tab-nya gak
 // pernah di-refresh tapi didiemin lama).
-const CULTURE_QUIZ_IDLE_MS = 3 * 60 * 60 * 1000; // 3 jam
+const CULTURE_QUIZ_IDLE_MS = 1 * 60 * 60 * 1000; // 1 jam
 const CULTURE_QUIZ_STORAGE_KEY = 'trusmiCultureQuizLastActivity';
 const CULTURE_QUIZ_QUESTIONS = [
   { q:'Kamu deadline laporan mingguan besok, tapi progress baru 40% karena data dari tim lain belum lengkap. Apa yang paling sesuai budaya PROAKTIF?', opts:['Diam saja dan tunggu sampai ditanya duluan oleh atasan','Segera update atasan: progress 40%, kendala data, minta arahan','Selesaikan seadanya asal keliatan sudah 100% rampung','Tunggu sampai deadline lewat baru jelaskan alasannya'], correct:1, note:'Diam/pasif dianggap pelanggaran. Kalau target berisiko gak tercapai atau ada hambatan, segera sampaikan ke atasan -- jangan ditunggu sampai jadi masalah besar.' },
