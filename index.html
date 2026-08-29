@@ -5994,6 +5994,12 @@ if(themeToggleBtnEl){
 // pernah di-refresh tapi didiemin lama).
 const CULTURE_QUIZ_IDLE_MS = 1 * 60 * 60 * 1000; // 1 jam
 const CULTURE_QUIZ_STORAGE_KEY = 'trusmiCultureQuizLastActivity';
+// Antrean soal yang belum tampil di "putaran" saat ini, disimpan persis (bukan
+// cuma di memori) biar gak reset tiap popup baru dibuka. Sistemnya kayak kartu
+// dikocok: 30 soal diacak jadi satu antrean, ditarik satu-satu dari depan tiap
+// butuh soal baru, dan baru dikocok ulang dari nol begitu antreannya habis --
+// jadi SEMUA soal wajib muncul dulu (urutan acak) sebelum ada yang keulang.
+const CULTURE_QUIZ_QUEUE_KEY = 'trusmiCultureQuizQueue';
 const CULTURE_QUIZ_QUESTIONS = [
   { q:'Kamu deadline laporan mingguan besok, tapi progress baru 40% karena data dari tim lain belum lengkap. Apa yang paling sesuai budaya PROAKTIF?', opts:['Diam saja dan tunggu sampai ditanya duluan oleh atasan','Segera update atasan: progress 40%, kendala data, minta arahan','Selesaikan seadanya asal keliatan sudah 100% rampung','Tunggu sampai deadline lewat baru jelaskan alasannya'], correct:1, note:'Diam/pasif dianggap pelanggaran. Kalau target berisiko gak tercapai atau ada hambatan, segera sampaikan ke atasan -- jangan ditunggu sampai jadi masalah besar.' },
   { q:'Kamu lihat target bulanan tim kemungkinan meleset karena satu proses macet. Sesuai budaya, kapan idealnya kamu lapor ke atasan?', opts:['Lapor setelah deadline lewat, biar ada bukti nyata','Begitu potensi hambatan kelihatan, jangan tunggu jadi besar','Gak perlu lapor, itu tugas atasan buat memantau sendiri','Lapor cuma kalau ditanya duluan sama atasan'], correct:1, note:'Proaktif berarti eskalasi begitu ada masalah/hambatan, bukan menunggu ditanya atau menunggu masalahnya membesar.' },
@@ -6061,11 +6067,41 @@ function shouldShowCultureQuiz(){
   return (Date.now() - last) >= CULTURE_QUIZ_IDLE_MS;
 }
 
-// Random soal baru, hindari soal yang sama persis kayak sebelumnya (kalau soalnya lebih dari 1).
+// Acak urutan array secara in-place (Fisher-Yates).
+function shuffleArray(arr){
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Ambil soal berikutnya dari antrean kocokan (lihat komentar CULTURE_QUIZ_QUEUE_KEY
+// di atas). Kalau antrean kosong/rusak/belum ada, dikocok ulang dari semua soal.
+// excludeIdx dipakai buat jaga-jaga di titik pergantian putaran (antrean lama abis,
+// baru dikocok lagi) supaya soal pertama di putaran baru gak kebetulan sama persis
+// kayak soal terakhir di putaran sebelumnya.
 function pickRandomQuizIndex(excludeIdx){
-  if(CULTURE_QUIZ_QUESTIONS.length <= 1) return 0;
-  let idx;
-  do{ idx = Math.floor(Math.random() * CULTURE_QUIZ_QUESTIONS.length); }while(idx === excludeIdx);
+  const total = CULTURE_QUIZ_QUESTIONS.length;
+  if(total <= 1) return 0;
+
+  let queue;
+  try{
+    queue = JSON.parse(localStorage.getItem(CULTURE_QUIZ_QUEUE_KEY) || '[]');
+  }catch(e){ queue = []; }
+  if(!Array.isArray(queue)){ queue = []; }
+  // buang index yang gak valid lagi (misal soalnya udah dikurangi/diedit)
+  queue = queue.filter(i => Number.isInteger(i) && i >= 0 && i < total);
+
+  if(queue.length === 0){
+    queue = shuffleArray(Array.from({ length: total }, (_, i) => i));
+    if(queue[0] === excludeIdx && queue.length > 1){
+      [queue[0], queue[1]] = [queue[1], queue[0]];
+    }
+  }
+
+  const idx = queue.shift();
+  try{ localStorage.setItem(CULTURE_QUIZ_QUEUE_KEY, JSON.stringify(queue)); }catch(e){}
   return idx;
 }
 
