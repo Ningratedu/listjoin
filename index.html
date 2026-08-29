@@ -6134,6 +6134,12 @@ function renderQuizQuestion(idx){
       if(i === item.correct){
         btn.classList.add('correct');
         cultureQuizPassed = true;
+        // 🔒 Jam idle direset DI SINI -- pas jawabannya udah benar -- bukan pas
+        // popup pertama kali dibuka. Ini yang bikin idle-timer beneran jujur:
+        // kalau user belum jawab benar (misal cuma refresh berkali-kali buat
+        // coba lolos), "aktivitas terakhir" gak berubah, jadi popup bakal terus
+        // muncul lagi tiap halaman dimuat ulang sampai dijawab benar.
+        markCultureQuizActivity();
         // Langsung tutup popup soal, lalu buka popup apresiasi + doa + review terpisah.
         const overlay = document.getElementById('cultureQuizOverlay');
         if(overlay) overlay.classList.remove('show');
@@ -6174,7 +6180,13 @@ function openCultureQuiz(){
   updateQuizCloseAvailability();
   renderQuizQuestion(pickRandomQuizIndex(-1));
   overlay.classList.add('show');
-  markCultureQuizActivity();
+  // 🔒 CATATAN: markCultureQuizActivity() SENGAJA TIDAK dipanggil di sini.
+  // Kalau jam idle-nya kereset begitu popup dibuka (bukan begitu dijawab
+  // benar), user bisa lolos tanpa jawab cuma dengan refresh halaman --
+  // karena begitu popup sempat kebuka sekali, "aktivitas terakhir" udah
+  // keburu ke-update, jadi shouldShowCultureQuiz() nganggep belum idle lagi
+  // padahal kuisnya belum pernah beneran dijawab. Makanya reset jam idle-nya
+  // dipindah ke titik user jawab BENAR (lihat renderQuizQuestion()).
 }
 
 function closeCultureQuiz(){
@@ -6199,8 +6211,16 @@ function initCultureQuiz(){
 
   // Semua interaksi user (klik, keyboard, scroll, gerak mouse) dianggap "aktivitas" yang
   // nge-reset jam idle -- ditulis ke localStorage dengan throttle biar gak nulis tiap event.
+  // 🔒 PENGECUALIAN PENTING: kalau popup kuis lagi kebuka DAN belum dijawab benar
+  // (cultureQuizIsOpen && !cultureQuizPassed), aktivitas umum ini SENGAJA diabaikan.
+  // Soalnya gerak mouse / klik jawaban salah di dalam popup itu sendiri juga
+  // kehitung "aktivitas" oleh listener window ini -- kalau tetap dibiarkan reset
+  // jam idle, user bisa lolos tanpa jawab benar cuma dengan mainin popupnya
+  // sebentar (gerakin mouse / klik opsi salah) lalu refresh sebelum idle 1 jam
+  // berikutnya ke-detect lagi.
   let lastWrite = 0;
   const markActivityThrottled = () => {
+    if(cultureQuizIsOpen && !cultureQuizPassed) return;
     const now = Date.now();
     if(now - lastWrite > 30000){ // maks nulis tiap 30 detik
       lastWrite = now;
