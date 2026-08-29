@@ -1546,58 +1546,58 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 
   /* Popup Kuis Budaya Kerja */
   .quiz-modal-panel{max-width:480px;}
-  .quiz-modal-body{padding:16px 16px 18px;}
+  .quiz-modal-body{padding:14px 14px 16px;}
   .quiz-header-greet{background:linear-gradient(135deg,#17b978,#0e9d74);border-color:transparent;}
   .quiz-header-greet .modal-header-title{align-items:flex-start;}
-  .quiz-header-greet h3{color:#fff;font-size:12.5px;font-weight:700;line-height:1.4;}
+  .quiz-header-greet h3{color:#fff;font-size:11px;font-weight:700;line-height:1.4;}
   .quiz-header-greet .modal-header-icon{background:rgba(255,255,255,0.22);}
   .quiz-header-greet .modal-close{color:rgba(255,255,255,0.85);}
   .quiz-header-greet .modal-close:hover{color:#fff;}
   .quiz-header-celebrate{background:linear-gradient(135deg,#8b5cf6,#4d6bff);border-color:transparent;}
-  .quiz-header-celebrate h3{color:#fff;font-size:14px;font-weight:700;}
+  .quiz-header-celebrate h3{color:#fff;font-size:12.5px;font-weight:700;}
   .quiz-header-celebrate .modal-header-icon{background:rgba(255,255,255,0.22);}
   .quiz-result-appreciation{
-    font-size:13.5px;
+    font-size:12px;
     font-weight:700;
     color:var(--text);
     background:var(--success-bg);
     border:1px solid var(--accent);
     border-radius:12px;
-    padding:12px 12px;
-    margin-bottom:10px;
-    line-height:1.45;
+    padding:10px 11px;
+    margin-bottom:9px;
+    line-height:1.4;
   }
   .quiz-result-note{
-    font-size:11.5px;
+    font-size:10.5px;
     color:var(--text-dim);
-    line-height:1.45;
-    margin-bottom:14px;
+    line-height:1.4;
+    margin-bottom:12px;
   }
   .quiz-q-counter{
-    font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--accent);margin-bottom:8px;
+    font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:7px;
   }
   .quiz-question{
-    font-size:13px;font-weight:700;color:var(--text);line-height:1.45;margin-bottom:14px;
+    font-size:11.5px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:12px;
   }
-  .quiz-options{display:flex;flex-direction:column;gap:7px;}
+  .quiz-options{display:flex;flex-direction:column;gap:6px;}
   .quiz-option-btn{
     text-align:left;background:var(--panel-2);border:1px solid var(--border);
-    color:var(--text);border-radius:10px;padding:8px 11px;font-size:12px;
-    cursor:pointer;transition:background .15s, border-color .15s;line-height:1.35;
+    color:var(--text);border-radius:10px;padding:7px 10px;font-size:10.5px;
+    cursor:pointer;transition:background .15s, border-color .15s;line-height:1.3;
   }
   .quiz-option-btn:hover:not(:disabled){border-color:var(--accent);}
   .quiz-option-btn:disabled{cursor:default;}
   .quiz-option-btn.correct{background:var(--success-bg);border-color:var(--accent);color:var(--text);}
   .quiz-option-btn.wrong{background:var(--danger-bg);border-color:var(--danger);color:var(--text);}
   .quiz-feedback{
-    margin-top:12px;padding:10px 12px;border-radius:10px;font-size:11.5px;line-height:1.45;
+    margin-top:10px;padding:9px 11px;border-radius:10px;font-size:10.5px;line-height:1.4;
     background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);
   }
   .quiz-feedback b{color:var(--text);}
   .quiz-close-btn{
-    margin-top:14px;width:100%;border:none;border-radius:10px;padding:10px;
-    background:var(--accent);color:#062f22;font-weight:700;font-size:12px;cursor:pointer;
+    margin-top:12px;width:100%;border:none;border-radius:10px;padding:9px;
+    background:var(--accent);color:#062f22;font-weight:700;font-size:11px;cursor:pointer;
   }
   .quiz-close-btn:hover{opacity:0.9;}
 </style>
@@ -1947,6 +1947,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       <div class="quiz-question" id="quizQuestion"></div>
       <div class="quiz-options" id="quizOptions"></div>
       <div class="quiz-feedback" id="quizFeedback" style="display:none;"></div>
+      <button class="quiz-close-btn" id="quizNextBtn" style="display:none;">Lanjut, Coba Soal Lain ➡️</button>
     </div>
   </div>
 </div>
@@ -5994,36 +5995,36 @@ if(themeToggleBtnEl){
 const CULTURE_QUIZ_IDLE_MS = 3 * 60 * 60 * 1000; // 3 jam
 const CULTURE_QUIZ_STORAGE_KEY = 'trusmiCultureQuizLastActivity';
 const CULTURE_QUIZ_QUESTIONS = [
-  { q:'Kamu deadline laporan mingguan besok, tapi progress baru 40% karena data dari tim lain belum lengkap. Apa yang paling sesuai budaya PROAKTIF?', opts:['Diam saja, tunggu ditanya atasan','Kirim update ke atasan sekarang: progress 40%, kendala data belum lengkap, minta arahan','Selesaikan seadanya biar keliatan 100%','Tunggu deadline lewat baru jelasin alasannya'], correct:1, note:'Diam/pasif dianggap pelanggaran. Kalau target berisiko gak tercapai atau ada hambatan, segera sampaikan ke atasan -- jangan ditunggu sampai jadi masalah besar.' },
-  { q:'Kamu lihat target bulanan tim kemungkinan meleset karena satu proses macet. Sesuai budaya, kapan idealnya kamu lapor ke atasan?', opts:['Setelah deadline lewat, biar ada bukti nyata','Begitu potensi hambatan itu kelihatan, bukan nunggu jadi masalah besar','Gak perlu lapor, itu tanggung jawab atasan buat mantau','Lapor kalau ditanya aja'], correct:1, note:'Proaktif berarti eskalasi begitu ada masalah/hambatan, bukan menunggu ditanya atau menunggu masalahnya membesar.' },
-  { q:'Rekan kerja kamu ditegur atasan karena salah input data. Reaksi paling sesuai budaya PEMBELAJAR?', opts:['Ejekan santai "makanya hati-hati" di depan tim','Bantu dia pahami di mana salahnya biar gak berulang, tanpa menyerang pribadinya','Diam aja, bukan urusan kamu','Laporkan lagi ke atasan biar makin kena'], correct:1, note:'Feedback itu cara buat belajar, bukan serangan pribadi. Fokusnya bantu perbaiki, bukan menjatuhkan.' },
-  { q:'Kamu baru pertama kali coba proses baru dan hasilnya salah. Sesuai budaya, sikap yang benar?', opts:['Wajar, gak masalah -- yang penting kamu belajar dari feedback dan gak ngulang kesalahan yang sama','Menyalahkan SOP yang gak jelas','Diam, berharap gak ketahuan','Langsung resign karena takut ditegur terus'], correct:0, note:'Salah itu boleh. Yang gak boleh adalah mengulang kesalahan yang sama tanpa belajar dari feedback sebelumnya.' },
-  { q:'Atasan kasih feedback keras tentang cara kerja kamu. Sikap PEMBELAJAR yang tepat?', opts:['Balas dengan defensif dan cari alasan','Terima sebagai bahan belajar, bukan serangan pribadi','Curhat ke rekan kerja lain sambil ngomongin atasan','Ikuti tapi diam-diam kesel terus-terusan'], correct:1, note:'"Feedback, bukan serangan. Feedback adalah cara kita untuk belajar" -- itu prinsip budaya Pembelajar.' },
+  { q:'Kamu deadline laporan mingguan besok, tapi progress baru 40% karena data dari tim lain belum lengkap. Apa yang paling sesuai budaya PROAKTIF?', opts:['Diam saja dan tunggu sampai ditanya duluan oleh atasan','Segera update atasan: progress 40%, kendala data, minta arahan','Selesaikan seadanya asal keliatan sudah 100% rampung','Tunggu sampai deadline lewat baru jelaskan alasannya'], correct:1, note:'Diam/pasif dianggap pelanggaran. Kalau target berisiko gak tercapai atau ada hambatan, segera sampaikan ke atasan -- jangan ditunggu sampai jadi masalah besar.' },
+  { q:'Kamu lihat target bulanan tim kemungkinan meleset karena satu proses macet. Sesuai budaya, kapan idealnya kamu lapor ke atasan?', opts:['Lapor setelah deadline lewat, biar ada bukti nyata','Begitu potensi hambatan kelihatan, jangan tunggu jadi besar','Gak perlu lapor, itu tugas atasan buat memantau sendiri','Lapor cuma kalau ditanya duluan sama atasan'], correct:1, note:'Proaktif berarti eskalasi begitu ada masalah/hambatan, bukan menunggu ditanya atau menunggu masalahnya membesar.' },
+  { q:'Rekan kerja kamu ditegur atasan karena salah input data. Reaksi paling sesuai budaya PEMBELAJAR?', opts:['Ejek santai "makanya hati-hati" di depan seluruh tim','Bantu dia paham letak salahnya, tanpa menyerang pribadinya','Diam saja, anggap itu bukan urusan kamu sama sekali','Laporkan lagi ke atasan biar dia makin kena tegur'], correct:1, note:'Feedback itu cara buat belajar, bukan serangan pribadi. Fokusnya bantu perbaiki, bukan menjatuhkan.' },
+  { q:'Kamu baru pertama kali coba proses baru dan hasilnya salah. Sesuai budaya, sikap yang benar?', opts:['Wajar, yang penting belajar dari feedback dan gak mengulang','Menyalahkan SOP yang dianggap kurang jelas dari awal','Diam saja dan berharap kesalahan itu gak ketahuan','Langsung resign karena takut terus-terusan ditegur'], correct:0, note:'Salah itu boleh. Yang gak boleh adalah mengulang kesalahan yang sama tanpa belajar dari feedback sebelumnya.' },
+  { q:'Atasan kasih feedback keras tentang cara kerja kamu. Sikap PEMBELAJAR yang tepat?', opts:['Balas dengan defensif dan mencari-cari alasan','Terima sebagai bahan belajar, bukan serangan pribadi','Curhat ke rekan kerja sambil menjelekkan atasan','Ikuti saja tapi diam-diam kesal terus-terusan'], correct:1, note:'"Feedback, bukan serangan. Feedback adalah cara kita untuk belajar" -- itu prinsip budaya Pembelajar.' },
   { q:'Tim lagi under pressure karena target belum tercapai. Salah satu anggota terus-terusan mengeluh tanpa kasih solusi. Ini melanggar budaya apa?', opts:['Cepat','Disiplin','Penebar Energi Positif','Golden Rules'], correct:2, note:'Mengeluh tanpa solusi dianggap merusak tim -- bertentangan dengan budaya Penebar Energi Positif.' },
-  { q:'Sesuai budaya "Penebar Energi Positif", mengeluh itu boleh selama...', opts:['Disertai solusi atau usulan perbaikan','Dilakukan di depan klien biar didengar','Diulang-ulang tiap hari','Gak perlu disertai apapun, yang penting lega'], correct:0, note:'Bedanya mengeluh yang merusak tim dan yang konstruktif ada di solusinya -- bukan cuma numpahin keluhan.' },
-  { q:'Kamu terima chat kerjaan jam 4 sore dan baru bisa dikerjakan besok pagi. Sikap CEPAT yang tepat hari ini?', opts:['Diamkan saja, jawab besok pas udah selesai','Balas singkat: diterima, akan dikerjakan besok pagi jam sekian','Balas "nanti ya" tanpa kepastian waktu','Minta orang lain yang jawab'], correct:1, note:'Cepat itu soal responsif -- kasih kepastian & timeline, bukan berarti harus langsung selesai saat itu juga.' },
-  { q:'Ada request mendadak yang butuh keputusan cepat tapi datanya kurang lengkap. Sesuai budaya CEPAT, apa yang benar?', opts:['Ambil keputusan asal cepat tanpa mikir risiko','Diam, tunggu data 100% lengkap baru bertindak','Cepat tapi tetap mempertimbangkan risiko, ambil keputusan terbaik dari info yang ada lalu dikonfirmasi ulang','Lempar ke atasan tanpa usaha apa pun'], correct:2, note:'"Cepat bukan berarti asal-asalan" -- tetap sigap ambil keputusan, dengan tetap memperhitungkan risiko & konfirmasi ulang.' },
-  { q:'Kamu sadar tugas gak akan selesai tepat waktu karena estimasi awal meleset. Sikap paling sesuai budaya?', opts:['Diam dan berharap gak ada yang notice','Konfirmasi ke atasan/pihak terkait sebelum deadline, minta tambahan waktu dengan alasan jelas','Kasih laporan palsu bahwa udah selesai','Nunggu ditanya baru jujur'], correct:1, note:'"Butuh waktu lebih? Konfirmasi!" -- kabarin SEBELUM deadline lewat, bukan sesudahnya.' },
+  { q:'Sesuai budaya "Penebar Energi Positif", mengeluh itu boleh selama...', opts:['Disertai solusi atau usulan perbaikan yang jelas','Dilakukan di depan klien biar didengar','Diulang-ulang setiap hari tanpa henti','Gak perlu disertai apapun, yang penting lega'], correct:0, note:'Bedanya mengeluh yang merusak tim dan yang konstruktif ada di solusinya -- bukan cuma numpahin keluhan.' },
+  { q:'Kamu terima chat kerjaan jam 4 sore dan baru bisa dikerjakan besok pagi. Sikap CEPAT yang tepat hari ini?', opts:['Diamkan saja, jawab besok kalau sudah selesai','Balas singkat: diterima, dikerjakan besok pagi','Balas "nanti ya" saja tanpa kepastian waktu jelas','Minta orang lain saja yang membalas chat tersebut'], correct:1, note:'Cepat itu soal responsif -- kasih kepastian & timeline, bukan berarti harus langsung selesai saat itu juga.' },
+  { q:'Ada request mendadak yang butuh keputusan cepat tapi datanya kurang lengkap. Sesuai budaya CEPAT, apa yang benar?', opts:['Ambil keputusan asal cepat tanpa mikir risikonya','Diam dan tunggu data 100% lengkap dulu baru bertindak','Cepat tapi tetap hitung risiko, lalu konfirmasi ulang','Lempar begitu saja ke atasan tanpa usaha apa pun'], correct:2, note:'"Cepat bukan berarti asal-asalan" -- tetap sigap ambil keputusan, dengan tetap memperhitungkan risiko & konfirmasi ulang.' },
+  { q:'Kamu sadar tugas gak akan selesai tepat waktu karena estimasi awal meleset. Sikap paling sesuai budaya?', opts:['Diam saja dan berharap gak ada yang menyadari','Konfirmasi ke atasan sebelum deadline, minta tambahan waktu','Kasih laporan palsu bahwa pekerjaan sudah selesai','Tunggu sampai ditanya duluan baru jujur mengaku'], correct:1, note:'"Butuh waktu lebih? Konfirmasi!" -- kabarin SEBELUM deadline lewat, bukan sesudahnya.' },
   { q:'"Respon Lambat = Masalah, Menunda = Risiko" -- prinsip ini paling berkaitan dengan nilai budaya apa?', opts:['Pembelajar','Cepat','Penebar Energi Positif','Disiplin'], correct:1, note:'Ini prinsip inti dari budaya CEPAT: responsif, efisien, eksekusi tepat waktu.' },
-  { q:'Kamu udah janji ke rekan kerja bakal kirim file jam 9 pagi. Jam 9 belum selesai. Sikap DISIPLIN yang benar?', opts:['Diam aja, kirim kapan selesai tanpa kabar','Info duluan sebelum jam 9 kalau bakal telat + estimasi waktu baru','Kirim file yang belum lengkap asal on time','Salahkan pekerjaan lain yang numpuk'], correct:1, note:'"Deadline adalah harga diri" -- kalaupun meleset, komunikasikan duluan, jangan biarkan orang menunggu tanpa kabar.' },
-  { q:'"Janji adalah Hutang" dalam budaya Trusmi Group artinya...', opts:['Janji boleh diingkari asal ada alasan','Apa yang sudah dimulai/dijanjikan harus diselesaikan, karena sekali ingkar kepercayaan sulit dibangun lagi','Janji cuma berlaku ke atasan','Janji gak perlu didokumentasikan'], correct:1, note:'Selesaikan apa yang sudah dimulai -- karena kepercayaan yang sekali rusak sulit dibangun kembali.' },
-  { q:'Kamu punya deadline project jam 5 sore. Jam 3 sore kamu sadar gak akan selesai tepat waktu. Tindakan paling disiplin?', opts:['Diam, kejar sebisa mungkin tanpa bilang siapa-siapa','Segera konfirmasi ke atasan tentang kondisi ini sebelum waktu habis','Selesaikan asal-asalan yang penting submit','Submit telat tanpa penjelasan'], correct:1, note:'Alasan yang bisa diterima adalah yang disampaikan SEBELUM kejadian/deadline, bukan sesudahnya.' },
-  { q:'Kamu dapat tugas dari atasan tapi instruksinya kurang jelas. Sesuai "Golden Rules", apa yang harus kamu lakukan?', opts:['Tebak-tebak sendiri maksudnya biar cepat','Konfirmasi ulang ke atasan sebelum mengerjakan, jangan pakai asumsi','Kerjakan versi kamu sendiri, kalau salah tinggal revisi','Tanya ke rekan kerja lain yang levelnya sama, bukan ke atasan'], correct:1, note:'Golden Rules melarang asumsi dalam lingkup pekerjaan -- setiap asumsi wajib dikonfirmasi ulang.' },
-  { q:'Menurut Golden Rules, ucapan seperti "saya kira begini" atau "saya pikir begitu" dalam lingkup pekerjaan itu...', opts:['Wajar dipakai asal sopan','Dilarang, karena keputusan kerja gak boleh berdasar asumsi tanpa dasar','Boleh dipakai ke rekan kerja tapi gak ke atasan','Cuma masalah kalau hasil kerjanya salah'], correct:1, note:'"Dilarang menggunakan asumsi dalam lingkup pekerjaan" -- gak ada perkataan tanpa dasar yang bisa diterima.' },
-  { q:'Kamu telat ke kantor karena hujan deras dan motor mogok di jalan. Kapan idealnya kamu kasih tahu atasan?', opts:['Setelah sampai kantor, sebagai laporan','Sebelum telat terjadi/begitu kamu sadar bakal telat, bukan sesudahnya','Gak perlu kasih tahu, itu kejadian di luar kendali','Cukup kasih tahu rekan kerja saja'], correct:1, note:'Contoh di materi: izin duluan ("kemungkinan telat, meeting ditangani X") itu benar; alasan sesudah kejadian dianggap alasan yang dibuat.' },
-  { q:'Sesuai Golden Rules, informasi yang disampaikan SETELAH kejadian/masalah terlambat terjadi itu dianggap sebagai...', opts:['Bukti tanggung jawab','Alasan yang sah karena jujur','Alasan yang dibuat-buat, bukan izin yang sah','Tetap diterima selama disampaikan dengan sopan'], correct:2, note:'Hanya alasan sebelum kejadian atau izin di muka yang bisa diterima. Info pasca kejadian dianggap alasan yang dibuat.' },
-  { q:'Komunikasi penting seperti approval, strategi, atau kebijakan menurut Golden Rules wajib...', opts:['Cukup disampaikan lisan saja','Terdokumentasi, baik lewat dokumen, sistem, atau chat WhatsApp','Hanya diketahui atasan langsung','Disampaikan lewat rapat resmi saja'], correct:1, note:'Komunikasi penting wajib terdokumentasi -- lewat dokumen tersurat, sistem, atau chat WA sekalipun.' },
-  { q:'Supervisor kasih instruksi ke staff, staff bilang paham, tapi ternyata staff lalai mengerjakannya. Menurut Golden Rules, siapa yang bertanggung jawab atas miss ini?', opts:['Supervisor, karena dia yang kasih perintah','Staff yang menerima informasi dan sudah menyatakan paham, tapi lalai','Keduanya sama-sama gak salah','Tim HR'], correct:1, note:'Kalau kedua pihak sudah sepakat/paham dan terjadi miss karena kelalaian, itu jadi tanggung jawab penerima informasi.' },
-  { q:'Kalimat "Jabatan ≠ Hak Istimewa" dalam budaya Trusmi Group berarti...', opts:['Semakin tinggi jabatan, semakin bebas dari aturan','Semakin tinggi jabatan, justru tanggung jawab dan konsekuensi kesalahan makin besar, tanpa pengecualian','Jabatan tinggi otomatis dapat keringanan sanksi','Aturan cuma berlaku buat staff level bawah'], correct:1, note:'Semakin tinggi jabatan: semakin cepat ambil keputusan, semakin besar tanggung jawab, semakin mahal kesalahan -- tidak ada pengecualian.' },
-  { q:'Seorang Manager melanggar aturan yang sama dengan seorang Staff. Sesuai budaya perusahaan, apa yang seharusnya terjadi?', opts:['Manager dapat keringanan karena jabatannya','Keduanya kena konsekuensi, dan nominal Manager justru lebih besar dari Staff','Hanya Staff yang kena sanksi','Manager cukup diingatkan lisan tanpa konsekuensi formal'], correct:1, note:'Konsekuensi berjenjang sesuai jabatan (Staff Rp20.000, Manager Rp75.000, dst) -- makin tinggi jabatan, makin besar konsekuensinya.' },
-  { q:'Tujuan konsekuensi berbasis rupiah (denda) dalam budaya ini sebenarnya soal apa?', opts:['Menambah pemasukan perusahaan','Bentuk hukuman finansial semata','Menegaskan tanggung jawab, bukan soal nominal uangnya','Formalitas yang gak terlalu penting'], correct:2, note:'"Bukan soal UANG, tapi soal TANGGUNG JAWAB" -- nominalnya cuma alat pengingat, esensinya di kesadaran tanggung jawab.' },
-  { q:'Kamu sering merasa gak nyaman ditegur dan cenderung cari alasan saat ditegur. Menurut budaya Trusmi Group, sikap paling tepat adalah...', opts:['Terus mempertahankan pembelaan diri','Refleksi diri dan sadar bahwa itu sinyal untuk berubah, lebih baik sadar dari sekarang','Anggap wajar karena semua orang begitu','Pindah ke tim lain biar gak ditegur lagi'], correct:1, note:'"Lebih baik sadar dari sekarang" -- suka beralasan, gak suka ditegur, dan gak siap tanggung jawab adalah sinyal buat refleksi diri.' },
-  { q:'Kalimat "Trusmi Group bukan tempat semua orang" paling tepat dimaknai sebagai...', opts:['Perusahaan sengaja mempersulit karyawan baru','Budaya kerja di sini punya standar tertentu (proaktif, cepat, disiplin, dll) yang gak semua orang cocok, tapi yang bertahan akan naik level','Hanya orang tertentu yang boleh melamar kerja','Perusahaan tidak terbuka untuk karyawan baru'], correct:1, note:'"Tapi, jika Anda bertahan, Anda akan naik level (secara professional dan mental)" -- standarnya tinggi, tapi hasilnya sepadan buat yang bertahan.' },
-  { q:'Kenapa budaya kerja baru ini penting dikaitkan dengan KPI Corporate (target akad, dsb)?', opts:['Karena budaya kerja gak ada hubungannya dengan pencapaian bisnis','Karena semua fungsi kerja (HR, Legal, Project, Marketing, dst) harus inline mendukung pencapaian target perusahaan','Karena hanya tim Sales yang perlu peduli budaya kerja','Karena budaya kerja cuma berlaku buat karyawan baru'], correct:1, note:'"Bekerja harus inline dengan KPI Corporate!" -- semua fungsi pendukung (HR, Legal, System, dll) terhubung ke target Sales/Akad & Financial.' },
+  { q:'Kamu udah janji ke rekan kerja bakal kirim file jam 9 pagi. Jam 9 belum selesai. Sikap DISIPLIN yang benar?', opts:['Diam saja, kirim file kapan selesai tanpa kabar','Info duluan sebelum jam 9 kalau bakal telat, kasih estimasi baru','Kirim file yang belum lengkap asal terlihat on time','Salahkan pekerjaan lain yang lagi menumpuk banyak'], correct:1, note:'"Deadline adalah harga diri" -- kalaupun meleset, komunikasikan duluan, jangan biarkan orang menunggu tanpa kabar.' },
+  { q:'"Janji adalah Hutang" dalam budaya Trusmi Group artinya...', opts:['Janji boleh diingkari asal disertai alasan jelas','Apa yang sudah dijanjikan harus diselesaikan, ingkar merusak kepercayaan','Janji cuma berlaku kalau diberikan ke atasan saja','Janji gak perlu sampai didokumentasikan segala'], correct:1, note:'Selesaikan apa yang sudah dimulai -- karena kepercayaan yang sekali rusak sulit dibangun kembali.' },
+  { q:'Kamu punya deadline project jam 5 sore. Jam 3 sore kamu sadar gak akan selesai tepat waktu. Tindakan paling disiplin?', opts:['Diam dan kejar sebisa mungkin tanpa bilang siapa-siapa','Segera konfirmasi ke atasan sebelum waktu habis','Selesaikan asal-asalan yang penting bisa submit','Submit telat begitu saja tanpa ada penjelasan'], correct:1, note:'Alasan yang bisa diterima adalah yang disampaikan SEBELUM kejadian/deadline, bukan sesudahnya.' },
+  { q:'Kamu dapat tugas dari atasan tapi instruksinya kurang jelas. Sesuai "Golden Rules", apa yang harus kamu lakukan?', opts:['Tebak-tebak sendiri maksudnya biar cepat selesai','Konfirmasi ulang ke atasan dulu, jangan pakai asumsi','Kerjakan versi sendiri, kalau salah tinggal revisi','Tanya rekan kerja setingkat saja, bukan ke atasan'], correct:1, note:'Golden Rules melarang asumsi dalam lingkup pekerjaan -- setiap asumsi wajib dikonfirmasi ulang.' },
+  { q:'Menurut Golden Rules, ucapan seperti "saya kira begini" atau "saya pikir begitu" dalam lingkup pekerjaan itu...', opts:['Wajar saja dipakai selama disampaikan dengan sopan','Dilarang, keputusan kerja gak boleh berdasar asumsi','Boleh ke rekan kerja saja, tapi gak boleh ke atasan','Cuma jadi masalah kalau hasil kerjanya ternyata salah'], correct:1, note:'"Dilarang menggunakan asumsi dalam lingkup pekerjaan" -- gak ada perkataan tanpa dasar yang bisa diterima.' },
+  { q:'Kamu telat ke kantor karena hujan deras dan motor mogok di jalan. Kapan idealnya kamu kasih tahu atasan?', opts:['Setelah sampai kantor, sebagai laporan susulan','Sebelum telat terjadi, begitu sadar bakal telat','Gak perlu kasih tahu, itu kejadian di luar kendali','Cukup kasih tahu rekan kerja saja, gak usah atasan'], correct:1, note:'Contoh di materi: izin duluan ("kemungkinan telat, meeting ditangani X") itu benar; alasan sesudah kejadian dianggap alasan yang dibuat.' },
+  { q:'Sesuai Golden Rules, informasi yang disampaikan SETELAH kejadian/masalah terlambat terjadi itu dianggap sebagai...', opts:['Dianggap sebagai bukti tanggung jawab yang baik','Dianggap alasan yang sah karena disampaikan jujur','Dianggap alasan yang dibuat-buat, bukan izin sah','Tetap diterima selama disampaikan dengan sopan'], correct:2, note:'Hanya alasan sebelum kejadian atau izin di muka yang bisa diterima. Info pasca kejadian dianggap alasan yang dibuat.' },
+  { q:'Komunikasi penting seperti approval, strategi, atau kebijakan menurut Golden Rules wajib...', opts:['Cukup disampaikan secara lisan saja tanpa catatan','Wajib terdokumentasi lewat dokumen, sistem, atau chat WA','Cukup diketahui oleh atasan langsung saja','Wajib disampaikan lewat rapat resmi saja'], correct:1, note:'Komunikasi penting wajib terdokumentasi -- lewat dokumen tersurat, sistem, atau chat WA sekalipun.' },
+  { q:'Supervisor kasih instruksi ke staff, staff bilang paham, tapi ternyata staff lalai mengerjakannya. Menurut Golden Rules, siapa yang bertanggung jawab atas miss ini?', opts:['Supervisor, karena dialah yang memberi perintah','Staff, karena sudah bilang paham tapi lalai menjalankan','Keduanya dianggap sama-sama gak bersalah','Tim HR, karena bertanggung jawab atas semua staff'], correct:1, note:'Kalau kedua pihak sudah sepakat/paham dan terjadi miss karena kelalaian, itu jadi tanggung jawab penerima informasi.' },
+  { q:'Kalimat "Jabatan ≠ Hak Istimewa" dalam budaya Trusmi Group berarti...', opts:['Semakin tinggi jabatan, semakin bebas dari aturan','Semakin tinggi jabatan, tanggung jawab & konsekuensi makin besar','Jabatan tinggi otomatis dapat keringanan sanksi','Aturan cuma berlaku buat staff level bawah saja'], correct:1, note:'Semakin tinggi jabatan: semakin cepat ambil keputusan, semakin besar tanggung jawab, semakin mahal kesalahan -- tidak ada pengecualian.' },
+  { q:'Seorang Manager melanggar aturan yang sama dengan seorang Staff. Sesuai budaya perusahaan, apa yang seharusnya terjadi?', opts:['Manager dapat keringanan khusus karena jabatannya','Keduanya kena konsekuensi, nominal Manager lebih besar','Hanya Staff saja yang kena sanksi, Manager bebas','Manager cukup diingatkan lisan tanpa sanksi formal'], correct:1, note:'Konsekuensi berjenjang sesuai jabatan (Staff Rp20.000, Manager Rp75.000, dst) -- makin tinggi jabatan, makin besar konsekuensinya.' },
+  { q:'Tujuan konsekuensi berbasis rupiah (denda) dalam budaya ini sebenarnya soal apa?', opts:['Sekadar menambah pemasukan bagi perusahaan','Murni bentuk hukuman finansial belaka','Menegaskan tanggung jawab, bukan soal nominal uang','Cuma formalitas yang sebenarnya gak terlalu penting'], correct:2, note:'"Bukan soal UANG, tapi soal TANGGUNG JAWAB" -- nominalnya cuma alat pengingat, esensinya di kesadaran tanggung jawab.' },
+  { q:'Kamu sering merasa gak nyaman ditegur dan cenderung cari alasan saat ditegur. Menurut budaya Trusmi Group, sikap paling tepat adalah...', opts:['Terus mempertahankan pembelaan diri terus-menerus','Refleksi diri, sadari itu sinyal untuk mulai berubah','Anggap wajar saja karena semua orang juga begitu','Pindah ke tim lain saja biar gak ditegur lagi'], correct:1, note:'"Lebih baik sadar dari sekarang" -- suka beralasan, gak suka ditegur, dan gak siap tanggung jawab adalah sinyal buat refleksi diri.' },
+  { q:'Kalimat "Trusmi Group bukan tempat semua orang" paling tepat dimaknai sebagai...', opts:['Perusahaan sengaja mempersulit karyawan barunya','Standarnya tinggi, tapi yang bertahan akan naik level','Hanya orang tertentu saja yang boleh melamar kerja','Perusahaan memang tidak terbuka untuk karyawan baru'], correct:1, note:'"Tapi, jika Anda bertahan, Anda akan naik level (secara professional dan mental)" -- standarnya tinggi, tapi hasilnya sepadan buat yang bertahan.' },
+  { q:'Kenapa budaya kerja baru ini penting dikaitkan dengan KPI Corporate (target akad, dsb)?', opts:['Karena budaya kerja gak ada hubungannya dengan bisnis','Karena semua fungsi kerja harus inline dukung target perusahaan','Karena hanya tim Sales saja yang perlu peduli budaya kerja','Karena budaya kerja cuma berlaku buat karyawan baru'], correct:1, note:'"Bekerja harus inline dengan KPI Corporate!" -- semua fungsi pendukung (HR, Legal, System, dll) terhubung ke target Sales/Akad & Financial.' },
   { q:'Kamu lihat rekan kerja melakukan kesalahan yang bisa berdampak ke tim, tapi kamu diam karena "bukan urusan saya". Sikap ini bertentangan dengan budaya apa?', opts:['Pembelajar','Proaktif & Penebar Energi Positif','Disiplin','Golden Rules'], correct:1, note:'Diam ketika terjadi hambatan/masalah adalah pelanggaran budaya Proaktif, dan membiarkan masalah tim juga bertentangan dengan semangat Penebar Energi Positif.' },
-  { q:'Atasan minta kamu ambil keputusan cepat soal komplain konsumen. Sesuai budaya "Cepat", langkah yang benar?', opts:['Tunda dulu sampai rapat mingguan','Ambil keputusan responsif & efisien sesuai wewenang, lalu tetap dilaporkan/didokumentasikan','Diamkan komplainnya sampai reda sendiri','Serahkan sepenuhnya ke konsumen buat memutuskan'], correct:1, note:'Cepat = responsif & sigap ambil keputusan, dan tetap terdokumentasi sesuai Golden Rules soal komunikasi penting.' },
-  { q:'Kamu dapat tugas mendadak yang bikin waktu pengerjaan tugas lain jadi mepet. Sesuai budaya, langkah paling tepat?', opts:['Diam-diam prioritaskan sendiri tanpa bilang siapa-siapa','Proaktif komunikasikan ke atasan soal prioritas mana yang harus didahulukan','Kerjakan keduanya asal-asalan yang penting kelar','Tolak tugas baru tanpa penjelasan'], correct:1, note:'Proaktif berarti mengkomunikasikan kendala/konflik prioritas ke atasan, bukan diam-diam menebak sendiri atau menolak begitu saja.' },
-  { q:'Secara keseluruhan, kelima budaya kerja Trusmi Group (Proaktif, Pembelajar, Penebar Energi Positif, Cepat, Disiplin) itu diterapkan untuk...', opts:['Formalitas dokumen HR saja','Mendukung pertumbuhan bisnis sekaligus perkembangan profesional & mental karyawan yang bertahan','Menyulitkan karyawan baru','Standar yang cuma berlaku di masa onboarding'], correct:1, note:'Budaya ini dibangun buat dukung pencapaian target bisnis (akad, dll) sekaligus bikin karyawan yang bertahan naik level secara profesional & mental.' }
+  { q:'Atasan minta kamu ambil keputusan cepat soal komplain konsumen. Sesuai budaya "Cepat", langkah yang benar?', opts:['Tunda dulu sampai ada rapat mingguan berikutnya','Ambil keputusan responsif sesuai wewenang, lalu didokumentasikan','Diamkan saja komplainnya sampai reda dengan sendirinya','Serahkan sepenuhnya ke konsumen untuk memutuskan'], correct:1, note:'Cepat = responsif & sigap ambil keputusan, dan tetap terdokumentasi sesuai Golden Rules soal komunikasi penting.' },
+  { q:'Kamu dapat tugas mendadak yang bikin waktu pengerjaan tugas lain jadi mepet. Sesuai budaya, langkah paling tepat?', opts:['Diam-diam prioritaskan sendiri tanpa bilang siapa-siapa','Proaktif komunikasikan ke atasan soal prioritas mana dulu','Kerjakan keduanya asal-asalan, yang penting selesai','Tolak saja tugas baru tersebut tanpa penjelasan'], correct:1, note:'Proaktif berarti mengkomunikasikan kendala/konflik prioritas ke atasan, bukan diam-diam menebak sendiri atau menolak begitu saja.' },
+  { q:'Secara keseluruhan, kelima budaya kerja Trusmi Group (Proaktif, Pembelajar, Penebar Energi Positif, Cepat, Disiplin) itu diterapkan untuk...', opts:['Sekadar formalitas dokumen HR saja','Mendukung bisnis sekaligus perkembangan profesional karyawan','Sekadar menyulitkan karyawan baru yang masuk','Standar yang cuma berlaku di masa onboarding saja'], correct:1, note:'Budaya ini dibangun buat dukung pencapaian target bisnis (akad, dll) sekaligus bikin karyawan yang bertahan naik level secara profesional & mental.' }
 ];
 let cultureQuizIsOpen = false;
 let cultureQuizPassed = false;
@@ -6081,8 +6082,10 @@ function renderQuizQuestion(idx){
   document.getElementById('quizQuestion').textContent = item.q;
   const optsEl = document.getElementById('quizOptions');
   const feedbackEl = document.getElementById('quizFeedback');
+  const nextBtn = document.getElementById('quizNextBtn');
   optsEl.innerHTML = '';
   feedbackEl.style.display = 'none';
+  nextBtn.style.display = 'none';
   const optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
   item.opts.forEach((optText, i) => {
     const btn = document.createElement('button');
@@ -6102,13 +6105,11 @@ function renderQuizQuestion(idx){
       }else{
         btn.classList.add('wrong');
         allBtns[item.correct].classList.add('correct');
-        feedbackEl.innerHTML = '<b>❌ Kurang tepat.</b> ' + escapeHtml(item.note) + ' Yuk coba soal lain...';
+        feedbackEl.innerHTML = '<b>❌ Kurang tepat.</b> ' + escapeHtml(item.note);
         feedbackEl.style.display = 'block';
-        // Jawaban salah -> ganti ke soal lain otomatis, popup TETAP kebuka (gak bisa ditutup
-        // sampai jawab benar -- lihat updateQuizCloseAvailability()).
-        setTimeout(() => {
-          renderQuizQuestion(pickRandomQuizIndex(idx));
-        }, 1800);
+        // Jawaban salah -> popup TETAP kebuka (gak bisa ditutup sampai jawab benar --
+        // lihat updateQuizCloseAvailability()), tapi soal baru ganti kalau user klik "Lanjut".
+        nextBtn.style.display = 'block';
       }
     });
     optsEl.appendChild(btn);
@@ -6151,6 +6152,9 @@ function initCultureQuiz(){
   document.getElementById('cultureQuizClose').addEventListener('click', closeCultureQuiz);
   document.getElementById('cultureQuizOverlay').addEventListener('click', (e) => {
     if(e.target.id === 'cultureQuizOverlay') closeCultureQuiz();
+  });
+  document.getElementById('quizNextBtn').addEventListener('click', () => {
+    renderQuizQuestion(pickRandomQuizIndex(cultureQuizCurrentIndex));
   });
   document.getElementById('quizResultCloseBtn').addEventListener('click', closeQuizResultPopup);
   document.getElementById('cultureQuizResultOverlay').addEventListener('click', (e) => {
