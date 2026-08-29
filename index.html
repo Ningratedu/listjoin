@@ -2072,6 +2072,18 @@ function isInSelectedMonth(c){
   return (c.tglJoin && isCurrentMonth(c.tglJoin)) || (c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
 }
 
+// True kalau tgl Rencana Induction (tglOnboarding) kandidat jatuh SETELAH bulan yang
+// lagi dipilih (mis. kegeser ke bulan depan gara-gara aturan "Selasa/Jumat terdekat"
+// pas tgl Join mepet akhir bulan). Dipakai buat nge-exclude kandidat kayak gitu dari
+// card "Induction In Progress" -- tabel tetap nampilin dia karena isInSelectedMonth
+// masih match lewat tglJoin.
+function isInductionAfterSelectedMonth(c){
+  if(!c.tglOnboarding) return false;
+  const d = new Date(String(c.tglOnboarding).slice(0, 10) + 'T00:00:00');
+  if(isNaN(d)) return false;
+  return (d.getFullYear() > selectedYear) || (d.getFullYear() === selectedYear && d.getMonth() > selectedMonth);
+}
+
 // Daftar opsi bulan buat filter global: gabungan bulan berjalan (selalu ada,
 // biar default konsisten) + semua bulan yang muncul dari tglJoin/tglOnboarding kandidat.
 function getGlobalMonthOptions(){
@@ -2695,8 +2707,12 @@ function renderStatTileRow(containerId, tiles, renderBadgeFn){
 function renderOnboardingStats(){
   const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
   // Semua peserta yang udah Hadir, resign ataupun belum -- ini yang dipakai buat badge
-  // & popup detail "Total Peserta Induction".
-  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir');
+  // & popup detail "Total Peserta Induction". Kandidat yang cuma "ketarik" ke bulan ini
+  // gara-gara tglJoin-nya di bulan ini (padahal tglOnboarding/jadwal induction-nya udah
+  // kegeser ke bulan depan, biasa kejadian kalau tgl join mepet akhir bulan) TIDAK
+  // dihitung di card-card ini (Total Peserta/Completed/In Progress), meski tetap muncul
+  // di tabel (lihat isInductionAfterSelectedMonth()) -- tabel masih pakai isInSelectedMonth apa adanya.
+  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
   const total = pesertaList.length;
   // Peserta aktif = subset dari pesertaList yang masih Active (belum resign), dipakai
   // khusus buat itung Completed/In Progress karena journey-nya masih relevan ditracking.
