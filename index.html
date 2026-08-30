@@ -1696,7 +1696,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 
       <div class="field">
         <label>Nama Kamu (PIC Recruitment)<span class="required-star">*</span></label>
-        <input type="text" id="picName" class="field-special" placeholder="mis. Arul HR">
+        <input type="text" id="picName" class="field-special" list="picOptions" placeholder="mis. Arul HR" autocomplete="off">
       </div>
       <div class="row2">
         <div class="field">
@@ -1711,11 +1711,11 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       <div class="row2">
         <div class="field">
           <label>Departemen<span class="required-star">*</span></label>
-          <input type="text" id="departemen" placeholder="Departemen">
+          <input type="text" id="departemen" list="departemenOptions" placeholder="Cari atau ketik departemen" autocomplete="off">
         </div>
         <div class="field">
           <label>Designation<span class="required-star">*</span></label>
-          <input type="text" id="designation" placeholder="Designation / Posisi">
+          <input type="text" id="designation" list="designationOptions" placeholder="Cari atau ketik designation" autocomplete="off">
         </div>
       </div>
       <div class="row2">
@@ -1890,11 +1890,17 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         <div class="field"><label>Nomor HP</label><input type="tel" id="efNoHp"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>PIC Recruitment</label><input type="text" id="efPic"></div>
-        <div class="field"><label>Departemen</label><input type="text" id="efDepartemen"></div>
+        <div class="field"><label>PIC Recruitment</label><input type="text" id="efPic" list="picOptions" autocomplete="off"></div>
+        <div class="field">
+          <label>Departemen</label>
+          <input type="text" id="efDepartemen" list="departemenOptions" placeholder="Cari atau ketik departemen" autocomplete="off">
+        </div>
       </div>
       <div class="row2">
-        <div class="field"><label>Designation</label><input type="text" id="efDesignation"></div>
+        <div class="field">
+          <label>Designation</label>
+          <input type="text" id="efDesignation" list="designationOptions" placeholder="Cari atau ketik designation" autocomplete="off">
+        </div>
         <div class="field"><label>Atasan Langsung</label><input type="text" id="efAtasan"></div>
       </div>
       <div class="row2">
@@ -6249,5 +6255,207 @@ lastOnboardingPic = picNameEl.value.trim();
 loadCandidates();
 initCultureQuiz();
 </script>
+<datalist id="picOptions">
+  <option value="Ade"></option>
+  <option value="Arul"></option>
+  <option value="Anang"></option>
+  <option value="Gugun"></option>
+  <option value="Lina"></option>
+  <option value="Reva"></option>
+  <option value="Farah"></option>
+  <option value="Pak Ali"></option>
+  <option value="Bu Hani"></option>
+</datalist>
+<datalist id="departemenOptions">
+  <option value="After Sales"></option>
+  <option value="Audit"></option>
+  <option value="Business Control"></option>
+  <option value="Business Opr & Adm"></option>
+  <option value="Creative Production"></option>
+  <option value="Creative Production Strategic"></option>
+  <option value="Customer Relationship Management"></option>
+  <option value="Digital Marketing"></option>
+  <option value="Estate & FEW"></option>
+  <option value="Finance & Accounting"></option>
+  <option value="Human Resource"></option>
+  <option value="Investor Relation"></option>
+  <option value="Legal"></option>
+  <option value="Marketing Communication Corporate"></option>
+  <option value="Media Placement"></option>
+  <option value="Operasional Alat Berat"></option>
+  <option value="Pabrikasi"></option>
+  <option value="PDCA"></option>
+  <option value="Perencana & Surveyor"></option>
+  <option value="Pricing & Improvement"></option>
+  <option value="Project"></option>
+  <option value="Project Operations Sampora"></option>
+  <option value="Project Swakelola"></option>
+  <option value="Project Swakelola Strategic"></option>
+  <option value="Purchasing"></option>
+  <option value="Quality Control"></option>
+  <option value="Referral Network"></option>
+  <option value="Research & Development"></option>
+  <option value="Sales & Marketing"></option>
+</datalist>
+<datalist id="designationOptions">
+  <option value="Pelaksana After Sales"></option>
+  <option value="Purchasing Aftersales"></option>
+  <option value="After Sales Manager"></option>
+  <option value="Admin After Sales"></option>
+  <option value="Audit Officer"></option>
+  <option value="Business Control"></option>
+  <option value="Bank Relation"></option>
+  <option value="Data Collection"></option>
+  <option value="Admin LPA"></option>
+  <option value="Admin Pajak"></option>
+  <option value="Business Opr &amp; Adm Division Head"></option>
+  <option value="Business Opr &amp; Adm Manager"></option>
+  <option value="DRBM Recovery"></option>
+  <option value="LPA"></option>
+  <option value="PDCA Internal"></option>
+  <option value="Data Collection Supervisor"></option>
+  <option value="Admin Data Collection"></option>
+  <option value="Business Opr. &amp; Relation Supervisor"></option>
+  <option value="Directing and Editing &amp; UGC"></option>
+  <option value="Content Editor"></option>
+  <option value="Social Media Specialist &amp; Riset Content"></option>
+  <option value="Personal Branding Manager"></option>
+  <option value="Creative Director Strategic"></option>
+  <option value="Content Writer Strategic"></option>
+  <option value="Talent Strategic"></option>
+  <option value="Customer Relationship Management Manager"></option>
+  <option value="Customer Relationship Management"></option>
+  <option value="Desain Grafis"></option>
+  <option value="Host Live"></option>
+  <option value="PDCA Internal Digital Marketing"></option>
+  <option value="Administrasi Online"></option>
+  <option value="Content Creator"></option>
+  <option value="Cinematographer"></option>
+  <option value="Marketing Online &amp; Meta Ads Supervisor"></option>
+  <option value="Admin Digital Marketing"></option>
+  <option value="Ads Specialist"></option>
+  <option value="Host Live &amp; Admin Leader"></option>
+  <option value="Admin Affiliate"></option>
+  <option value="Videographer"></option>
+  <option value="Estate Officer"></option>
+  <option value="Estate Supervisor"></option>
+  <option value="Facility Electrical &amp; Water"></option>
+  <option value="Facility Electrical &amp; Water Supervisor"></option>
+  <option value="Admin Estate"></option>
+  <option value="Estate &amp; FEW Manager"></option>
+  <option value="Pengeluaran"></option>
+  <option value="Admin Bank"></option>
+  <option value="Finance"></option>
+  <option value="Finance Supervisor"></option>
+  <option value="Admin Hutang"></option>
+  <option value="Accounting Supervisor"></option>
+  <option value="Accounting"></option>
+  <option value="Penerimaan"></option>
+  <option value="Finance &amp; Accounting Manager"></option>
+  <option value="Talent Acquisition Manager"></option>
+  <option value="Talent Acquisition"></option>
+  <option value="HR Operasional Manager"></option>
+  <option value="Data Analyst"></option>
+  <option value="Training &amp; Development Supervisor"></option>
+  <option value="HRBP Supervisor"></option>
+  <option value="Training &amp; Development"></option>
+  <option value="Organization Development (Production)"></option>
+  <option value="Organization Development Supervisor"></option>
+  <option value="Investor Relation Division Head"></option>
+  <option value="Staff Investor Relation"></option>
+  <option value="Account Receivable (AR) Bank"></option>
+  <option value="Legal Permission Supervisor"></option>
+  <option value="Legal Operation"></option>
+  <option value="Legal Permission"></option>
+  <option value="Land Acquisition"></option>
+  <option value="Legal Certification"></option>
+  <option value="Legal Surveyor"></option>
+  <option value="Land Acquisition Manager"></option>
+  <option value="Legal General Manager"></option>
+  <option value="Legal Certification Manager"></option>
+  <option value="Legal Certification Supervisor"></option>
+  <option value="Admin Legal"></option>
+  <option value="Social Media Specialist"></option>
+  <option value="Graphic Desain"></option>
+  <option value="Content Writer"></option>
+  <option value="PDCA Marketing Communication"></option>
+  <option value="Marketing Communication Assistant Manager"></option>
+  <option value="Management Trainee"></option>
+  <option value="Media External Manager"></option>
+  <option value="Operasional Alat Berat Supervisor"></option>
+  <option value="Driver"></option>
+  <option value="Operator Alat Berat"></option>
+  <option value="Plant Manager"></option>
+  <option value="MEP Supervisor"></option>
+  <option value="PPIC Supervisor"></option>
+  <option value="Fabrikasi Operational"></option>
+  <option value="Management Trainee Project"></option>
+  <option value="QC &amp; HSE"></option>
+  <option value="Warehouse &amp; Logistic"></option>
+  <option value="IT Programmer Factory"></option>
+  <option value="Fabrikasi Operational Supervisor"></option>
+  <option value="Finance &amp; Accounting"></option>
+  <option value="Sales &amp; Marketing Supervisor"></option>
+  <option value="PDCA"></option>
+  <option value="PDCA Manager"></option>
+  <option value="Surveyor Supervisor"></option>
+  <option value="Drafter &amp; Estimator"></option>
+  <option value="Perencana Housing"></option>
+  <option value="Surveyor"></option>
+  <option value="Perencana Infrastruktur"></option>
+  <option value="Perencana Supervisor"></option>
+  <option value="Drafter Surveyor"></option>
+  <option value="Perencana &amp; Surveyor Manager"></option>
+  <option value="PDCA Perencana"></option>
+  <option value="Pricing"></option>
+  <option value="Logistic &amp; Improvement Supervisor"></option>
+  <option value="Logistic &amp; Swakelola"></option>
+  <option value="Infrastruktur Material Supervisor"></option>
+  <option value="Pricing &amp; Improvement Supervisor"></option>
+  <option value="Infrastruktur Material"></option>
+  <option value="Pelaksana Project"></option>
+  <option value="Project Manager"></option>
+  <option value="Helper Project"></option>
+  <option value="Complaint Handling Project"></option>
+  <option value="PDCA Production"></option>
+  <option value="Production General Manager"></option>
+  <option value="Sales Counter"></option>
+  <option value="Regional Manager"></option>
+  <option value="Sales Supervisor"></option>
+  <option value="Site Project Supervisor"></option>
+  <option value="Production Manager"></option>
+  <option value="Branch Manager"></option>
+  <option value="Project Swakelola Manager"></option>
+  <option value="PDCA Swakelola"></option>
+  <option value="Pelaksana Project Swakelola"></option>
+  <option value="Project Swakelola Supervisor"></option>
+  <option value="Admin Swakelola"></option>
+  <option value="Logistic"></option>
+  <option value="Purchasing Infrastruktur"></option>
+  <option value="Admin Purchasing"></option>
+  <option value="PJS Purchasing Infrastruktur Supervisor"></option>
+  <option value="Purchasing Infrastruktur Supervisor"></option>
+  <option value="Purchasing Housing"></option>
+  <option value="Purchasing"></option>
+  <option value="Purchasing Operation Supervisor"></option>
+  <option value="Quality Control"></option>
+  <option value="Admin Quality Control"></option>
+  <option value="Quality Control Manager"></option>
+  <option value="Quality Control Supervisor"></option>
+  <option value="Referral Program Specialist"></option>
+  <option value="Referral Network Manager"></option>
+  <option value="R&amp;D Perencana Design"></option>
+  <option value="R&amp;D dan Perencana General Manager"></option>
+  <option value="PDCA Perencana &amp; R&amp;D"></option>
+  <option value="R&amp;D Operasional"></option>
+  <option value="R&amp;D Operasional Manager"></option>
+  <option value="Sales"></option>
+  <option value="PJS Sales Supervisor"></option>
+  <option value="Commercial Marketing"></option>
+  <option value="PJS Branch Manager"></option>
+  <option value="Admin Sales"></option>
+  <option value="Commercial Marketing Supervisor"></option>
+  <option value="PDCA Sales &amp; Marketing"></option>
+</datalist>
 </body>
 </html>
