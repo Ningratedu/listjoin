@@ -5718,7 +5718,7 @@ function buildText(){
   const hadirCount = filtered.filter(c => (c.kehadiran||'') === 'Hadir').length;
 
   let lines = ['📝 *Info Karyawan Baru Join & Induction* 📢', ''];
-  lines.push(`jadwal induction : ${jadwalOnboarding}`);
+  lines.push(`*Jadwal induction : ${jadwalOnboarding}*`);
   lines.push(`Total Plan Peserta : ${filtered.length} Orang`);
   lines.push(`Total Peserta Hadir : ${hadirCount} Orang`);
   lines.push('Info Detail : https://ningratedu.github.io/listjoin');
