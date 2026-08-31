@@ -2170,18 +2170,17 @@ function currentMonthLabel(){
   return `${BULAN_LONG[selectedMonth]} ${selectedYear}`;
 }
 
-// Kandidat dianggap "milik" bulan yang lagi dipilih kalau tgl Join ATAU tgl
-// Rencana Onboarding-nya jatuh di bulan itu -> dipakai buat nyaring semua section
-// (stats, chart, tabel) biar filter global bulan konsisten ke semua tempat.
+// Kandidat dianggap "milik" bulan yang lagi dipilih kalau tgl Rencana Induction
+// (tglOnboarding)-nya jatuh di bulan itu -> dipakai buat nyaring semua section yang
+// terkait (tabel detail, dropdown filter kolom, chart departemen, card status peserta
+// induction) biar filter global bulan konsisten sesuai jadwal induction, BUKAN tgl Join.
 function isInSelectedMonth(c){
-  return (c.tglJoin && isCurrentMonth(c.tglJoin)) || (c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
+  return c.tglOnboarding && isCurrentMonth(c.tglOnboarding);
 }
 
 // True kalau tgl Rencana Induction (tglOnboarding) kandidat jatuh SETELAH bulan yang
-// lagi dipilih (mis. kegeser ke bulan depan gara-gara aturan "Selasa/Jumat terdekat"
-// pas tgl Join mepet akhir bulan). Dipakai buat nge-exclude kandidat kayak gitu dari
-// card "Induction In Progress" -- tabel tetap nampilin dia karena isInSelectedMonth
-// masih match lewat tglJoin.
+// lagi dipilih. Sudah otomatis ke-exclude oleh isInSelectedMonth di atas (karena basisnya
+// sama-sama tglOnboarding), fungsi ini dibiarkan ada buat kompatibilitas kode lama.
 function isInductionAfterSelectedMonth(c){
   if(!c.tglOnboarding) return false;
   const d = new Date(String(c.tglOnboarding).slice(0, 10) + 'T00:00:00');
@@ -2702,14 +2701,14 @@ function renderStats(){
     list: candidatesThisMonth.filter(c => (c.pic || '(Belum diisi)') === p)
   }));
 
-  // % Jadi Onboarding & % Aktivasi sekarang ikut disaring ke kandidat yang "milik"
-  // bulan yang lagi dipilih di filter global (lihat isInSelectedMonth), bukan lagi
-  // seluruh data sepanjang waktu -> konsisten sama tile & chart lain.
-  const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
-  const hadirList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir');
-  const tidakList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Tidak Hadir');
-  const belumList = candidatesInSelectedMonth.filter(c => !c.kehadiran);
-  const totalCandidateCount = candidatesInSelectedMonth.length;
+  // % Jadi Induction & % Aktivasi sekarang disaring berdasarkan tgl Rencana Induction
+  // (tglOnboarding) aja -> pakai candidatesThisMonth yang sama dengan card "Total
+  // Kandidat" di atas, BUKAN tgl Join. Biar kandidat yang join bulan ini tapi jadwal
+  // induction-nya di bulan lain gak ikut ngotorin persentase bulan ini, dan sebaliknya.
+  const hadirList = candidatesThisMonth.filter(c => c.kehadiran === 'Hadir');
+  const tidakList = candidatesThisMonth.filter(c => c.kehadiran === 'Tidak Hadir');
+  const belumList = candidatesThisMonth.filter(c => !c.kehadiran);
+  const totalCandidateCount = candidatesThisMonth.length;
   const pctOnboarding = totalCandidateCount ? Math.round((hadirList.length / totalCandidateCount) * 100) : 0;
 
   // % Aktivasi SEBELUM Onboarding — cuma dihitung kandidat yang statusnya "Sudah"
@@ -2717,14 +2716,14 @@ function renderStats(){
   // Catatan: kandidat lama yang statusnya "Sudah" tapi belum punya tglAktivasi
   // (diisi sebelum fitur pencatatan tanggal ini ada) belum bisa dipastikan
   // timing-nya, jadi sementara tidak dihitung "sebelum onboarding" sampai di-edit ulang.
-  const aktivasiSebelumList = candidatesInSelectedMonth.filter(c => getAktivasiTiming(c) === 'sebelum');
+  const aktivasiSebelumList = candidatesThisMonth.filter(c => getAktivasiTiming(c) === 'sebelum');
   const pctAktivasi = totalCandidateCount ? Math.round((aktivasiSebelumList.length / totalCandidateCount) * 100) : 0;
 
   statDetailsCache = {
     total: candidatesThisMonth,
     picList: picList,
     onboarding: { hadir: hadirList, tidak: tidakList, belum: belumList },
-    aktivasi: candidatesInSelectedMonth
+    aktivasi: candidatesThisMonth
   };
 
   const tiles = [
@@ -2812,11 +2811,9 @@ function renderStatTileRow(containerId, tiles, renderBadgeFn){
 function renderOnboardingStats(){
   const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
   // Semua peserta yang udah Hadir, resign ataupun belum -- ini yang dipakai buat badge
-  // & popup detail "Total Peserta Induction". Kandidat yang cuma "ketarik" ke bulan ini
-  // gara-gara tglJoin-nya di bulan ini (padahal tglOnboarding/jadwal induction-nya udah
-  // kegeser ke bulan depan, biasa kejadian kalau tgl join mepet akhir bulan) TIDAK
-  // dihitung di card-card ini (Total Peserta/Completed/In Progress), meski tetap muncul
-  // di tabel (lihat isInductionAfterSelectedMonth()) -- tabel masih pakai isInSelectedMonth apa adanya.
+  // & popup detail "Total Peserta Induction". candidatesInSelectedMonth di atas sudah
+  // disaring berdasarkan tgl Rencana Induction (tglOnboarding) aja, jadi konsisten sama
+  // tabel "Detail & Kelola Kandidat" di bawahnya.
   const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
   const total = pesertaList.length;
   // Peserta aktif = subset dari pesertaList yang masih Active (belum resign), dipakai
