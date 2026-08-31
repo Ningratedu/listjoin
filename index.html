@@ -2630,6 +2630,8 @@ function writeCandidatesCache(rawRows){
   }
 }
 
+let hasRunCompbenBackfill = false; // biar backfillCompbenAndAktivasi() cuma jalan sekali per sesi
+
 async function loadCandidates(){
   if(!checkConfig()){
     return;
@@ -2678,6 +2680,15 @@ async function loadCandidates(){
       showToast('Gagal memuat list', true);
     }
     // kalau udah ada cached view yang ketampil, gagal refresh diem2 aja -> user masih liat data lama, gak error mengganggu
+  }
+
+  // 3) Beresin kandidat LAMA yang modul "Be A Great Employee"-nya udah tercentang dari
+  //    sebelumnya tapi belum ikut ke-auto-update Comben & Status Aktivasi (lihat
+  //    backfillCompbenAndAktivasi()). Cukup jalan sekali per sesi -- kalau semua kandidat
+  //    udah sinkron, fungsinya gak ngapa-ngapain (aman kalaupun ke-trigger lagi).
+  if(!hasRunCompbenBackfill){
+    hasRunCompbenBackfill = true;
+    backfillCompbenAndAktivasi();
   }
 }
 
@@ -3632,18 +3643,88 @@ function greatEmployeeModuleId(c){
   return isSalesDesignation(c) ? 's01' : 'm04';
 }
 
+// Modul "Penjelasan Comben & Personalia" -- id-nya beda per journey: m01 buat
+// designation umum, s00 buat Sales/Sales Counter, sv00 buat Sales Supervisor. Modul ini
+// otomatis ikut tercentang begitu "Be A Great Employee" selesai (lihat autoMarkHadirFromChecklist()),
+// karena praktiknya penjelasan Comben & Personalia sudah pasti dilalui bareng sesi budaya kerja itu.
+function compbenModuleId(c){
+  if(isSalesSupervisorDesignation(c)) return 'sv00';
+  return isSalesDesignation(c) ? 's00' : 'm01';
+}
+
 // Cek checklist onboarding kandidat: kalau modul "Be A Great Employee" udah dicentang
-// (done:true) DAN kehadirannya belum "Hadir", update kehadiran lokal jadi "Hadir" &
-// bersihin pending edit dropdown Kehadiran yang belum disimpan (biar gak ketimpa balik
-// pas render). Balikin true kalau ada perubahan, biar caller tau perlu render ulang /
-// kirim field kehadiran ke server juga.
+// (done:true), otomatis:
+// 1) kehadirannya di-set "Hadir" (kalau belum) & bersihin pending edit dropdown Kehadiran
+//    yang belum disimpan (biar gak ketimpa balik pas render);
+// 2) modul "Penjelasan Comben & Personalia" ikut dicentang (done:true) kalau belum;
+// 3) Status Aktivasi di-set "Sudah" (kalau belum), sekalian catat tglAktivasi hari ini
+//    kalau belum ada tanggalnya.
+// Balikin objek { kehadiran, compben, aktivasi } (masing2 boolean) biar caller tau bagian
+// mana yang berubah -> perlu di-render ulang / dikirim ke server juga.
 function autoMarkHadirFromChecklist(c, checklist){
   const gEmpId = greatEmployeeModuleId(c);
   const isDone = !!(checklist[gEmpId] && checklist[gEmpId].done);
-  if(!isDone || c.kehadiran === 'Hadir') return false;
-  c.kehadiran = 'Hadir';
-  delete pendingKehadiran[c._id];
-  return true;
+  const result = { kehadiran:false, compben:false, aktivasi:false };
+  if(!isDone) return result;
+
+  if(c.kehadiran !== 'Hadir'){
+    c.kehadiran = 'Hadir';
+    delete pendingKehadiran[c._id];
+    result.kehadiran = true;
+  }
+
+  const compbenId = compbenModuleId(c);
+  if(!(checklist[compbenId] && checklist[compbenId].done)){
+    checklist[compbenId] = { done:true, tanggal: (checklist[gEmpId] && checklist[gEmpId].tanggal) || todayISO() };
+    result.compben = true;
+  }
+
+  if(c.statusAktivasi !== 'Sudah'){
+    c.statusAktivasi = 'Sudah';
+    if(!c.tglAktivasi) c.tglAktivasi = todayISO();
+    result.aktivasi = true;
+  }
+
+  return result;
+}
+
+// Jalanin autoMarkHadirFromChecklist() buat SEMUA kandidat yang lagi ke-load (bukan cuma yang
+// baru diubah checklist-nya), lalu simpen perubahan ke server. Ini buat "membereskan" kandidat
+// LAMA yang modul "Be A Great Employee"-nya udah tercentang dari sebelumnya, tapi modul Comben
+// dan/atau Status Aktivasi-nya belum ikut ke-auto-update (karena fitur ini baru ditambahkan).
+// Dipanggil sekali tiap kali data ke-load; kalau semua kandidat udah sinkron, gak ada yang
+// disimpan ulang -> aman dipanggil berkali-kali.
+async function backfillCompbenAndAktivasi(){
+  const targets = candidates.filter(c => {
+    const checklist = c.onboardingChecklist || {};
+    const gEmpId = greatEmployeeModuleId(c);
+    if(!(checklist[gEmpId] && checklist[gEmpId].done)) return false;
+    const compbenId = compbenModuleId(c);
+    const compbenDone = !!(checklist[compbenId] && checklist[compbenId].done);
+    return !compbenDone || c.statusAktivasi !== 'Sudah' || c.kehadiran !== 'Hadir';
+  });
+  if(targets.length === 0) return;
+
+  let anyChanged = false;
+  for(const c of targets){
+    const checklist = { ...(c.onboardingChecklist || {}) };
+    c.onboardingChecklist = checklist;
+    const autoResult = autoMarkHadirFromChecklist(c, checklist);
+    if(!autoResult.kehadiran && !autoResult.compben && !autoResult.aktivasi) continue;
+    const payload = { onboardingChecklist: JSON.stringify(checklist) };
+    if(autoResult.kehadiran) payload.kehadiran = 'Hadir';
+    if(autoResult.aktivasi){
+      payload.statusAktivasi = 'Sudah';
+      payload.tglAktivasi = c.tglAktivasi;
+    }
+    const ok = await updateCandidate(c._id, payload);
+    if(ok) anyChanged = true;
+  }
+  if(anyChanged){
+    renderTable();
+    renderStats();
+    showToast('Aktivasi & ceklis Comben otomatis diperbarui untuk kandidat yang sudah Be A Great Employee 🎉');
+  }
 }
 
 function getOnboardingModules(c){
@@ -5156,11 +5237,11 @@ async function onJourneyDateChange(e){
 async function saveOnboardingChecklist(c, checklist){
   c.onboardingChecklist = checklist;
 
-  // Modul "Be A Great Employee" dicentang -> auto-tandain kehadiran "Hadir" &
-  // ikut dikirim bareng checklist dalam 1 request update yang sama (backend
-  // Code.gs juga ngejaga hal yang sama sebagai jaring pengaman, termasuk buat
-  // jalur import LMS massal).
-  const autoHadir = autoMarkHadirFromChecklist(c, checklist);
+  // Modul "Be A Great Employee" dicentang -> auto-tandain kehadiran "Hadir", auto-centang
+  // modul "Penjelasan Comben & Personalia", & auto-set Status Aktivasi jadi "Sudah". Semuanya
+  // ikut dikirim bareng checklist dalam 1 request update yang sama (backend Code.gs juga
+  // ngejaga hal yang sama sebagai jaring pengaman, termasuk buat jalur import LMS massal).
+  const autoResult = autoMarkHadirFromChecklist(c, checklist);
 
   const modalBodyEl = document.getElementById('chartModalBody');
   if(modalBodyEl && document.getElementById('chartModalOverlay').classList.contains('show')){
@@ -5186,14 +5267,42 @@ async function saveOnboardingChecklist(c, checklist){
         banner.remove();
       }
     }
+    // Modul "Penjelasan Comben & Personalia" ikut auto-tercentang -> update tampilan
+    // checkbox & tanggalnya juga di popup yang lagi kebuka, biar langsung keliatan ceklis
+    // tanpa perlu buka-tutup popup lagi.
+    if(autoResult.compben){
+      const compbenId = compbenModuleId(c);
+      const compbenCb = modalBodyEl.querySelector(`.journey-check input[type="checkbox"][data-module-id="${compbenId}"]`);
+      if(compbenCb){
+        compbenCb.checked = true;
+        const itemEl = compbenCb.closest('.journey-item');
+        if(itemEl){
+          itemEl.classList.add('done');
+          const dateInput = itemEl.querySelector('.journey-date');
+          if(dateInput){
+            dateInput.value = (checklist[compbenId] && checklist[compbenId].tanggal) || '';
+            dateInput.disabled = false;
+          }
+        }
+      }
+    }
   }
-  if(autoHadir) updateSaveKehadiranBtn();
+  if(autoResult.kehadiran) updateSaveKehadiranBtn();
   renderTable();
   renderStats();
   const payload = { onboardingChecklist: JSON.stringify(checklist) };
-  if(autoHadir) payload.kehadiran = 'Hadir';
+  if(autoResult.kehadiran) payload.kehadiran = 'Hadir';
+  if(autoResult.aktivasi){
+    payload.statusAktivasi = 'Sudah';
+    payload.tglAktivasi = c.tglAktivasi;
+  }
   const ok = await updateCandidate(c._id, payload);
-  if(ok) showToast(autoHadir ? 'Checklist tersimpan · Kehadiran otomatis jadi Hadir 🎉' : 'Checklist tersimpan');
+  const extraMsgs = [];
+  if(autoResult.kehadiran) extraMsgs.push('Kehadiran otomatis jadi Hadir');
+  if(autoResult.compben) extraMsgs.push('Comben otomatis tercentang');
+  if(autoResult.aktivasi) extraMsgs.push('Aktivasi otomatis jadi Sudah');
+  const msg = extraMsgs.length ? `Checklist tersimpan · ${extraMsgs.join(' & ')} 🎉` : 'Checklist tersimpan';
+  if(ok) showToast(msg);
 }
 
 // Upload evidence form orientasi (foto/scan form fisik "Orientasi Awal HR" yg udah
@@ -5616,11 +5725,16 @@ async function handleLmsImportUpload(e){
     let savedCount = 0;
     for(const { c, checklist } of changedCandidates.values()){
       c.onboardingChecklist = checklist;
-      // Kalau modul "Be A Great Employee" ikut kecentang dari file LMS ini, kehadiran
-      // kandidatnya juga otomatis diset "Hadir" (sama kayak toggle checklist manual).
-      const autoHadir = autoMarkHadirFromChecklist(c, checklist);
+      // Kalau modul "Be A Great Employee" ikut kecentang dari file LMS ini: kehadiran
+      // kandidatnya otomatis diset "Hadir", modul "Penjelasan Comben & Personalia" ikut
+      // dicentang, dan Status Aktivasi otomatis jadi "Sudah" (sama kayak toggle checklist manual).
+      const autoResult = autoMarkHadirFromChecklist(c, checklist);
       const payload = { onboardingChecklist: JSON.stringify(checklist) };
-      if(autoHadir) payload.kehadiran = 'Hadir';
+      if(autoResult.kehadiran) payload.kehadiran = 'Hadir';
+      if(autoResult.aktivasi){
+        payload.statusAktivasi = 'Sudah';
+        payload.tglAktivasi = c.tglAktivasi;
+      }
       const ok = await updateCandidate(c._id, payload);
       if(ok) savedCount++;
     }
