@@ -1834,6 +1834,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       </div>
       <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
       <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Induction dari E-Training">📥 Upload Exported E-Training</button>
+      <button type="button" class="upload-btn upload-btn-compact" id="tableRefreshBtn" title="Refresh data kandidat terbaru dari server">🔄 Refresh</button>
       <span class="upload-status" id="lmsImportStatus"></span>
     </div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
@@ -5648,6 +5649,24 @@ const lmsImportStatusEl = document.getElementById('lmsImportStatus');
 if(lmsImportBtnEl && lmsImportInputEl){
   lmsImportBtnEl.addEventListener('click', () => lmsImportInputEl.click());
   lmsImportInputEl.addEventListener('change', handleLmsImportUpload);
+}
+
+const tableRefreshBtnEl = document.getElementById('tableRefreshBtn');
+if(tableRefreshBtnEl){
+  tableRefreshBtnEl.addEventListener('click', async () => {
+    tableRefreshBtnEl.disabled = true;
+    const originalLabel = tableRefreshBtnEl.textContent;
+    tableRefreshBtnEl.textContent = '⏳ Refreshing...';
+    try{
+      await loadCandidates();
+      showToast('✅ Data kandidat ter-refresh');
+    }catch(e){
+      showToast('Gagal refresh data: ' + e.message, true);
+    }finally{
+      tableRefreshBtnEl.textContent = originalLabel;
+      tableRefreshBtnEl.disabled = false;
+    }
+  });
 }
 
 async function handleLmsImportUpload(e){
