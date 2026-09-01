@@ -1825,7 +1825,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         </div>
       </div>
     </h2>
-    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training. Ubah status Kehadiran manual atau upload data exported e-training agar kehadiran terupdate otomatis sesuai peserta training Be a Great Employee.</div>
+    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training dengan cara upload data exported e-training agar kehadiran terupdate otomatis sesuai peserta training "Be a Great Employee".</div>
     <div class="table-toolbar">
       <div class="table-search-wrap">
         <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -3872,9 +3872,6 @@ function renderTableHeader(){
     }
 
     let saveBtnHtml = '';
-    if(col.key === 'kehadiran'){
-      saveBtnHtml = `<button type="button" class="th-save-btn" id="saveKehadiranBtn" style="display:none;" title="Simpan Kehadiran">💾<span class="th-save-count" id="saveKehadiranCount"></span></button>`;
-    }
 
     return `<th class="col-${col.key}"><div class="th-head">${labelHtml}<div class="th-head-actions">${saveBtnHtml}${filterBtnHtml}</div></div></th>`;
   }).join('');
@@ -4125,7 +4122,7 @@ function renderCandRow(c, rowNumber){
       <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
       <td>
         <div class="verify-row">
-          <select class="verify-select ${kehadiran==='Hadir'?'val-hadir':kehadiran==='Tidak Hadir'?'val-tidak':''} ${isDirty?'dirty':''}" data-id="${escapeAttr(c._id)}" title="${isDirty?'Belum disimpan':''}">
+          <select class="verify-select ${kehadiran==='Hadir'?'val-hadir':kehadiran==='Tidak Hadir'?'val-tidak':''}" data-id="${escapeAttr(c._id)}" title="Kehadiran otomatis dari upload data e-training, gak bisa diubah manual" disabled>
             <option value="" ${kehadiran===''?'selected':''}>⏳ Belum</option>
             <option value="Hadir" ${kehadiran==='Hadir'?'selected':''}>✅ Hadir</option>
             <option value="Tidak Hadir" ${kehadiran==='Tidak Hadir'?'selected':''}>❌ Tidak Hadir</option>
