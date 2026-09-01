@@ -5816,6 +5816,17 @@ function openBatchDeptModal(dept, date, wk, group){
   document.getElementById('chartModalOverlay').classList.add('show');
 }
 
+// Angka nomor urut kandidat sengaja dibikin emoji keycap (1️⃣ 2️⃣ ...), BUKAN teks "1. ".
+// Alasan: WhatsApp otomatis kasih hanging-indent ke baris yang berpola "angka+titik+spasi"
+// atau diawali "* "/"- " (list beneran). Kalo nomor urut pake pola "1. " biasa, dia ikut
+// ke-anggap bagian dari list yang sama sama bullet "* " di bawahnya -> alignment jadi geser
+// gak konsisten antar kandidat. Emoji keycap gak match pola itu sama sekali, jadi selalu
+// rata kiri, sementara bullet "* " di bawahnya tetap dapet hanging-indent yang bener kalo
+// teksnya panjang & wrap ke baris baru.
+function numToKeycap(n){
+  return String(n).split('').map(d => d + '\uFE0F\u20E3').join('');
+}
+
 function buildText(){
   const filtered = getFilteredCandidates();
   if(filtered.length === 0) return '';
@@ -5855,6 +5866,7 @@ function buildText(){
 
   let lines = ['📝 *Info Karyawan Baru Join & Induction* 📢', ''];
   lines.push(`*Jadwal induction : ${jadwalOnboarding}*`);
+  lines.push('');
   lines.push(`Total Plan Peserta : ${filtered.length} Orang`);
   lines.push(`Actual Peserta Hadir : ${hadirCount} Orang`);
   lines.push('');
@@ -5862,23 +5874,21 @@ function buildText(){
   lines.push('');
 
   order.forEach(pic => {
-    lines.push(`*PIC Recruitment: ${pic}*`);
+    lines.push(`*PIC Recruitment: ${pic} {${groups[pic].length}}*`);
     let counter = 0;
     groups[pic].forEach(c => {
       counter++;
-      lines.push(`${counter}. *${c.nama || '(nama belum diisi)'}*`);
-      if(c.departemen) lines.push(`· Departemen: ${c.departemen}`);
-      if(c.designation) lines.push(`· Designation: ${c.designation}`);
-      if(c.atasan) lines.push(`· Atasan Langsung: ${c.atasan}`);
-      if(c.tglJoin) lines.push(`· Tgl Join: ${fmtID(c.tglJoin)}`);
-      if(c.statusAktivasi) lines.push(`· Status Aktivasi: *${c.statusAktivasi}*`);
-      if(c.noHp) lines.push(`· No HP: ${c.noHp}`);
-      lines.push(`· Kehadiran: ${kehadiranEmoji(c.kehadiran||'')} *${c.kehadiran || 'Belum diverifikasi'}*`);
+      lines.push(`${numToKeycap(counter)} *${c.nama || '(nama belum diisi)'}*`);
+      if(c.departemen) lines.push(`* Departemen: ${c.departemen}`);
+      if(c.designation) lines.push(`* Designation: ${c.designation}`);
+      if(c.atasan) lines.push(`* Atasan Langsung: ${c.atasan}`);
+      if(c.tglJoin) lines.push(`* Tgl Join: ${fmtID(c.tglJoin)}`);
+      if(c.statusAktivasi) lines.push(`* Status Aktivasi: *${c.statusAktivasi}*`);
+      if(c.noHp) lines.push(`* No HP: ${c.noHp}`);
+      lines.push(`* Kehadiran: ${kehadiranEmoji(c.kehadiran||'')} *${c.kehadiran || 'Belum diverifikasi'}*`);
       lines.push('');
     });
-    lines.push(''); // jeda ekstra antar PIC recruitment
   });
-  lines.push('');
   lines.push('Terimakasih.. 🙏😊');
   return lines.join('\n').trim();
 }
@@ -5890,7 +5900,7 @@ function renderPreview(){
     return;
   }
   const escaped = escapeHtml(text);
-  const withBold = escaped.replace(/\*(.+?)\*/g, '<b class="grp-title">$1</b>');
+  const withBold = escaped.replace(/\*([^\s*][^*]*?)\*/g, '<b class="grp-title">$1</b>');
   previewEl.innerHTML = withBold;
 }
 
