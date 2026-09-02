@@ -1949,7 +1949,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 <div class="toast" id="toast">Tersalin!</div>
 
 <!-- Popup Kuis Budaya Kerja Trusmi Group -- muncul otomatis pertama kali web ini dibuka
-     di browser tsb, atau setelah user idle 3 jam lalu balik lagi (lihat initCultureQuiz()). -->
+     di browser tsb, atau setelah user idle 6 jam lalu balik lagi (lihat initCultureQuiz()). -->
 <div class="modal-overlay" id="cultureQuizOverlay">
   <div class="modal-panel quiz-modal-panel">
     <div class="modal-header quiz-header-greet" id="cultureQuizHeader">
@@ -6298,11 +6298,11 @@ if(themeToggleBtnEl){
 // ==== Kuis Budaya Kerja Trusmi Group ====
 // Popup soal situasional (acak 1 dari 30) yang muncul otomatis: (1) pertama kali web ini
 // dibuka di browser tsb, atau (2) setelah user idle (gak ada interaksi sama sekali) selama
-// 3 jam lalu balik beraktivitas lagi. Timestamp "aktivitas terakhir" disimpan di localStorage
+// 6 jam lalu balik beraktivitas lagi. Timestamp "aktivitas terakhir" disimpan di localStorage
 // (per browser/device, bukan per akun), dicek ulang tiap kali halaman dibuka + dicek berkala
 // tiap beberapa menit selagi tab-nya tetap kebuka (biar kedeteksi juga kalau tab-nya gak
 // pernah di-refresh tapi didiemin lama).
-const CULTURE_QUIZ_IDLE_MS = 1 * 60 * 60 * 1000; // 1 jam
+const CULTURE_QUIZ_IDLE_MS = 6 * 60 * 60 * 1000; // 6 jam
 const CULTURE_QUIZ_STORAGE_KEY = 'trusmiCultureQuizLastActivity';
 // Antrean soal yang belum tampil di "putaran" saat ini, disimpan persis (bukan
 // cuma di memori) biar gak reset tiap popup baru dibuka. Sistemnya kayak kartu
