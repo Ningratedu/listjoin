@@ -2150,6 +2150,7 @@ function getInitials(nama){
 }
 
 const BULAN_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const HARI_SHORT = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 const BULAN_LONG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
 // W1 = tanggal 1-7, W2 = 8-14, W3 = 15-21, W4 = 22-28, W5 = 29-31
@@ -2162,7 +2163,7 @@ function fmtWeekLabel(dateStr){
   const datePart = String(dateStr).slice(0, 10);
   const d = new Date(datePart + 'T00:00:00');
   if(isNaN(d)) return dateStr;
-  return `${d.getDate()} ${BULAN_SHORT[d.getMonth()]} (W${weekOfMonth(d.getDate())})`;
+  return `${HARI_SHORT[d.getDay()]}, ${d.getDate()} ${BULAN_SHORT[d.getMonth()]} (W${weekOfMonth(d.getDate())})`;
 }
 
 // Minggu ke- dihitung sesuai jadwal onboarding (Selasa & Jumat): minggu ke-1 = tgl 1-7
@@ -4539,7 +4540,7 @@ function renderChart(){
           offset: true,
           ticks: { color: cssVar('--text-dim'), font: { size: 10.5 } },
           grid: { color: cssVar('--border') },
-          title: { display: true, text: `Tanggal Induction ${currentMonthLabel()}`, color: cssVar('--text-dim'), font: { size: 11 } }
+          title: { display: true, text: `Tanggal Induction ${currentMonthLabel()} (${dates.length} Sesi Induction)`, color: cssVar('--text-dim'), font: { size: 11 } }
         },
         y: {
           type: 'category',
