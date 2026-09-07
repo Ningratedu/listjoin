@@ -6054,11 +6054,22 @@ function openBatchDeptModal(dept, date, wk, group){
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
           <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
         </div>
-        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>
+        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}<button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">${renderOnboardingStatusBadge(c)}</button></div>
       </div>`;
   });
   html += `</div>`;
   modalBodyEl.innerHTML = html;
+
+  // Fitur baru chart sesi: status induction tetap memakai komponen/button yang sama
+  // seperti popup/tabel existing, tanpa mengubah event handler global.
+  modalBodyEl.querySelectorAll('.onboarding-status-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = e.currentTarget.dataset.id;
+      const c = candidates.find(x => x._id === id);
+      if(c) openOnboardingJourneyModal(c);
+    });
+  });
 
   document.getElementById('chartModalOverlay').classList.add('show');
 }
