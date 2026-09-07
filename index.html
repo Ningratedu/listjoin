@@ -1621,6 +1621,15 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     background:var(--accent);color:#062f22;font-weight:700;font-size:11px;cursor:pointer;
   }
   .quiz-close-btn:hover{opacity:0.9;}
+
+  /* ==== Chart sesi induction per departemen ==== */
+  .session-chart-wrap{position:relative;height:360px;}
+  .session-chart-legend{display:flex;flex-wrap:wrap;gap:7px 12px;margin:-4px 0 12px;font-size:10px;color:var(--text-dim);}
+  .session-chart-legend-item{display:inline-flex;align-items:center;gap:5px;}
+  .session-chart-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .session-chart-note{font-size:10.5px;color:var(--text-dim);margin-top:8px;}
+  @media(max-width:640px){.session-chart-wrap{height:320px;}.session-chart-legend{gap:6px 9px;font-size:9.5px;}}
+
 </style>
 </head>
 <body>
@@ -1829,6 +1838,25 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     <div style="position:relative;height:320px;">
       <canvas id="deptChart"></canvas>
     </div>
+  </div>
+
+
+  <!-- CHART SESI INDUCTION PER DEPARTEMEN -->
+  <div class="list-panel chart-panel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">🗓️</span>
+        <div class="chart-heading-text">
+          <span>Sesi Induction per Departemen</span>
+          <span class="chart-sub" id="sessionChartSub">Jumlah sesi dan peserta per departemen</span>
+        </div>
+      </div>
+    </h2>
+    <div id="sessionChartEmptyState" class="empty-state" style="display:none;">Belum ada data buat statistik.</div>
+    <div class="chart-hint" id="sessionChartHint" style="display:none;">💡 Setiap batang = 1 sesi induction · klik segmen departemen untuk melihat daftar karyawan</div>
+    <div id="sessionChartLegend" class="session-chart-legend"></div>
+    <div class="session-chart-wrap"><canvas id="sessionDeptChart"></canvas></div>
+    <div class="session-chart-note">Basis sesi: <b>tanggal induction</b> (tglOnboarding) pada bulan yang dipilih.</div>
   </div>
 
   <!-- CARD STATUS ONBOARDING (Total Peserta / Completed / In Progress / Peserta Resign) -- ditaruh
@@ -2631,6 +2659,7 @@ function applyCandidates(items){
   renderStats();
   renderChart();
   renderDeptChart();
+  renderSessionDeptChart();
 }
 
 function readCandidatesCache(){
@@ -4629,6 +4658,50 @@ document.getElementById('chartModalOverlay').addEventListener('click', (e) => {
 });
 document.getElementById('chartRefreshBtn').addEventListener('click', loadCandidates);
 
+
+// ==== Chart Sesi Induction per Departemen ====
+let sessionDeptChart = null;
+
+function getSessionDeptData(){
+  const monthCandidates = candidates.filter(isInSelectedMonth);
+  const sessionMap = new Map();
+  monthCandidates.forEach(c => {
+    const date = c.tglOnboarding ? String(c.tglOnboarding).slice(0,10) : '';
+    if(!date) return;
+    if(!sessionMap.has(date)) sessionMap.set(date, []);
+    sessionMap.get(date).push(c);
+  });
+  return Array.from(sessionMap.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+}
+
+function renderSessionDeptChart(){
+  const canvas = document.getElementById('sessionDeptChart');
+  const emptyEl = document.getElementById('sessionChartEmptyState');
+  const hintEl = document.getElementById('sessionChartHint');
+  const legendEl = document.getElementById('sessionChartLegend');
+  const subEl = document.getElementById('sessionChartSub');
+  if(!canvas || !window.Chart) return;
+  if(sessionDeptChart){ sessionDeptChart.destroy(); sessionDeptChart = null; }
+  if(legendEl) legendEl.innerHTML = '';
+  const sessions = getSessionDeptData();
+  if(!sessions.length){
+    if(emptyEl){emptyEl.textContent=`Belum ada sesi induction di bulan ${currentMonthLabel()}.`;emptyEl.style.display='block';}
+    if(hintEl) hintEl.style.display='none'; canvas.style.display='none';
+    if(subEl) subEl.textContent=`Tidak ada sesi induction pada ${currentMonthLabel()}`; return;
+  }
+  if(emptyEl) emptyEl.style.display='none'; if(hintEl) hintEl.style.display='block'; canvas.style.display='block';
+  if(subEl) subEl.textContent=`${sessions.length} sesi · ${sessions.reduce((n,[,g])=>n+g.length,0)} peserta · ${currentMonthLabel()}`;
+  const deptSet=new Set(); sessions.forEach(([,g])=>g.forEach(c=>deptSet.add((c.departemen||'').trim()||'(Belum diisi)')));
+  const depts=Array.from(deptSet).sort((a,b)=>a.localeCompare(b,'id'));
+  const colors=DEPT_GRADIENTS.map(g=>g[0]);
+  const labels=sessions.map(([d])=>fmtShortID(d));
+  const groupsByDept=depts.map(dept=>sessions.map(([,g])=>g.filter(c=>((c.departemen||'').trim()||'(Belum diisi)')===dept)));
+  if(legendEl) legendEl.innerHTML=depts.map((d,i)=>`<span class="session-chart-legend-item"><span class="session-chart-legend-dot" style="background:${colors[i%colors.length]}"></span>${escapeHtml(d)}</span>`).join('');
+  const datasets=depts.map((dept,di)=>({label:dept,data:groupsByDept[di].map(g=>g.length),backgroundColor:colors[di%colors.length],borderColor:cssVar('--panel'),borderWidth:1.5,borderRadius:5,borderSkipped:false,stack:'session',maxBarThickness:48,_groups:groupsByDept[di]}));
+  const ctx=canvas.getContext('2d');
+  sessionDeptChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500,easing:'easeOutQuart'},interaction:{mode:'nearest',intersect:true},onClick:(evt,elements)=>{if(!elements.length)return;const el=elements[0],ds=sessionDeptChart.data.datasets[el.datasetIndex],group=ds._groups[el.index]||[];if(group.length)openBatchDeptModal(ds.label,sessions[el.index][0],onboardingWeekNumber(sessions[el.index][0]),group);},onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},plugins:{legend:{display:false},tooltip:{callbacks:{title:(items)=>{const i=items[0]?.dataIndex;return i==null?'':`Sesi ${i+1} · ${labels[i]}`;},label:(ctx)=>`${ctx.dataset.label}: ${ctx.raw} karyawan`,footer:(items)=>{const i=items[0]?.dataIndex;return i==null?'':`Total sesi: ${sessions[i][1].length} karyawan · klik segmen untuk detail`;}}}},scales:{x:{stacked:true,ticks:{color:cssVar('--text'),font:{size:10.5,weight:'700'}},grid:{display:false},title:{display:true,text:'Sesi induction',color:cssVar('--text-dim'),font:{size:10,weight:'600'}}},y:{stacked:true,beginAtZero:true,ticks:{color:cssVar('--text-dim'),font:{size:10},precision:0},grid:{color:cssVar('--border')},title:{display:true,text:'Jumlah karyawan',color:cssVar('--text-dim'),font:{size:10,weight:'600'}}}}},plugins:[{id:'sessionTotalLabels',afterDatasetsDraw(chart){const {ctx}=chart;chart.data.labels.forEach((_,idx)=>{let total=0,topBar=null;chart.data.datasets.forEach((ds,di)=>{total+=Number(ds.data[idx]||0);const meta=chart.getDatasetMeta(di);if(!meta.hidden&&Number(ds.data[idx]||0)>0)topBar=meta.data[idx];});if(!topBar||!total)return;const pos=topBar.getProps(['x','y'],true);ctx.save();ctx.fillStyle=cssVar('--text');ctx.font='800 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(total),pos.x,pos.y-5);ctx.restore();});}}]});
+}
+
 // ==== Chart Sebaran Departemen ====
 let deptChart = null;
 
@@ -6258,6 +6331,7 @@ window.addEventListener('resize', () => {
   clearTimeout(deptChartResizeTimer);
   deptChartResizeTimer = setTimeout(() => {
     if(deptChart) renderDeptChart();
+    if(sessionDeptChart) renderSessionDeptChart();
   }, 200);
 });
 if(window.ResizeObserver){
@@ -6296,6 +6370,7 @@ function setTheme(theme, persist){
   // chart yang lagi aktif biar kontras tetap kebaca di tema baru.
   if(onboardingChart) renderChart();
   if(deptChart) renderDeptChart();
+  if(sessionDeptChart) renderSessionDeptChart();
   if(totalBatchCharts.length) rerenderTotalBatchCharts();
 }
 
