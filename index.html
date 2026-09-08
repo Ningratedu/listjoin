@@ -1874,7 +1874,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         </div>
       </div>
     </h2>
-    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training dengan cara upload data exported e-training agar kehadiran terupdate otomatis sesuai peserta training "Be a Great Employee".</div>
+    <div class="chart-hint" id="tableSub">💡 Update Kehadiran adalah tugas tim Induction Training dengan cara upload data exported e-training agar kehadiran & aktivasi terupdate otomatis begitu salah satu modul e-training peserta tercatat lulus.</div>
     <div class="table-toolbar">
       <div class="table-search-wrap">
         <svg class="table-search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -2736,8 +2736,8 @@ async function loadCandidates(){
     // kalau udah ada cached view yang ketampil, gagal refresh diem2 aja -> user masih liat data lama, gak error mengganggu
   }
 
-  // 3) Beresin kandidat LAMA yang modul "Be A Great Employee"-nya udah tercentang dari
-  //    sebelumnya tapi belum ikut ke-auto-update Comben & Status Aktivasi (lihat
+  // 3) Beresin kandidat LAMA yang salah satu modul auto e-training-nya udah tercentang
+  //    dari sebelumnya tapi belum ikut ke-auto-update Comben & Status Aktivasi (lihat
   //    backfillCompbenAndAktivasi()). Cukup jalan sekali per sesi -- kalau semua kandidat
   //    udah sinkron, fungsinya gak ngapa-ngapain (aman kalaupun ke-trigger lagi).
   if(!hasRunCompbenBackfill){
@@ -3688,26 +3688,32 @@ function isSalesSupervisorDesignation(c){
   return d === 'sales supervisor';
 }
 
-// Modul "Be A Great Employee" (budaya kerja) -- id-nya beda per journey: m04 buat
-// designation umum, s01 buat Sales/Sales Counter, sv01 buat Sales Supervisor. Nyentang
-// modul ini nandain karyawan beneran hadir sesi orientasi, jadi kolom Kehadiran diisi
-// otomatis jadi "Hadir" (lihat autoMarkHadirFromChecklist()) -- gak perlu diverifikasi manual lagi.
-function greatEmployeeModuleId(c){
-  if(isSalesSupervisorDesignation(c)) return 'sv01';
-  return isSalesDesignation(c) ? 's01' : 'm04';
+// Cari modul "auto e-training" (modul yang punya lmsAliases -- artinya bisa keupdate
+// otomatis dari import export LMS, kayak "Be A Great Employee", "Company Profile",
+// "Peraturan Perusahaan", dst, TERGANTUNG journey kandidat) yang statusnya udah done di
+// checklist. Dulu cuma modul "Be A Great Employee" doang yang dicek, sekarang MODUL APA
+// AJA yang terdaftar sebagai auto e-training di journey kandidat (getOnboardingModules)
+// udah cukup jadi sinyal "kandidat beneran ikut sesi training" -- gak perlu nunggu modul
+// Be A Great Employee doang. Balikin modul PERTAMA yang ketemu done (dipakai buat ambil
+// tanggalnya), atau null kalau belum ada satupun yang done.
+function findDoneAutoTrainingModule(c, checklist){
+  const modules = getOnboardingModules(c);
+  return modules.find(m => m.lmsAliases && checklist[m.id] && checklist[m.id].done) || null;
 }
 
 // Modul "Penjelasan Comben & Personalia" -- id-nya beda per journey: m01 buat
 // designation umum, s00 buat Sales/Sales Counter, sv00 buat Sales Supervisor. Modul ini
-// otomatis ikut tercentang begitu "Be A Great Employee" selesai (lihat autoMarkHadirFromChecklist()),
-// karena praktiknya penjelasan Comben & Personalia sudah pasti dilalui bareng sesi budaya kerja itu.
+// otomatis ikut tercentang begitu salah satu modul auto e-training selesai (lihat
+// autoMarkHadirFromChecklist()), karena praktiknya penjelasan Comben & Personalia sudah
+// pasti dilalui bareng sesi training pertama yang diikuti karyawan.
 function compbenModuleId(c){
   if(isSalesSupervisorDesignation(c)) return 'sv00';
   return isSalesDesignation(c) ? 's00' : 'm01';
 }
 
-// Cek checklist onboarding kandidat: kalau modul "Be A Great Employee" udah dicentang
-// (done:true), otomatis:
+// Cek checklist onboarding kandidat: kalau SALAH SATU modul "auto e-training" (modul yang
+// terdaftar punya lmsAliases di journey kandidat -- bukan cuma "Be A Great Employee" lagi,
+// tapi modul manapun yang bisa keupdate dari import LMS) udah dicentang (done:true), otomatis:
 // 1) kehadirannya di-set "Hadir" (kalau belum) & bersihin pending edit dropdown Kehadiran
 //    yang belum disimpan (biar gak ketimpa balik pas render);
 // 2) modul "Penjelasan Comben & Personalia" ikut dicentang (done:true) kalau belum;
@@ -3716,10 +3722,9 @@ function compbenModuleId(c){
 // Balikin objek { kehadiran, compben, aktivasi } (masing2 boolean) biar caller tau bagian
 // mana yang berubah -> perlu di-render ulang / dikirim ke server juga.
 function autoMarkHadirFromChecklist(c, checklist){
-  const gEmpId = greatEmployeeModuleId(c);
-  const isDone = !!(checklist[gEmpId] && checklist[gEmpId].done);
+  const doneModule = findDoneAutoTrainingModule(c, checklist);
   const result = { kehadiran:false, compben:false, aktivasi:false };
-  if(!isDone) return result;
+  if(!doneModule) return result;
 
   if(c.kehadiran !== 'Hadir'){
     c.kehadiran = 'Hadir';
@@ -3729,7 +3734,7 @@ function autoMarkHadirFromChecklist(c, checklist){
 
   const compbenId = compbenModuleId(c);
   if(!(checklist[compbenId] && checklist[compbenId].done)){
-    checklist[compbenId] = { done:true, tanggal: (checklist[gEmpId] && checklist[gEmpId].tanggal) || todayISO() };
+    checklist[compbenId] = { done:true, tanggal: (checklist[doneModule.id] && checklist[doneModule.id].tanggal) || todayISO() };
     result.compben = true;
   }
 
@@ -3744,15 +3749,16 @@ function autoMarkHadirFromChecklist(c, checklist){
 
 // Jalanin autoMarkHadirFromChecklist() buat SEMUA kandidat yang lagi ke-load (bukan cuma yang
 // baru diubah checklist-nya), lalu simpen perubahan ke server. Ini buat "membereskan" kandidat
-// LAMA yang modul "Be A Great Employee"-nya udah tercentang dari sebelumnya, tapi modul Comben
-// dan/atau Status Aktivasi-nya belum ikut ke-auto-update (karena fitur ini baru ditambahkan).
+// LAMA yang salah satu modul auto e-training-nya udah tercentang dari sebelumnya (dulu cuma
+// dicek dari "Be A Great Employee", sekarang modul auto e-training manapun), tapi modul Comben
+// dan/atau Status Aktivasi-nya belum ikut ke-auto-update (karena fitur ini baru ditambahkan/diperluas).
 // Dipanggil sekali tiap kali data ke-load; kalau semua kandidat udah sinkron, gak ada yang
 // disimpan ulang -> aman dipanggil berkali-kali.
 async function backfillCompbenAndAktivasi(){
   const targets = candidates.filter(c => {
     const checklist = c.onboardingChecklist || {};
-    const gEmpId = greatEmployeeModuleId(c);
-    if(!(checklist[gEmpId] && checklist[gEmpId].done)) return false;
+    const doneModule = findDoneAutoTrainingModule(c, checklist);
+    if(!doneModule) return false;
     const compbenId = compbenModuleId(c);
     const compbenDone = !!(checklist[compbenId] && checklist[compbenId].done);
     return !compbenDone || c.statusAktivasi !== 'Sudah' || c.kehadiran !== 'Hadir';
@@ -3777,7 +3783,7 @@ async function backfillCompbenAndAktivasi(){
   if(anyChanged){
     renderTable();
     renderStats();
-    showToast('Aktivasi & ceklis Comben otomatis diperbarui untuk kandidat yang sudah Be A Great Employee 🎉');
+    showToast('Aktivasi & ceklis Comben otomatis diperbarui untuk kandidat yang sudah selesai salah satu modul e-training 🎉');
   }
 }
 
@@ -5573,10 +5579,11 @@ async function onJourneyDateChange(e){
 async function saveOnboardingChecklist(c, checklist){
   c.onboardingChecklist = checklist;
 
-  // Modul "Be A Great Employee" dicentang -> auto-tandain kehadiran "Hadir", auto-centang
-  // modul "Penjelasan Comben & Personalia", & auto-set Status Aktivasi jadi "Sudah". Semuanya
-  // ikut dikirim bareng checklist dalam 1 request update yang sama (backend Code.gs juga
-  // ngejaga hal yang sama sebagai jaring pengaman, termasuk buat jalur import LMS massal).
+  // Salah satu modul auto e-training dicentang (gak harus "Be A Great Employee" doang lagi)
+  // -> auto-tandain kehadiran "Hadir", auto-centang modul "Penjelasan Comben & Personalia",
+  // & auto-set Status Aktivasi jadi "Sudah". Semuanya ikut dikirim bareng checklist dalam 1
+  // request update yang sama (backend Code.gs juga ngejaga hal yang sama sebagai jaring
+  // pengaman, termasuk buat jalur import LMS massal).
   const autoResult = autoMarkHadirFromChecklist(c, checklist);
 
   const modalBodyEl = document.getElementById('chartModalBody');
@@ -6596,9 +6603,10 @@ async function commitLmsChanges(maps, changedName){
 
   for(const { c, checklist } of maps.changedCandidates.values()){
     c.onboardingChecklist = checklist;
-    // Kalau modul "Be A Great Employee" ikut kecentang dari file LMS ini: kehadiran
-    // kandidatnya otomatis diset "Hadir", modul "Penjelasan Comben & Personalia" ikut
-    // dicentang, dan Status Aktivasi otomatis jadi "Sudah" (sama kayak toggle checklist manual).
+    // Kalau salah satu modul auto e-training ikut kecentang dari file LMS ini (gak
+    // harus "Be A Great Employee" doang): kehadiran kandidatnya otomatis diset "Hadir",
+    // modul "Penjelasan Comben & Personalia" ikut dicentang, dan Status Aktivasi otomatis
+    // jadi "Sudah" (sama kayak toggle checklist manual).
     const autoResult = autoMarkHadirFromChecklist(c, checklist);
     const fields = { onboardingChecklist: JSON.stringify(checklist) };
     if(autoResult.kehadiran){ fields.kehadiran = 'Hadir'; c.kehadiran = 'Hadir'; }
