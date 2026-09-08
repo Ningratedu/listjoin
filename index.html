@@ -1884,6 +1884,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
       <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Induction dari E-Training">📥 Upload Exported E-Training</button>
       <button type="button" class="upload-btn upload-btn-compact" id="tableRefreshBtn" title="Refresh data kandidat terbaru dari server">🔄 Refresh</button>
+      <button type="button" class="upload-btn upload-btn-compact" id="tableExcelDownloadBtn" title="Download detail kandidat & summary dalam Excel">📊 Download Excel</button>
       <span class="upload-status" id="lmsImportStatus"></span>
     </div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
@@ -4300,6 +4301,197 @@ function sendModuleReminder(c){
   const text = buildModuleReminderText(c);
   const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
+}
+
+
+// ==== Export Excel Detail Kandidat + Summary Status Induction ====
+// Fitur ini hanya membaca data/filter yang sudah ada; tidak mengubah data kandidat/server.
+function getExcelExportCandidates(){
+  // Ikuti tampilan tabel saat ini: bulan global + filter kolom + pencarian.
+  return getTableCandidates();
+}
+
+// Baris summary (dipakai di atas tabel detail sheet "Detail Kandidat").
+function buildExcelSummaryRows(){
+  const summary = statDetailsCache.onboardingStatus || { peserta:[], completed:[], inProgress:[], resign:[] };
+  const total = summary.peserta ? summary.peserta.length : 0;
+  const completed = summary.completed ? summary.completed.length : 0;
+  const inProgress = summary.inProgress ? summary.inProgress.length : 0;
+  const resign = summary.resign ? summary.resign.length : 0;
+  const totalActive = completed + inProgress;
+  const pctCompleted = totalActive ? Math.round(completed / totalActive * 100) : 0;
+  const pctInProgress = totalActive ? Math.round(inProgress / totalActive * 100) : 0;
+  const pctResign = total ? Math.round(resign / total * 100) : 0;
+
+  return [
+    ['SUMMARY STATUS INDUCTION', ''],
+    ['Periode', currentMonthLabel()],
+    ['Total Peserta Induction', total],
+    ['Induction Completed', completed],
+    ['Induction Completed (%)', pctCompleted + '%'],
+    ['Induction In Progress', inProgress],
+    ['Induction In Progress (%)', pctInProgress + '%'],
+    ['Peserta Resign', resign],
+    ['Peserta Resign (%)', pctResign + '%'],
+    []
+  ];
+}
+
+// Sheet "Detail Kandidat": summary di baris 1-9, baris kosong di 10, header di baris 11,
+// data detail kandidat mulai baris 12 (index array: header di index 10).
+const EXCEL_DETAIL_HEADER_ROW_INDEX = 10; // 0-based; = baris 11 di Excel
+
+function buildExcelDetailSheet(list){
+  const rows = buildExcelSummaryRows();
+
+  rows.push([
+    'No', 'Nama', 'PIC', 'Kehadiran', 'Aksi', 'Status Induction',
+    'Atasan', 'Designation', 'Departemen', 'Tgl Join', 'Tgl Induction',
+    'Minggu Ke-', 'Aktivasi', 'No HP'
+  ]);
+
+  list.forEach((c, i) => {
+    const onbStatus = dummyOnboardingStatus(c);
+    rows.push([
+      i + 1,
+      c.nama || '',
+      c.pic || '',
+      effectiveKehadiran(c) || 'Belum',
+      getStatusKaryawan(c) === 'Resign'
+        ? 'Resign'
+        : (onbStatus === 'In Progress' ? 'Reminder Modul' : 'Reminder Induction'),
+      onbStatus,
+      c.atasan || '',
+      c.designation || '',
+      c.departemen || '',
+      c.tglJoin ? fmtShortID(c.tglJoin) : '',
+      c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '',
+      c.tglOnboarding ? 'Minggu ke-' + onboardingWeekNumber(c.tglOnboarding) : '',
+      c.statusAktivasi || '',
+      c.noHp || ''
+    ]);
+  });
+
+  return rows;
+}
+
+// Tiga "golongan" journey induction, sesuai getOnboardingModules(): umum (Gol 1),
+// Sales/Sales Counter (Gol 2), Sales Supervisor (Gol 3). Tiap golongan diekspor jadi
+// sheet-nya sendiri dalam format wide (1 kolom per modul), bukan format panjang lagi.
+const EXCEL_ONBOARDING_TRACKS = [
+  {
+    sheetName: 'Status Induction Gol 1',
+    modules: ONBOARDING_MODULES,
+    match: c => !isSalesDesignation(c) && !isSalesSupervisorDesignation(c)
+  },
+  {
+    sheetName: 'Status Induction Gol 2',
+    modules: SALES_ONBOARDING_MODULES,
+    match: c => isSalesDesignation(c)
+  },
+  {
+    sheetName: 'Status Induction Gol 3',
+    modules: SALES_SUPERVISOR_ONBOARDING_MODULES,
+    match: c => isSalesSupervisorDesignation(c)
+  }
+];
+
+function buildExcelGolonganSheet(list, track){
+  const rows = [
+    ['DETAIL PROGRESS JOURNEY INDUCTION PER PESERTA'],
+    [
+      'No', 'Nama', 'PIC', 'Departemen', 'Designation', 'Status Induction', 'Progress Modul',
+      ...track.modules.map(m => m.label)
+    ]
+  ];
+
+  let rowNum = 0;
+  list.filter(track.match).forEach(c => {
+    rowNum++;
+    const checklist = c.onboardingChecklist || {};
+    const { done, total } = onboardingProgress(c);
+    const progressLabel = `${done}/${total} modul (${onboardingProgressPct(c)}%)`;
+    rows.push([
+      rowNum,
+      c.nama || '',
+      c.pic || '',
+      c.departemen || '',
+      c.designation || '',
+      dummyOnboardingStatus(c),
+      progressLabel,
+      ...track.modules.map(m => (checklist[m.id] && checklist[m.id].done) ? 'Selesai' : 'Belum')
+    ]);
+  });
+
+  return rows;
+}
+
+function autoSizeExcelSheet(ws){
+  if(!ws || !ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const widths = [];
+  for(let c = range.s.c; c <= range.e.c; c++){
+    let max = 10;
+    for(let r = range.s.r; r <= range.e.r; r++){
+      const cell = ws[XLSX.utils.encode_cell({r, c})];
+      const value = cell && cell.v != null ? String(cell.v) : '';
+      max = Math.max(max, Math.min(value.length + 2, 42));
+    }
+    widths[c] = { wch: max };
+  }
+  ws['!cols'] = widths;
+}
+
+function downloadTableExcel(){
+  try{
+    if(typeof XLSX === 'undefined'){
+      showToast('Library Excel belum siap. Coba lagi sebentar.', true);
+      return;
+    }
+
+    const list = getExcelExportCandidates();
+    const monthList = candidates.filter(isInSelectedMonth);
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Detail Kandidat (summary status di atas + tabel detail kandidat)
+    const detailWs = XLSX.utils.aoa_to_sheet(buildExcelDetailSheet(list));
+    autoSizeExcelSheet(detailWs);
+    if(detailWs['!ref']){
+      const detailRange = XLSX.utils.decode_range(detailWs['!ref']);
+      detailWs['!autofilter'] = {
+        ref: XLSX.utils.encode_range({ s:{ r:EXCEL_DETAIL_HEADER_ROW_INDEX, c:detailRange.s.c }, e:detailRange.e })
+      };
+    }
+    detailWs['!freeze'] = { xSplit: 0, ySplit: EXCEL_DETAIL_HEADER_ROW_INDEX + 1 };
+    XLSX.utils.book_append_sheet(wb, detailWs, 'Detail Kandidat');
+
+    // Sheet 2-4: Status Induction per golongan (Gol 1 = umum, Gol 2 = Sales/Sales Counter, Gol 3 = Sales Supervisor)
+    EXCEL_ONBOARDING_TRACKS.forEach(track => {
+      const golWs = XLSX.utils.aoa_to_sheet(buildExcelGolonganSheet(monthList, track));
+      autoSizeExcelSheet(golWs);
+      if(golWs['!ref']){
+        const golRange = XLSX.utils.decode_range(golWs['!ref']);
+        golWs['!autofilter'] = {
+          ref: XLSX.utils.encode_range({ s:{ r:1, c:golRange.s.c }, e:golRange.e })
+        };
+      }
+      golWs['!freeze'] = { xSplit: 0, ySplit: 2 };
+      XLSX.utils.book_append_sheet(wb, golWs, track.sheetName);
+    });
+
+    const safeMonth = currentMonthLabel().replace(/\s+/g, '_');
+    XLSX.writeFile(wb, `Induction_Training_${safeMonth}.xlsx`);
+    showToast('Excel berhasil di-download');
+  }catch(err){
+    console.error('Export Excel gagal:', err);
+    showToast('Gagal membuat file Excel: ' + (err.message || err), true);
+  }
+}
+
+const tableExcelDownloadBtnEl = document.getElementById('tableExcelDownloadBtn');
+if(tableExcelDownloadBtnEl){
+  tableExcelDownloadBtnEl.addEventListener('click', downloadTableExcel);
 }
 
 function renderTable(){
