@@ -4419,7 +4419,17 @@ function buildExcelGolonganSheet(list, track){
       c.designation || '',
       dummyOnboardingStatus(c),
       progressLabel,
-      ...track.modules.map(m => (checklist[m.id] && checklist[m.id].done) ? 'Selesai' : 'Belum')
+      ...track.modules.map(m => {
+        const entry = checklist[m.id];
+        if(!(entry && entry.done)) return 'Belum';
+        // Modul auto E-Training (punya lmsAliases, keceklis otomatis dari import LMS) ->
+        // tampilin nilai post test-nya kalau ada, bukan cuma teks "Selesai".
+        const isLmsAuto = !!(m.lmsAliases && m.lmsAliases.length);
+        if(isLmsAuto && entry.nilai !== undefined && entry.nilai !== null && entry.nilai !== ''){
+          return `Post Test - ${entry.nilai}`;
+        }
+        return 'Selesai';
+      })
     ]);
   });
 
