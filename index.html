@@ -2633,6 +2633,7 @@ function mapCandidateRows(rawRows){
     _id: row.id,
     pic: row.pic,
     nama: row.nama,
+    username: row.username || '',
     noHp: row.noHp,
     departemen: row.departemen,
     designation: row.designation,
@@ -3850,6 +3851,9 @@ const TABLE_COLUMNS = [
   { key:'nama', label:'Nama', sortable:true, filterable:true,
     sortValue: c => (c.nama||'').toLowerCase(),
     filterValue: c => c.nama || '', filterLabel: v => v || '(Kosong)' },
+  { key:'username', label:'Username', sortable:true, filterable:true,
+    sortValue: c => (c.username||'').toLowerCase(),
+    filterValue: c => c.username || '', filterLabel: v => v || '(Belum ada)' },
   { key:'pic', label:'PIC', sortable:true, filterable:true,
     sortValue: c => (c.pic||'').toLowerCase(),
     filterValue: c => c.pic || '', filterLabel: v => v || '(Belum diisi)' },
@@ -4171,6 +4175,7 @@ function renderCandRow(c, rowNumber){
     <tr>
       <td class="row-number">${rowNumber}</td>
       <td class="wrap">${escapeHtml(c.nama||'(nama belum diisi)')}</td>
+      <td class="wrap" title="Username otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.username||'-')}</td>
       <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
       <td>
         <div class="verify-row">
@@ -6142,9 +6147,24 @@ async function handleLmsImportUpload(e){
     const dataRows = rows.slice(header.headerIdx + 1).filter(r => r.some(v => String(v).trim() !== ''));
     const changedCandidates = new Map(); // id -> { c, checklist }
     const changedResign = new Map(); // id -> { c, tglResign } -- kandidat yang kedetek Resign dari kolom "Resignation"
+    const changedUsername = new Map(); // id -> { c, username } -- kolom "Username" dari file export, ditempel ke kandidat yang namanya cocok
     let matchedRows = 0, unmatchedName = 0, unmatchedModule = 0, notLulus = 0;
 
     dataRows.forEach(row => {
+      // Tangkap Username dari file export duluan, independen dari status Lulus/Tidak Lulus
+      // ataupun Resign -- asal namanya cocok ke salah satu kandidat di list. Kolom ini
+      // TIDAK bisa diisi manual, cuma keupdate lewat upload exported e-training ini.
+      if(header.iUser > -1){
+        const namaForUserMatch = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
+        const cUser = findCandidateByLmsName(namaForUserMatch);
+        if(cUser){
+          const usernameRaw = String(row[header.iUser] == null ? '' : row[header.iUser]).trim();
+          if(usernameRaw && usernameRaw !== (cUser.username || '') && !changedUsername.has(cUser._id)){
+            changedUsername.set(cUser._id, { c: cUser, username: usernameRaw });
+          }
+        }
+      }
+
       // Cek status karyawan (Resign) duluan, independen dari status Lulus/Tidak Lulus training
       // -- ini bukan soal kelulusan modul, jadi jangan ikut ke-skip sama filter "Lulus" di bawah.
       if(header.iResign > -1){
@@ -6183,13 +6203,13 @@ async function handleLmsImportUpload(e){
       matchedRows++;
     });
 
-    if(changedCandidates.size === 0 && changedResign.size === 0){
+    if(changedCandidates.size === 0 && changedResign.size === 0 && changedUsername.size === 0){
       lmsImportStatusEl.textContent = '';
-      showToast('Tidak ada ceklis atau status resign yang cocok buat diupdate dari file ini', true);
+      showToast('Tidak ada ceklis, username, atau status resign yang cocok buat diupdate dari file ini', true);
       return;
     }
 
-    lmsImportStatusEl.textContent = `⏳ Menyimpan ${changedCandidates.size + changedResign.size} kandidat...`;
+    lmsImportStatusEl.textContent = `⏳ Menyimpan ${changedCandidates.size + changedResign.size + changedUsername.size} kandidat...`;
     let savedCount = 0;
     for(const { c, checklist } of changedCandidates.values()){
       c.onboardingChecklist = checklist;
@@ -6213,14 +6233,21 @@ async function handleLmsImportUpload(e){
       const ok = await updateCandidate(c._id, { statusKaryawan: 'Resign', tglResign });
       if(ok) savedResignCount++;
     }
+    let savedUsernameCount = 0;
+    for(const { c, username } of changedUsername.values()){
+      c.username = username;
+      const ok = await updateCandidate(c._id, { username });
+      if(ok) savedUsernameCount++;
+    }
 
     renderTable();
     renderStats();
 
-    lmsImportStatusEl.textContent = `✅ ${savedCount + savedResignCount} kandidat terupdate`;
+    lmsImportStatusEl.textContent = `✅ ${savedCount + savedResignCount + savedUsernameCount} kandidat terupdate`;
     const skippedNote = (unmatchedName || unmatchedModule) ? ` (${unmatchedName} nama tidak cocok, ${unmatchedModule} training tidak dikenali)` : '';
     const resignNote = savedResignCount ? `, ${savedResignCount} kandidat ditandai Resign` : '';
-    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${skippedNote}`);
+    const usernameNote = savedUsernameCount ? `, ${savedUsernameCount} username terupdate` : '';
+    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${skippedNote}`);
   }catch(err){
     lmsImportStatusEl.textContent = '';
     showToast('Gagal membaca file E-Training: ' + err.message, true);
@@ -6880,13 +6907,23 @@ initCultureQuiz();
   <option value="Digital Marketing"></option>
   <option value="Estate & FEW"></option>
   <option value="Finance & Accounting"></option>
+  <option value="Finance & Accounting (Holding)"></option>
+  <option value="General Affair"></option>
+  <option value="Holding"></option>
   <option value="Human Resource"></option>
+  <option value="Human Resource (Holding)"></option>
+  <option value="Innovation & System Development"></option>
+  <option value="Internal Audit Finance (Holding)"></option>
+  <option value="Internal Audit Operation (Holding)"></option>
   <option value="Investor Relation"></option>
   <option value="Legal"></option>
+  <option value="Marketing Communication"></option>
   <option value="Marketing Communication Corporate"></option>
   <option value="Media Placement"></option>
+  <option value="Operasional"></option>
   <option value="Operasional Alat Berat"></option>
   <option value="Pabrikasi"></option>
+  <option value="Pajak"></option>
   <option value="PDCA"></option>
   <option value="Perencana & Surveyor"></option>
   <option value="Pricing & Improvement"></option>
@@ -6899,6 +6936,7 @@ initCultureQuiz();
   <option value="Referral Network"></option>
   <option value="Research & Development"></option>
   <option value="Sales & Marketing"></option>
+  <option value="Secretary"></option>
 </datalist>
 <datalist id="designationOptions">
   <option value="Pelaksana After Sales"></option>
