@@ -6093,8 +6093,11 @@ function showLmsImportReport(){
         <span class="week-pill">✅ Auto-dicocokin & nama dibenerin (mirip/typo tipis)</span>
         <span class="week-count">${lastLmsImportReport.fuzzy.length} nama</span>
       </div>
-      <div style="padding:4px 2px;font-size:13px;line-height:1.9;">
-        ${lastLmsImportReport.fuzzy.map(f => `<div>📄 <b>${escapeHtml(f.matched)}</b> → dibenerin jadi <b>${escapeHtml(f.input)}</b> <span style="opacity:.6;">(beda ${f.distance} huruf, sesuai ejaan LMS)</span></div>`).join('')}
+      <div id="lmsFuzzyRows" style="padding:4px 2px;font-size:13px;line-height:1.9;">
+        ${lastLmsImportReport.fuzzy.map(f => `<div data-fuzzy-id="${f.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="flex:1 1 auto;">📄 <b>${escapeHtml(f.matched)}</b> → dibenerin jadi <b>${escapeHtml(f.input)}</b> <span style="opacity:.6;">(beda ${f.distance} huruf, sesuai ejaan LMS)</span></span>
+          <button type="button" onclick="cancelLmsFuzzyMatch(${f.id})" style="border:1px solid rgba(220,38,38,.4);background:none;color:#dc2626;border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;">❌ batalin</button>
+        </div>`).join('')}
       </div>
     </div>`;
   }
@@ -6149,6 +6152,68 @@ function showLmsImportReport(){
 // Toggle semua checkbox baris "cek manual" sekaligus lewat checkbox "Pilih semua" di atasnya.
 function toggleAllLmsReviewChecks(checked){
   document.querySelectorAll('.lms-review-check').forEach(cb => { cb.checked = checked; });
+}
+
+// Batalin 1 hasil auto-match (fuzzy) yang ternyata salah cocok -- dipanggil dari tombol
+// "❌ batalin" di baris "Auto-dicocokin". Ngembaliin SEMUA field kandidat yang mungkin
+// kesentuh sama import ini (nama, checklist training, departemen/designation/tglJoin,
+// username, status resign, kehadiran/aktivasi) persis kayak snapshot sebelum import jalan,
+// lalu simpen balik ke Sheets 1x kirim. Baris ini juga ilang dari daftar biar gak
+// ke-"batalin" dobel kalau modalnya dibuka lagi.
+async function cancelLmsFuzzyMatch(id){
+  if(!lastLmsImportReport) return;
+  const entry = lastLmsImportReport.fuzzy.find(f => f.id === id);
+  if(!entry) return;
+  if(!entry.snapshot){
+    showToast('Data sebelum import ini udah gak ada di memori, gak bisa dibatalin otomatis.', true);
+    return;
+  }
+
+  const c = entry.c;
+  const s = entry.snapshot;
+  const fields = {
+    nama: s.nama,
+    departemen: s.departemen,
+    designation: s.designation,
+    tglJoin: s.tglJoin,
+    username: s.username,
+    statusKaryawan: s.statusKaryawan,
+    tglResign: s.tglResign,
+    kehadiran: s.kehadiran,
+    statusAktivasi: s.statusAktivasi,
+    tglAktivasi: s.tglAktivasi,
+    onboardingChecklist: s.onboardingChecklist
+  };
+
+  try{
+    await batchUpdateCandidates([{ id: c._id, ...fields }]);
+  }catch(err){
+    showToast('Gagal batalin pencocokan: ' + err.message, true);
+    return;
+  }
+
+  // Update juga objek kandidat di memori (biar tabel & popup langsung kebaca balik tanpa refresh)
+  Object.assign(c, fields);
+  c.onboardingChecklist = s.onboardingChecklist ? JSON.parse(s.onboardingChecklist) : {};
+  renderTable();
+  renderStats();
+
+  showToast(`Pencocokan "${entry.input}" → "${entry.matched}" dibatalin, data dikembaliin ke sebelum import ini.`);
+
+  lastLmsImportReport.fuzzy = lastLmsImportReport.fuzzy.filter(f => f.id !== id);
+
+  if(lastLmsImportReport.review.length || lastLmsImportReport.fuzzy.length){
+    showLmsImportReport();
+  } else {
+    document.getElementById('chartModalOverlay').classList.remove('show');
+    lastLmsImportReport = null;
+  }
+  const detailBtnEl = document.querySelector('.lms-import-detail-btn');
+  if(detailBtnEl){
+    const remaining = (lastLmsImportReport ? lastLmsImportReport.fuzzy.length + lastLmsImportReport.review.length : 0);
+    if(remaining) detailBtnEl.textContent = `🔍 lihat detail (${remaining})`;
+    else detailBtnEl.remove();
+  }
 }
 
 // Kirim & simpen hasil pencocokan manual yang dipilih user lewat modal "cek manual" --
@@ -6494,6 +6559,25 @@ function processLmsRow(row, header, c, maps, counters){
 // manual" begitu user pilih kandidatnya lewat modal -- tanpa perlu upload ulang file-nya.
 let lastLmsImportContext = null; // { header, rowsByNorm }
 
+// Ambil "potret" nilai field-field yang mungkin kesentuh proses import LMS buat 1 kandidat,
+// dipakai sebagai titik balik kalau nanti tombol "❌ batalin" (cancelLmsFuzzyMatch) dipencet.
+// HARUS dipanggil SEBELUM commitLmsChanges() jalan (sebelum field-field ini kemutasi).
+function snapshotLmsCandidateFields(c){
+  return {
+    nama: c.nama,
+    departemen: c.departemen,
+    designation: c.designation,
+    tglJoin: c.tglJoin,
+    username: c.username,
+    statusKaryawan: c.statusKaryawan,
+    tglResign: c.tglResign,
+    kehadiran: c.kehadiran,
+    statusAktivasi: c.statusAktivasi,
+    tglAktivasi: c.tglAktivasi,
+    onboardingChecklist: c.onboardingChecklist ? JSON.stringify(c.onboardingChecklist) : ''
+  };
+}
+
 // Gabungin & simpen semua perubahan (checklist, resign, username, nama, profil) per id
 // kandidat jadi SATU objek payload per kandidat, lalu kirim SEMUANYA dalam 1 request
 // batchUpdate -- baik dari alur import awal maupun alur "Submit Pencocokan Manual".
@@ -6643,6 +6727,14 @@ async function handleLmsImportUpload(e){
     // pilih kandidatnya lewat modal, baris-barisnya bisa langsung diproses tanpa upload ulang.
     lastLmsImportContext = { header, rowsByNorm };
 
+    // Snapshot data kandidat yang KENA auto-match (fuzzy) SEBELUM disave -- dipakai buat
+    // tombol "❌ batalin" di laporan, biar kalau ternyata salah cocok, semua yang kesentuh
+    // import ini (nama, checklist, departemen/designation/tglJoin, username, resign, status
+    // aktivasi/kehadiran) bisa dikembaliin persis kayak sebelum import ini jalan.
+    const candidateSnapshots = new Map(); // id -> snapshot
+    for(const f of importMatchLog.fuzzy.values()){
+      if(!candidateSnapshots.has(f.c._id)) candidateSnapshots.set(f.c._id, snapshotLmsCandidateFields(f.c));
+    }
 
     if(changedCandidates.size === 0 && changedResign.size === 0 && changedUsername.size === 0 && changedProfile.size === 0 && changedName.size === 0){
       lmsImportStatusEl.textContent = '';
@@ -6660,7 +6752,9 @@ async function handleLmsImportUpload(e){
     const reviewCount = importMatchLog.review.size;
     lastLmsImportReport = (fuzzyCount || reviewCount)
       ? {
-          fuzzy: Array.from(importMatchLog.fuzzy.values()),
+          // Tiap item fuzzy dikasih `id` unik + `snapshot` (data kandidat sebelum import ini)
+          // buat dipakai tombol "❌ batalin" (lihat cancelLmsFuzzyMatch).
+          fuzzy: Array.from(importMatchLog.fuzzy.values()).map((f, idx) => ({ id: idx, ...f, snapshot: candidateSnapshots.get(f.c._id) })),
           // Tiap item review dikasih `id` unik + `norm` (kunci ternormalisasi) buat dipakai
           // modal "cek manual": checkbox + dropdown pilih kandidat, terus tombol Submit
           // manggil submitLmsReviewMatches() yang proses ulang baris² terkait pakai
