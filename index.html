@@ -2638,6 +2638,10 @@ function mapCandidateRows(rawRows){
     departemen: row.departemen,
     designation: row.designation,
     atasan: row.atasan,
+    spv: row.spv || '',
+    bm: row.bm || '',
+    rm: row.rm || '',
+    lokasi: row.lokasi || '',
     tglJoin: row.tglJoin,
     tglOnboarding: row.tglOnboarding,
     statusAktivasi: row.statusAktivasi,
@@ -3073,16 +3077,16 @@ function renderCandMiniCard(c, context){
     metaHtml = `
       <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
-      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
+      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>`;
   } else if(context === 'pic'){
     metaHtml = `
       <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
-      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
+      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>`;
   } else if(context === 'onboarding' || context === 'onboarding-inprogress'){
     metaHtml = `
       <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
-      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>`;
+      <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>`;
   } else if(context === 'resign'){
     const diff = getResignDaysDiff(c);
     metaHtml = `
@@ -3564,7 +3568,7 @@ onboardingFilterEl.addEventListener('change', () => {
   renderPreview();
 });
 
-let tableSearchQuery = ''; // teks pencarian bebas di tabel detail kandidat (nama, PIC, departemen, designation, atasan, no HP)
+let tableSearchQuery = ''; // teks pencarian bebas di tabel detail kandidat (nama, PIC, departemen, designation, atasan, no HP, lokasi, SPV, BM, RM)
 
 // ---- Search box tabel detail kandidat ----
 const tableSearchInputEl = document.getElementById('tableSearchInput');
@@ -3883,6 +3887,18 @@ const TABLE_COLUMNS = [
   { key:'departemen', label:'Departemen', sortable:true, filterable:true,
     sortValue: c => (c.departemen||'').toLowerCase(),
     filterValue: c => c.departemen || '', filterLabel: v => v || '(Kosong)' },
+  { key:'lokasi', label:'Lokasi', sortable:true, filterable:true,
+    sortValue: c => (c.lokasi||'').toLowerCase(),
+    filterValue: c => c.lokasi || '', filterLabel: v => v || '(Kosong)' },
+  { key:'spv', label:'SPV', sortable:true, filterable:true,
+    sortValue: c => (c.spv||'').toLowerCase(),
+    filterValue: c => c.spv || '', filterLabel: v => v || '(Kosong)' },
+  { key:'bm', label:'BM', sortable:true, filterable:true,
+    sortValue: c => (c.bm||'').toLowerCase(),
+    filterValue: c => c.bm || '', filterLabel: v => v || '(Kosong)' },
+  { key:'rm', label:'RM', sortable:true, filterable:true,
+    sortValue: c => (c.rm||'').toLowerCase(),
+    filterValue: c => c.rm || '', filterLabel: v => v || '(Kosong)' },
   { key:'tglJoin', label:'Tgl Join', sortable:true, filterable:true,
     sortValue: c => c.tglJoin || '',
     filterValue: c => c.tglJoin || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
@@ -4115,7 +4131,7 @@ function getTableCandidates(){
   const q = tableSearchQuery.trim().toLowerCase();
   if(q){
     list = list.filter(c => {
-      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp]
+      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp, c.lokasi, c.spv, c.bm, c.rm]
         .filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(q);
     });
@@ -4221,6 +4237,10 @@ function renderCandRow(c, rowNumber){
       <td class="wrap">${escapeHtml(c.atasan||'-')}</td>
       <td class="wrap">${escapeHtml(c.designation||'-')}</td>
       <td class="wrap">${escapeHtml(c.departemen||'-')}</td>
+      <td class="wrap" title="Lokasi otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.lokasi||'-')}</td>
+      <td class="wrap" title="SPV otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.spv||'-')}</td>
+      <td class="wrap" title="BM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.bm||'-')}</td>
+      <td class="wrap" title="RM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.rm||'-')}</td>
       <td>${c.tglJoin ? escapeHtml(fmtShortID(c.tglJoin)) : '-'}</td>
       <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
@@ -4357,7 +4377,7 @@ function buildExcelDetailSheet(list){
 
   rows.push([
     'No', 'Nama', 'PIC', 'Kehadiran', 'Aksi', 'Status Induction',
-    'Atasan', 'Designation', 'Departemen', 'Tgl Join', 'Tgl Induction',
+    'Atasan', 'Designation', 'Departemen', 'Lokasi', 'SPV', 'BM', 'RM', 'Tgl Join', 'Tgl Induction',
     'Minggu Ke-', 'Aktivasi', 'No HP'
   ]);
 
@@ -4375,6 +4395,10 @@ function buildExcelDetailSheet(list){
       c.atasan || '',
       c.designation || '',
       c.departemen || '',
+      c.lokasi || '',
+      c.spv || '',
+      c.bm || '',
+      c.rm || '',
       c.tglJoin ? fmtShortID(c.tglJoin) : '',
       c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '',
       c.tglOnboarding ? 'Minggu ke-' + onboardingWeekNumber(c.tglOnboarding) : '',
@@ -4845,7 +4869,7 @@ function openChartModal(group, pic, date){
               <span class="meta-item">📱 ${escapeHtml(c.noHp||'-')}</span>
               <span class="meta-item">📆 <b>Join</b> ${escapeHtml(fmtShortID(c.tglJoin))}</span>
               ${c.tglOnboarding ? `<span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(fmtShortID(c.tglOnboarding))}</span>` : ''}
-              <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
+              <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>
             </div>
           </div>
           <div class="cand-badges">
@@ -5184,7 +5208,7 @@ function openDeptModal(dept, group){
         <div class="dept-mini-row">
           <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
-          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
+          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>
         </div>
         <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>
       </div>`;
@@ -5945,7 +5969,13 @@ function findLmsHeaderRow(rows){
       const iDept = norm.findIndex(v => v === 'departement' || v === 'department');
       const iDesignation = norm.findIndex(v => v === 'designation');
       const iJoin = norm.findIndex(v => v === 'join date' || (v.startsWith('join') && v.includes('date')));
-      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign, iDept, iDesignation, iJoin };
+      // Kolom Lokasi/SPV/BM/RM dari export LMS -- sama kayak Departemen/Designation/Tgl Join,
+      // dianggap sumber kebenaran & dipakai buat isi/benerin data kandidat (lihat processLmsRow).
+      const iLokasi = norm.findIndex(v => v === 'lokasi' || v === 'location');
+      const iSpv = norm.findIndex(v => v === 'spv');
+      const iBm = norm.findIndex(v => v === 'bm');
+      const iRm = norm.findIndex(v => v === 'rm');
+      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign, iDept, iDesignation, iJoin, iLokasi, iSpv, iBm, iRm };
     }
   }
   return null;
@@ -6183,6 +6213,10 @@ async function cancelLmsFuzzyMatch(id){
     departemen: s.departemen,
     designation: s.designation,
     tglJoin: s.tglJoin,
+    lokasi: s.lokasi,
+    spv: s.spv,
+    bm: s.bm,
+    rm: s.rm,
     username: s.username,
     statusKaryawan: s.statusKaryawan,
     tglResign: s.tglResign,
@@ -6524,6 +6558,24 @@ function processLmsRow(row, header, c, maps, counters){
         if(joinIso && joinIso !== String(c.tglJoin || '').slice(0,10)) profileFields.tglJoin = joinIso;
       }
     }
+    // Lokasi/SPV/BM/RM dari export LMS -- kolom ini TIDAK ada di form input manual PIC
+    // Recruitment, cuma keisi/keupdate lewat upload exported e-training ini.
+    if(header.iLokasi > -1){
+      const lokasiRaw = String(row[header.iLokasi] == null ? '' : row[header.iLokasi]).trim();
+      if(lokasiRaw && lokasiRaw !== (c.lokasi || '')) profileFields.lokasi = lokasiRaw;
+    }
+    if(header.iSpv > -1){
+      const spvRaw = String(row[header.iSpv] == null ? '' : row[header.iSpv]).trim();
+      if(spvRaw && spvRaw !== (c.spv || '')) profileFields.spv = spvRaw;
+    }
+    if(header.iBm > -1){
+      const bmRaw = String(row[header.iBm] == null ? '' : row[header.iBm]).trim();
+      if(bmRaw && bmRaw !== (c.bm || '')) profileFields.bm = bmRaw;
+    }
+    if(header.iRm > -1){
+      const rmRaw = String(row[header.iRm] == null ? '' : row[header.iRm]).trim();
+      if(rmRaw && rmRaw !== (c.rm || '')) profileFields.rm = rmRaw;
+    }
     if(Object.keys(profileFields).length && !maps.changedProfile.has(c._id)){
       maps.changedProfile.set(c._id, { c, ...profileFields });
     }
@@ -6575,6 +6627,10 @@ function snapshotLmsCandidateFields(c){
     departemen: c.departemen,
     designation: c.designation,
     tglJoin: c.tglJoin,
+    lokasi: c.lokasi,
+    spv: c.spv,
+    bm: c.bm,
+    rm: c.rm,
     username: c.username,
     statusKaryawan: c.statusKaryawan,
     tglResign: c.tglResign,
@@ -6779,7 +6835,7 @@ async function handleLmsImportUpload(e){
     const skippedNote = (unmatchedName || unmatchedModule) ? ` (${unmatchedName} nama tidak cocok, ${unmatchedModule} training tidak dikenali)` : '';
     const resignNote = savedResignCount ? `, ${savedResignCount} kandidat ditandai Resign` : '';
     const usernameNote = savedUsernameCount ? `, ${savedUsernameCount} username terupdate` : '';
-    const profileNote = savedProfileCount ? `, ${savedProfileCount} kandidat dibenerin data Departemen/Designation/Tgl Join` : '';
+    const profileNote = savedProfileCount ? `, ${savedProfileCount} kandidat dibenerin data Departemen/Designation/Tgl Join/Lokasi/SPV/BM/RM` : '';
     const nameFixNote = savedNameFixCount ? `, ${savedNameFixCount} nama dibenerin ikut ejaan LMS` : '';
     const fuzzyNote = fuzzyCount ? `, ${fuzzyCount} nama auto-dicocokin (mirip/typo)` : '';
     const reviewNote = reviewCount ? `, ⚠️ ${reviewCount} nama mirip perlu dicek manual` : '';
@@ -6817,7 +6873,7 @@ function openBatchDeptModal(dept, date, wk, group){
         <div class="dept-mini-row">
           <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
           <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
-          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span>
+          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>
         </div>
         <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}<button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">${renderOnboardingStatusBadge(c)}</button></div>
       </div>`;
