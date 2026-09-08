@@ -4620,6 +4620,27 @@ async function updateCandidate(id, fields){
   }
 }
 
+// Kirim BANYAK update kandidat sekaligus dalam 1 request (dipakai buat import massal
+// kayak Import E-Training), biar gak 1 request per kandidat -- 195 kandidat = 195 round-trip
+// network + 195x backend baca-ulang seluruh Sheet kalau pakai updateCandidate() satu-satu.
+// updates: array of { id, ...fields }
+async function batchUpdateCandidates(updates){
+  if(!updates || updates.length === 0) return { success:true, updated:0, notFound:[] };
+  try{
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'batchUpdate', updates })
+    });
+    const json = await res.json();
+    if(!json.success) throw new Error(json.error || 'unknown error');
+    return json;
+  }catch(err){
+    showToast('Gagal menyimpan batch: ' + err.message, true);
+    return { success:false, updated:0, notFound:[] };
+  }
+}
+
 async function onDelete(e){
   const id = e.currentTarget.dataset.id;
   if(!confirm('Hapus kandidat ini dari list bersama?')) return;
@@ -5880,6 +5901,10 @@ async function verifyEvidenceWithAI(c, opts = {}){
 // 3) Kalau cocok, checklist modul itu di-set done:true + tanggal dari kolom "Tgl. Training".
 //    Modul yg gak punya lmsAliases (mis. Compben, Orientasi Lingkungan Kerja, modul PIC: OD, dan
 //    Praktek Lapangan) gak pernah disentuh dari sini, tetap harus dicentang manual seperti biasa.
+// 3b) Data Departemen/Designation/Tgl Join dari LMS dianggap sumber kebenaran -- kalau beda
+//     sama yg diinput PIC Recruitment pas awal (kadang typo/beda format), langsung dibenerin
+//     ikut data LMS. Ini jalan independen dari status Lulus/Tidak Lulus/Resign, asal namanya
+//     cocok ke 1 kandidat & kolom LMS-nya keisi.
 // 4) Semua kandidat yg berubah langsung disimpen ke Sheets, lalu tampil ringkasan hasilnya.
 
 function normalizeLmsText(s){
@@ -5907,7 +5932,13 @@ function findLmsHeaderRow(rows){
       const iNilai = norm.findIndex(v => v === 'posttest' || v === 'post test');
       // Kolom tanggal resign karyawan, header di export LMS-nya "Resignation"
       const iResign = norm.findIndex(v => v.startsWith('resignation'));
-      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign };
+      // Kolom Departemen/Designation/Tgl Join dari LMS -- dipakai buat auto-perbaiki data
+      // yang diinput PIC Recruitment kalau beda sama data resmi di LMS/E-Training.
+      // Header di export LMS-nya persis "Departement" (ejaan Inggris, bukan "Departemen").
+      const iDept = norm.findIndex(v => v === 'departement' || v === 'department');
+      const iDesignation = norm.findIndex(v => v === 'designation');
+      const iJoin = norm.findIndex(v => v === 'join date' || (v.startsWith('join') && v.includes('date')));
+      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign, iDept, iDesignation, iJoin };
     }
   }
   return null;
@@ -5946,10 +5977,270 @@ function findModuleByLmsTraining(modules, trainingName){
   return null;
 }
 
-function findCandidateByLmsName(namaLms){
-  const norm = normalizeLmsText(namaLms);
-  if(!norm) return null;
-  return candidates.find(c => normalizeLmsText(c.nama) === norm) || null;
+// Jarak edit (Levenshtein) antara 2 string -- dipakai buat toleransi typo tipis pas
+// cocokin nama dari file LMS ke nama kandidat di Sheet (misal kurang/lebih 1 huruf,
+// tertukar huruf), tanpa harus sama persis karakter-per-karakter.
+function levenshteinDistance(a, b){
+  if(a === b) return 0;
+  const al = a.length, bl = b.length;
+  if(al === 0) return bl;
+  if(bl === 0) return al;
+  let prev = new Array(bl + 1);
+  let curr = new Array(bl + 1);
+  for(let j = 0; j <= bl; j++) prev[j] = j;
+  for(let i = 1; i <= al; i++){
+    curr[0] = i;
+    const ca = a.charCodeAt(i - 1);
+    for(let j = 1; j <= bl; j++){
+      const cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,       // hapus 1 huruf
+        curr[j - 1] + 1,   // tambah 1 huruf
+        prev[j - 1] + cost // ganti 1 huruf (0 kalau sama)
+      );
+    }
+    const tmp = prev; prev = curr; curr = tmp;
+  }
+  return prev[bl];
+}
+
+// Cari kandidat berdasarkan nama dari file LMS/E-Training.
+// 1) Exact match (setelah normalisasi) selalu jadi prioritas & gak pernah dilaporkan --
+//    ini jalur normal buat mayoritas baris.
+// 2) Kalau gak ada exact match, coba fuzzy match pakai jarak Levenshtein. Nama yang cuma
+//    beda 1-2 huruf ketikan (mis. "Muhammad Faisal" vs "Muhamad Faisal") TETAP
+//    auto-dicocokin, TAPI hanya kalau (a) bedanya tipis banget relatif ke panjang nama,
+//    dan (b) gak ambigu -- kandidat kedua-terdekat harus jelas lebih jauh, biar gak
+//    ke-tuker sama orang lain yang namanya kebetulan mirip.
+// 3) Kalau mirip tapi gak cukup yakin buat auto-match (atau ambigu), JANGAN dicocokin --
+//    tapi dicatat ke reportLog.review biar PIC bisa cek manual, bukan ke-skip diem-diem
+//    kayak sebelumnya.
+//
+// reportLog (opsional): { fuzzy: Map, review: Map }, dipakai kumpulin detail pencocokan
+// selama 1 kali proses import biar bisa ditampilin ke user di akhir (bukan cuma angka).
+function resolveCandidateByLmsName(namaLms, reportLog){
+  const inputNorm = normalizeLmsText(namaLms);
+  if(!inputNorm) return null;
+
+  const exact = candidates.find(c => normalizeLmsText(c.nama) === inputNorm);
+  if(exact) return exact;
+
+  let best = null, bestDist = Infinity, secondBestDist = Infinity;
+  const nearMatches = []; // kandidat yang "cukup mirip" buat dicatat di laporan
+
+  candidates.forEach(c => {
+    const cNorm = normalizeLmsText(c.nama);
+    if(!cNorm) return;
+    const dist = levenshteinDistance(inputNorm, cNorm);
+    const maxLen = Math.max(inputNorm.length, cNorm.length);
+    const ratio = maxLen ? dist / maxLen : 1;
+    if(dist <= 4 || ratio <= 0.35){
+      nearMatches.push({ id: c._id, nama: c.nama, dist });
+    }
+    if(dist < bestDist){
+      secondBestDist = bestDist;
+      bestDist = dist;
+      best = c;
+    } else if(dist < secondBestDist){
+      secondBestDist = dist;
+    }
+  });
+
+  if(!best) return null;
+
+  const bestNorm = normalizeLmsText(best.nama);
+  const maxLen = Math.max(inputNorm.length, bestNorm.length);
+  // Auto-match cuma kalau bedanya tipis banget (1 huruf di nama >=8 karakter, atau 2 huruf
+  // di nama yang lebih panjang lagi >=14 karakter) DAN gak ambigu (kandidat kedua-terdekat
+  // jaraknya jelas lebih jauh dari yang terbaik).
+  const isCloseEnough = (bestDist <= 1 && maxLen >= 8) || (bestDist === 2 && maxLen >= 14);
+  const isUnambiguous = secondBestDist - bestDist >= 2;
+
+  nearMatches.sort((a, b) => a.dist - b.dist);
+
+  if(isCloseEnough && isUnambiguous){
+    if(reportLog && !reportLog.fuzzy.has(inputNorm)){
+      reportLog.fuzzy.set(inputNorm, { input: String(namaLms).trim(), matched: best.nama, distance: bestDist, c: best });
+    }
+    return best;
+  }
+
+  if(reportLog && nearMatches.length && !reportLog.review.has(inputNorm)){
+    reportLog.review.set(inputNorm, { input: String(namaLms).trim(), candidates: nearMatches.slice(0, 3) });
+  }
+  return null;
+}
+
+// Tampilin detail hasil pencocokan nama fuzzy (auto-match & yang perlu direview manual)
+// dari import E-Training terakhir, pakai modal generik chartModal yang udah ada.
+// Bagian "perlu dicek manual" dikasih checkbox + dropdown pilih kandidat per baris, biar
+// PIC bisa milih beberapa nama sekaligus terus submit 1x (submitLmsReviewMatches) --
+// gak perlu upload ulang file & gak perlu edit satu-satu manual di tabel kandidat.
+let lastLmsImportReport = null;
+function showLmsImportReport(){
+  if(!lastLmsImportReport) return;
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
+  modalTitleEl.textContent = '🔍 Detail Pencocokan Nama — Import E-Training';
+
+  let html = '';
+
+  if(lastLmsImportReport.fuzzy.length){
+    html += `<div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">✅ Auto-dicocokin & nama dibenerin (mirip/typo tipis)</span>
+        <span class="week-count">${lastLmsImportReport.fuzzy.length} nama</span>
+      </div>
+      <div style="padding:4px 2px;font-size:13px;line-height:1.9;">
+        ${lastLmsImportReport.fuzzy.map(f => `<div>📄 <b>${escapeHtml(f.matched)}</b> → dibenerin jadi <b>${escapeHtml(f.input)}</b> <span style="opacity:.6;">(beda ${f.distance} huruf, sesuai ejaan LMS)</span></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  if(lastLmsImportReport.review.length){
+    const rows = lastLmsImportReport.review.map(r => {
+      const suggestedIds = new Set(r.candidates.map(cc => cc.id));
+      const suggestedOptions = r.candidates
+        .map(cc => `<option value="${escapeAttr(cc.id)}">${escapeHtml(cc.nama)} (beda ${cc.dist} huruf)</option>`)
+        .join('');
+      const otherOptions = candidates
+        .filter(c => !suggestedIds.has(c._id))
+        .slice().sort((a,b) => (a.nama||'').localeCompare(b.nama||''))
+        .map(c => `<option value="${escapeAttr(c._id)}">${escapeHtml(c.nama)}</option>`)
+        .join('');
+      const defaultVal = r.candidates.length ? escapeAttr(r.candidates[0].id) : '';
+      return `<div class="lms-review-row" style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid rgba(0,0,0,.06);flex-wrap:wrap;">
+        <input type="checkbox" class="lms-review-check" data-review-id="${r.id}" style="flex:0 0 auto;width:16px;height:16px;">
+        <span style="flex:1 1 220px;min-width:160px;">📄 <b>${escapeHtml(r.input)}</b></span>
+        <span style="opacity:.6;">→</span>
+        <select class="lms-review-select" data-review-id="${r.id}" style="flex:1 1 220px;min-width:180px;padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.15);">
+          <option value="">-- jangan cocokin --</option>
+          <optgroup label="Kandidat mirip (disarankan)">${suggestedOptions}</optgroup>
+          <optgroup label="Kandidat lainnya">${otherOptions}</optgroup>
+        </select>
+      </div>`;
+    }).join('');
+
+    html += `<div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">⚠️ Mirip tapi TIDAK di-auto-cocokin — cek manual</span>
+        <span class="week-count">${lastLmsImportReport.review.length} nama</span>
+      </div>
+      <div style="padding:6px 2px 2px;font-size:13px;">
+        <label style="display:flex;align-items:center;gap:8px;padding:2px 2px 8px;cursor:pointer;">
+          <input type="checkbox" id="lmsReviewCheckAll" onchange="toggleAllLmsReviewChecks(this.checked)" style="width:16px;height:16px;">
+          <span>Pilih semua</span>
+        </label>
+        <div id="lmsReviewRows">${rows}</div>
+        <div style="display:flex;align-items:center;gap:10px;padding-top:10px;">
+          <button type="button" onclick="submitLmsReviewMatches()" style="padding:8px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font:inherit;font-weight:600;cursor:pointer;">✅ Submit Pencocokan</button>
+          <span id="lmsReviewSubmitStatus" style="font-size:13px;opacity:.75;"></span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  modalBodyEl.innerHTML = html;
+  document.getElementById('chartModalOverlay').classList.add('show');
+}
+
+// Toggle semua checkbox baris "cek manual" sekaligus lewat checkbox "Pilih semua" di atasnya.
+function toggleAllLmsReviewChecks(checked){
+  document.querySelectorAll('.lms-review-check').forEach(cb => { cb.checked = checked; });
+}
+
+// Kirim & simpen hasil pencocokan manual yang dipilih user lewat modal "cek manual" --
+// dipanggil dari tombol "✅ Submit Pencocokan". Alurnya:
+// 1) Kumpulin baris review yang checkbox-nya dicentang DAN kandidatnya udah dipilih.
+// 2) Buat tiap baris terpilih, ambil lagi baris mentah file LMS yang namanya cocok
+//    (dari lastLmsImportContext.rowsByNorm, tersimpen sejak upload terakhir) lalu proses
+//    ULANG lewat processLmsRow() -- sama persis kayak alur import biasa (checklist,
+//    resign, username, profil), plus nama kandidat dibenerin ikut ejaan LMS.
+// 3) Simpen semuanya sekali kirim (commitLmsChanges), lalu tutup baris yang udah diproses
+//    dari daftar review supaya gak ke-submit dobel kalau user buka modalnya lagi.
+async function submitLmsReviewMatches(){
+  const statusEl = document.getElementById('lmsReviewSubmitStatus');
+  if(!lastLmsImportReport || !lastLmsImportReport.review.length) return;
+  if(!lastLmsImportContext){
+    if(statusEl) statusEl.textContent = '⚠️ Data import sebelumnya udah gak ada di memori, upload ulang file-nya.';
+    return;
+  }
+
+  const checked = Array.from(document.querySelectorAll('.lms-review-check:checked'));
+  if(!checked.length){
+    if(statusEl) statusEl.textContent = 'Belum ada yang dicentang.';
+    return;
+  }
+
+  const selections = []; // { reviewItem, candidateId }
+  let skippedNoCandidate = 0;
+  checked.forEach(cb => {
+    const rid = Number(cb.getAttribute('data-review-id'));
+    const reviewItem = lastLmsImportReport.review.find(r => r.id === rid);
+    if(!reviewItem) return;
+    const select = document.querySelector(`.lms-review-select[data-review-id="${rid}"]`);
+    const candidateId = select ? select.value : '';
+    if(!candidateId){ skippedNoCandidate++; return; }
+    selections.push({ reviewItem, candidateId });
+  });
+
+  if(!selections.length){
+    if(statusEl) statusEl.textContent = skippedNoCandidate
+      ? `⚠️ ${skippedNoCandidate} baris dicentang tapi belum dipilih kandidatnya.`
+      : 'Belum ada yang dicentang.';
+    return;
+  }
+
+  if(statusEl) statusEl.textContent = `⏳ Menyimpan ${selections.length} pencocokan...`;
+
+  const { header, rowsByNorm } = lastLmsImportContext;
+  const maps = {
+    changedCandidates: new Map(),
+    changedResign: new Map(),
+    changedUsername: new Map(),
+    changedProfile: new Map()
+  };
+  const counters = { matchedRows:0, unmatchedName:0, unmatchedModule:0, notLulus:0 };
+  const changedName = new Map();
+  const processedReviewIds = [];
+
+  selections.forEach(({ reviewItem, candidateId }) => {
+    const c = candidates.find(cand => cand._id === candidateId);
+    if(!c) return;
+    const rows = rowsByNorm.get(reviewItem.norm) || [];
+    rows.forEach(row => processLmsRow(row, header, c, maps, counters));
+    if(reviewItem.input && reviewItem.input !== c.nama && !changedName.has(c._id)){
+      changedName.set(c._id, { c, nama: reviewItem.input });
+    }
+    processedReviewIds.push(reviewItem.id);
+  });
+
+  const result = await commitLmsChanges(maps, changedName);
+
+  // Baris review yang udah diproses (dicentang & tersimpen) dibuang dari daftar, sisanya
+  // (yang gak dicentang / gak dipilih kandidatnya) tetap muncul kalau modal dibuka lagi.
+  const processedSet = new Set(processedReviewIds);
+  lastLmsImportReport.review = lastLmsImportReport.review.filter(r => !processedSet.has(r.id));
+
+  const skipNote = skippedNoCandidate ? `, ${skippedNoCandidate} dilewatin (belum dipilih kandidatnya)` : '';
+  showToast(`Pencocokan manual selesai: ${processedReviewIds.length} nama diproses → ${result.savedCount} kandidat terupdate (${counters.matchedRows} baris training cocok)${skipNote}`);
+
+  // Refresh modal: kalau masih ada sisa yang perlu dicek, tampilin lagi; kalau udah abis, tutup.
+  if(lastLmsImportReport.review.length || lastLmsImportReport.fuzzy.length){
+    showLmsImportReport();
+  } else {
+    document.getElementById('chartModalOverlay').classList.remove('show');
+    lastLmsImportReport = null;
+  }
+  // Update tombol "🔍 lihat detail (N)" di status import kalau elemennya masih ada
+  const detailBtnEl = document.querySelector('.lms-import-detail-btn');
+  if(detailBtnEl){
+    const remaining = (lastLmsImportReport ? lastLmsImportReport.fuzzy.length + lastLmsImportReport.review.length : 0);
+    if(remaining) detailBtnEl.textContent = `🔍 lihat detail (${remaining})`;
+    else detailBtnEl.remove();
+  }
 }
 
 // Semua karyawan default Active, kecuali terupdate jadi Resign lewat Import E-Training
@@ -6123,6 +6414,149 @@ if(tableRefreshBtnEl){
   });
 }
 
+// Proses 1 baris LMS terhadap 1 kandidat yang udah ke-resolve (`c`). Fungsi global (bukan
+// nested) karena dipakai ULANG oleh 2 alur: import awal (handleLmsImportUpload) DAN
+// "Submit Pencocokan Manual" (submitLmsReviewMatches) buat baris-baris yang tadinya masuk
+// laporan "perlu dicek manual" tapi kandidatnya baru dipilih user lewat modal.
+// maps: { changedCandidates, changedResign, changedUsername, changedProfile } (Map per id kandidat)
+// counters: { matchedRows, unmatchedName, unmatchedModule, notLulus }
+function processLmsRow(row, header, c, maps, counters){
+  // Tangkap Username dari file export duluan, independen dari status Lulus/Tidak Lulus
+  // ataupun Resign -- asal namanya cocok ke salah satu kandidat di list. Kolom ini
+  // TIDAK bisa diisi manual, cuma keupdate lewat upload exported e-training ini.
+  if(header.iUser > -1 && c){
+    const usernameRaw = String(row[header.iUser] == null ? '' : row[header.iUser]).trim();
+    if(usernameRaw && usernameRaw !== (c.username || '') && !maps.changedUsername.has(c._id)){
+      maps.changedUsername.set(c._id, { c, username: usernameRaw });
+    }
+  }
+
+  // Departemen/Designation/Tgl Join dari LMS dianggap sumber kebenaran -- override kalau
+  // beda dari data PIC Recruitment. Independen dari status Lulus/Tidak Lulus & Resign juga,
+  // biar tetap kebenerin walau baris trainingnya "Tidak Lulus" atau kandidatnya udah Resign.
+  if(c){
+    const profileFields = {};
+    if(header.iDept > -1){
+      const deptRaw = String(row[header.iDept] == null ? '' : row[header.iDept]).trim();
+      if(deptRaw && deptRaw !== (c.departemen || '')) profileFields.departemen = deptRaw;
+    }
+    if(header.iDesignation > -1){
+      const desigRaw = String(row[header.iDesignation] == null ? '' : row[header.iDesignation]).trim();
+      if(desigRaw && desigRaw !== (c.designation || '')) profileFields.designation = desigRaw;
+    }
+    if(header.iJoin > -1){
+      const joinRaw = row[header.iJoin];
+      const joinRawStr = String(joinRaw == null ? '' : joinRaw).trim();
+      if(joinRawStr){
+        const joinIso = lmsCellToISODate(joinRaw);
+        if(joinIso && joinIso !== String(c.tglJoin || '').slice(0,10)) profileFields.tglJoin = joinIso;
+      }
+    }
+    if(Object.keys(profileFields).length && !maps.changedProfile.has(c._id)){
+      maps.changedProfile.set(c._id, { c, ...profileFields });
+    }
+  }
+
+  // Cek status karyawan (Resign) duluan, independen dari status Lulus/Tidak Lulus training
+  // -- ini bukan soal kelulusan modul, jadi jangan ikut ke-skip sama filter "Lulus" di bawah.
+  if(header.iResign > -1 && c){
+    const resignRaw = row[header.iResign];
+    const resignStr = String(resignRaw == null ? '' : resignRaw).trim();
+    // Kosong atau "-" = masih Active (tetap default), ada tanggal = Resign
+    if(resignStr && resignStr !== '-' && !maps.changedResign.has(c._id)){
+      maps.changedResign.set(c._id, { c, tglResign: lmsCellToISODate(resignRaw) });
+    }
+  }
+
+  const status = String(row[header.iStatus] || '').trim();
+  if(!/lulus/i.test(status)){ counters.notLulus++; return; }
+
+  if(!c){ counters.unmatchedName++; return; }
+
+  const trainingName = row[header.iTraining];
+  const mod = findModuleByLmsTraining(getOnboardingModules(c), trainingName);
+  if(!mod){ counters.unmatchedModule++; return; }
+
+  const tanggal = header.iTgl > -1 ? lmsCellToISODate(row[header.iTgl]) : todayISO();
+  const nilaiRaw = header.iNilai > -1 ? row[header.iNilai] : '';
+  const nilai = (nilaiRaw !== '' && nilaiRaw !== null && nilaiRaw !== undefined && !isNaN(Number(nilaiRaw)))
+    ? Number(nilaiRaw) : null;
+  const entry = maps.changedCandidates.get(c._id) || { c, checklist: { ...(c.onboardingChecklist || {}) } };
+  // Kalau modul ini udah pernah dicentang manual dg tanggal lebih lama, tetap update
+  // ke tanggal training dari LMS (dianggap sumber kebenaran buat modul yg auto-checked).
+  entry.checklist[mod.id] = { done:true, tanggal, nilai };
+  maps.changedCandidates.set(c._id, entry);
+  counters.matchedRows++;
+}
+
+// Simpen konteks import terakhir (header kolom & baris mentah per nama ternormalisasi)
+// biar alur "Submit Pencocokan Manual" bisa proses ulang baris² yang tadinya "perlu dicek
+// manual" begitu user pilih kandidatnya lewat modal -- tanpa perlu upload ulang file-nya.
+let lastLmsImportContext = null; // { header, rowsByNorm }
+
+// Gabungin & simpen semua perubahan (checklist, resign, username, nama, profil) per id
+// kandidat jadi SATU objek payload per kandidat, lalu kirim SEMUANYA dalam 1 request
+// batchUpdate -- baik dari alur import awal maupun alur "Submit Pencocokan Manual".
+// maps: { changedCandidates, changedResign, changedUsername, changedProfile }
+// changedName: Map id -> { c, nama } -- nama dibenerin ikut ejaan LMS (auto-fuzzy ATAU
+// hasil pencocokan manual yang baru dikonfirmasi user)
+async function commitLmsChanges(maps, changedName){
+  const mergedUpdates = new Map(); // id -> { c, fields }
+  let savedResignCount = 0, savedUsernameCount = 0, savedProfileCount = 0, savedNameFixCount = 0;
+
+  function mergeInto(id, c, fields){
+    const entry = mergedUpdates.get(id) || { c, fields: {} };
+    Object.assign(entry.fields, fields);
+    mergedUpdates.set(id, entry);
+  }
+
+  for(const { c, checklist } of maps.changedCandidates.values()){
+    c.onboardingChecklist = checklist;
+    // Kalau modul "Be A Great Employee" ikut kecentang dari file LMS ini: kehadiran
+    // kandidatnya otomatis diset "Hadir", modul "Penjelasan Comben & Personalia" ikut
+    // dicentang, dan Status Aktivasi otomatis jadi "Sudah" (sama kayak toggle checklist manual).
+    const autoResult = autoMarkHadirFromChecklist(c, checklist);
+    const fields = { onboardingChecklist: JSON.stringify(checklist) };
+    if(autoResult.kehadiran){ fields.kehadiran = 'Hadir'; c.kehadiran = 'Hadir'; }
+    if(autoResult.aktivasi){
+      fields.statusAktivasi = 'Sudah';
+      fields.tglAktivasi = c.tglAktivasi;
+      c.statusAktivasi = 'Sudah';
+    }
+    mergeInto(c._id, c, fields);
+  }
+  for(const { c, tglResign } of maps.changedResign.values()){
+    c.statusKaryawan = 'Resign';
+    c.tglResign = tglResign;
+    mergeInto(c._id, c, { statusKaryawan: 'Resign', tglResign });
+    savedResignCount++;
+  }
+  for(const { c, username } of maps.changedUsername.values()){
+    c.username = username;
+    mergeInto(c._id, c, { username });
+    savedUsernameCount++;
+  }
+  for(const { c, ...profileFields } of maps.changedProfile.values()){
+    Object.assign(c, profileFields);
+    mergeInto(c._id, c, profileFields);
+    savedProfileCount++;
+  }
+  for(const { c, nama } of changedName.values()){
+    c.nama = nama;
+    mergeInto(c._id, c, { nama });
+    savedNameFixCount++;
+  }
+
+  const batchUpdates = Array.from(mergedUpdates.entries()).map(([id, entry]) => ({ id, ...entry.fields }));
+  const batchResult = batchUpdates.length ? await batchUpdateCandidates(batchUpdates) : { updated: 0 };
+  const savedCount = batchResult.updated || 0;
+
+  renderTable();
+  renderStats();
+
+  return { savedCount, savedResignCount, savedUsernameCount, savedProfileCount, savedNameFixCount };
+}
+
 async function handleLmsImportUpload(e){
   const file = e.currentTarget.files && e.currentTarget.files[0];
   lmsImportInputEl.value = '';
@@ -6148,106 +6582,106 @@ async function handleLmsImportUpload(e){
     const changedCandidates = new Map(); // id -> { c, checklist }
     const changedResign = new Map(); // id -> { c, tglResign } -- kandidat yang kedetek Resign dari kolom "Resignation"
     const changedUsername = new Map(); // id -> { c, username } -- kolom "Username" dari file export, ditempel ke kandidat yang namanya cocok
-    let matchedRows = 0, unmatchedName = 0, unmatchedModule = 0, notLulus = 0;
+    const changedProfile = new Map(); // id -> { c, departemen?, designation?, tglJoin? } -- data LMS dianggap
+                                       // sumber kebenaran, override input PIC Recruitment kalau beda
+
+    // Laporan pencocokan nama: fuzzy = nama beda tipis (typo) yang tetap auto-dicocokin;
+    // review = nama mirip tapi TERLALU beresiko buat auto-dicocokin, jadi cuma dicatat
+    // biar PIC cek manual lewat tombol "Lihat detail" (bukan ke-skip diem-diem).
+    const importMatchLog = { fuzzy: new Map(), review: new Map() };
+    const nameResolveCache = new Map(); // nama ternormalisasi -> kandidat (atau null),
+                                         // biar nama yg sama gak dihitung ulang jarak
+                                         // editnya tiap baris (1 kandidat bisa muncul di
+                                         // puluhan baris training berbeda).
+    function resolveCached(namaLms){
+      const norm = normalizeLmsText(namaLms);
+      if(!norm) return null;
+      if(nameResolveCache.has(norm)) return nameResolveCache.get(norm);
+      const result = resolveCandidateByLmsName(namaLms, importMatchLog);
+      nameResolveCache.set(norm, result);
+      return result;
+    }
+
+    // Proses 1 baris LMS terhadap 1 kandidat yang udah ke-resolve (`c`). Fungsinya ada di
+    // scope global (lihat processLmsRow di bawah) karena dipakai ULANG oleh alur "Submit
+    // Pencocokan Manual" (submitLmsReviewMatches) buat baris-baris yang tadinya masuk
+    // laporan "perlu dicek manual" tapi kandidatnya baru dipilih user lewat modal.
+
+    const maps = { changedCandidates, changedResign, changedUsername, changedProfile };
+    const counters = { matchedRows:0, unmatchedName:0, unmatchedModule:0, notLulus:0 };
+    // norm nama -> baris mentah, disimpen biar kalau nanti user manual-cocokin lewat modal
+    // "cek manual", baris-baris ini bisa diproses ULANG (checklist/resign/username/profil)
+    // tanpa harus upload ulang file-nya.
+    const rowsByNorm = new Map();
 
     dataRows.forEach(row => {
-      // Tangkap Username dari file export duluan, independen dari status Lulus/Tidak Lulus
-      // ataupun Resign -- asal namanya cocok ke salah satu kandidat di list. Kolom ini
-      // TIDAK bisa diisi manual, cuma keupdate lewat upload exported e-training ini.
-      if(header.iUser > -1){
-        const namaForUserMatch = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
-        const cUser = findCandidateByLmsName(namaForUserMatch);
-        if(cUser){
-          const usernameRaw = String(row[header.iUser] == null ? '' : row[header.iUser]).trim();
-          if(usernameRaw && usernameRaw !== (cUser.username || '') && !changedUsername.has(cUser._id)){
-            changedUsername.set(cUser._id, { c: cUser, username: usernameRaw });
-          }
-        }
+      // Nama dipakai buat cocokin Username, Resign, maupun Training/Status -- ketiganya
+      // ambil dari kolom yang sama persis, jadi cukup di-resolve SEKALI per baris.
+      const namaKey = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
+      const norm = normalizeLmsText(namaKey);
+      if(norm){
+        if(!rowsByNorm.has(norm)) rowsByNorm.set(norm, []);
+        rowsByNorm.get(norm).push(row);
       }
-
-      // Cek status karyawan (Resign) duluan, independen dari status Lulus/Tidak Lulus training
-      // -- ini bukan soal kelulusan modul, jadi jangan ikut ke-skip sama filter "Lulus" di bawah.
-      if(header.iResign > -1){
-        const namaLmsResign = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
-        const cResign = findCandidateByLmsName(namaLmsResign);
-        if(cResign){
-          const resignRaw = row[header.iResign];
-          const resignStr = String(resignRaw == null ? '' : resignRaw).trim();
-          // Kosong atau "-" = masih Active (tetap default), ada tanggal = Resign
-          if(resignStr && resignStr !== '-' && !changedResign.has(cResign._id)){
-            changedResign.set(cResign._id, { c: cResign, tglResign: lmsCellToISODate(resignRaw) });
-          }
-        }
-      }
-
-      const status = String(row[header.iStatus] || '').trim();
-      if(!/lulus/i.test(status)){ notLulus++; return; }
-
-      const namaLms = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
-      const c = findCandidateByLmsName(namaLms);
-      if(!c){ unmatchedName++; return; }
-
-      const trainingName = row[header.iTraining];
-      const mod = findModuleByLmsTraining(getOnboardingModules(c), trainingName);
-      if(!mod){ unmatchedModule++; return; }
-
-      const tanggal = header.iTgl > -1 ? lmsCellToISODate(row[header.iTgl]) : todayISO();
-      const nilaiRaw = header.iNilai > -1 ? row[header.iNilai] : '';
-      const nilai = (nilaiRaw !== '' && nilaiRaw !== null && nilaiRaw !== undefined && !isNaN(Number(nilaiRaw)))
-        ? Number(nilaiRaw) : null;
-      const entry = changedCandidates.get(c._id) || { c, checklist: { ...(c.onboardingChecklist || {}) } };
-      // Kalau modul ini udah pernah dicentang manual dg tanggal lebih lama, tetap update
-      // ke tanggal training dari LMS (dianggap sumber kebenaran buat modul yg auto-checked).
-      entry.checklist[mod.id] = { done:true, tanggal, nilai };
-      changedCandidates.set(c._id, entry);
-      matchedRows++;
+      const c = resolveCached(namaKey);
+      processLmsRow(row, header, c, maps, counters);
     });
 
-    if(changedCandidates.size === 0 && changedResign.size === 0 && changedUsername.size === 0){
+    let { matchedRows, unmatchedName, unmatchedModule } = counters;
+
+    // Nama yang auto-dicocokin (fuzzy, typo tipis) langsung dibenerin ikut ejaan di LMS --
+    // dianggap sumber kebenaran, karena udah lolos syarat "gak ambigu & beda tipis banget".
+    const changedName = new Map(); // id -> { c, nama }
+    for(const f of importMatchLog.fuzzy.values()){
+      if(f.input && f.input !== f.c.nama && !changedName.has(f.c._id)){
+        changedName.set(f.c._id, { c: f.c, nama: f.input });
+      }
+    }
+
+    // Simpen semua yang dibutuhin buat proses "Submit Pencocokan Manual" nanti (lihat
+    // submitLmsReviewMatches) -- header kolom & baris mentah per nama, biar begitu user
+    // pilih kandidatnya lewat modal, baris-barisnya bisa langsung diproses tanpa upload ulang.
+    lastLmsImportContext = { header, rowsByNorm };
+
+
+    if(changedCandidates.size === 0 && changedResign.size === 0 && changedUsername.size === 0 && changedProfile.size === 0 && changedName.size === 0){
       lmsImportStatusEl.textContent = '';
-      showToast('Tidak ada ceklis, username, atau status resign yang cocok buat diupdate dari file ini', true);
+      showToast('Tidak ada ceklis, username, status resign, atau data profil yang cocok buat diupdate dari file ini', true);
       return;
     }
 
-    lmsImportStatusEl.textContent = `⏳ Menyimpan ${changedCandidates.size + changedResign.size + changedUsername.size} kandidat...`;
-    let savedCount = 0;
-    for(const { c, checklist } of changedCandidates.values()){
-      c.onboardingChecklist = checklist;
-      // Kalau modul "Be A Great Employee" ikut kecentang dari file LMS ini: kehadiran
-      // kandidatnya otomatis diset "Hadir", modul "Penjelasan Comben & Personalia" ikut
-      // dicentang, dan Status Aktivasi otomatis jadi "Sudah" (sama kayak toggle checklist manual).
-      const autoResult = autoMarkHadirFromChecklist(c, checklist);
-      const payload = { onboardingChecklist: JSON.stringify(checklist) };
-      if(autoResult.kehadiran) payload.kehadiran = 'Hadir';
-      if(autoResult.aktivasi){
-        payload.statusAktivasi = 'Sudah';
-        payload.tglAktivasi = c.tglAktivasi;
-      }
-      const ok = await updateCandidate(c._id, payload);
-      if(ok) savedCount++;
-    }
-    let savedResignCount = 0;
-    for(const { c, tglResign } of changedResign.values()){
-      c.statusKaryawan = 'Resign';
-      c.tglResign = tglResign;
-      const ok = await updateCandidate(c._id, { statusKaryawan: 'Resign', tglResign });
-      if(ok) savedResignCount++;
-    }
-    let savedUsernameCount = 0;
-    for(const { c, username } of changedUsername.values()){
-      c.username = username;
-      const ok = await updateCandidate(c._id, { username });
-      if(ok) savedUsernameCount++;
-    }
+    lmsImportStatusEl.textContent = `⏳ Menyimpan ${new Set([...changedCandidates.keys(), ...changedResign.keys(), ...changedUsername.keys(), ...changedProfile.keys(), ...changedName.keys()]).size} kandidat...`;
 
-    renderTable();
-    renderStats();
+    const saveResult = await commitLmsChanges(maps, changedName);
+    const savedCount = saveResult.savedCount;
+    const { savedResignCount, savedUsernameCount, savedProfileCount, savedNameFixCount } = saveResult;
 
-    lmsImportStatusEl.textContent = `✅ ${savedCount + savedResignCount + savedUsernameCount} kandidat terupdate`;
+    const fuzzyCount = importMatchLog.fuzzy.size;
+    const reviewCount = importMatchLog.review.size;
+    lastLmsImportReport = (fuzzyCount || reviewCount)
+      ? {
+          fuzzy: Array.from(importMatchLog.fuzzy.values()),
+          // Tiap item review dikasih `id` unik + `norm` (kunci ternormalisasi) buat dipakai
+          // modal "cek manual": checkbox + dropdown pilih kandidat, terus tombol Submit
+          // manggil submitLmsReviewMatches() yang proses ulang baris² terkait pakai
+          // lastLmsImportContext (header + rowsByNorm) tanpa upload ulang file.
+          review: Array.from(importMatchLog.review.entries()).map(([norm, r], idx) => ({ id: idx, norm, ...r }))
+        }
+      : null;
+
+    const detailBtn = lastLmsImportReport
+      ? ` <button type="button" class="lms-import-detail-btn" onclick="showLmsImportReport()" style="border:none;background:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;padding:0;">🔍 lihat detail (${fuzzyCount + reviewCount})</button>`
+      : '';
+    lmsImportStatusEl.innerHTML = `✅ ${savedCount} kandidat terupdate${detailBtn}`;
+
     const skippedNote = (unmatchedName || unmatchedModule) ? ` (${unmatchedName} nama tidak cocok, ${unmatchedModule} training tidak dikenali)` : '';
     const resignNote = savedResignCount ? `, ${savedResignCount} kandidat ditandai Resign` : '';
     const usernameNote = savedUsernameCount ? `, ${savedUsernameCount} username terupdate` : '';
-    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${skippedNote}`);
+    const profileNote = savedProfileCount ? `, ${savedProfileCount} kandidat dibenerin data Departemen/Designation/Tgl Join` : '';
+    const nameFixNote = savedNameFixCount ? `, ${savedNameFixCount} nama dibenerin ikut ejaan LMS` : '';
+    const fuzzyNote = fuzzyCount ? `, ${fuzzyCount} nama auto-dicocokin (mirip/typo)` : '';
+    const reviewNote = reviewCount ? `, ⚠️ ${reviewCount} nama mirip perlu dicek manual` : '';
+    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${profileNote}${nameFixNote}${fuzzyNote}${reviewNote}${skippedNote}`);
   }catch(err){
     lmsImportStatusEl.textContent = '';
     showToast('Gagal membaca file E-Training: ' + err.message, true);
