@@ -4435,7 +4435,7 @@ function buildExcelGolonganSheet(list, track){
   const rows = [
     ['DETAIL PROGRESS JOURNEY INDUCTION PER PESERTA'],
     [
-      'No', 'Nama', 'PIC', 'Departemen', 'Designation', 'Status Induction', 'Progress Modul',
+      'No', 'Nama', 'PIC', 'Departemen', 'Designation', 'Lokasi', 'SPV', 'BM', 'RM', 'Status Induction', 'Progress Modul',
       ...track.modules.map(m => m.label)
     ]
   ];
@@ -4452,6 +4452,10 @@ function buildExcelGolonganSheet(list, track){
       c.pic || '',
       c.departemen || '',
       c.designation || '',
+      c.lokasi || '',
+      c.spv || '',
+      c.bm || '',
+      c.rm || '',
       dummyOnboardingStatus(c),
       progressLabel,
       ...track.modules.map(m => {
