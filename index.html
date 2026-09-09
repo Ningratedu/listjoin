@@ -2044,7 +2044,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 // Google Sheet. Pastikan backend Apps Script kamu sudah diupdate untuk
 // menangani action ini (lihat contoh kode yang diberikan terpisah).
 
-let candidates = []; // {id, pic, nama, noHp, departemen, designation, atasan, tglJoin, tglOnboarding}
+let candidates = []; // {id, pic, nama, noHp, departemen, designation, atasan, tglJoin, tglOnboarding, posisi}
 
 const picNameEl = document.getElementById('picName');
 const namaEl = document.getElementById('nama');
@@ -2642,6 +2642,7 @@ function mapCandidateRows(rawRows){
     bm: row.bm || '',
     rm: row.rm || '',
     lokasi: row.lokasi || '',
+    posisi: row.posisi || '',
     tglJoin: row.tglJoin,
     tglOnboarding: row.tglOnboarding,
     statusAktivasi: row.statusAktivasi,
@@ -3568,7 +3569,7 @@ onboardingFilterEl.addEventListener('change', () => {
   renderPreview();
 });
 
-let tableSearchQuery = ''; // teks pencarian bebas di tabel detail kandidat (nama, PIC, departemen, designation, atasan, no HP, lokasi, SPV, BM, RM)
+let tableSearchQuery = ''; // teks pencarian bebas di tabel detail kandidat (nama, PIC, departemen, designation, atasan, no HP, lokasi, SPV, BM, RM, posisi)
 
 // ---- Search box tabel detail kandidat ----
 const tableSearchInputEl = document.getElementById('tableSearchInput');
@@ -3899,6 +3900,9 @@ const TABLE_COLUMNS = [
   { key:'rm', label:'RM', sortable:true, filterable:true,
     sortValue: c => (c.rm||'').toLowerCase(),
     filterValue: c => c.rm || '', filterLabel: v => v || '(Kosong)' },
+  { key:'posisi', label:'Posisi', sortable:true, filterable:true,
+    sortValue: c => (c.posisi||'').toLowerCase(),
+    filterValue: c => c.posisi || '', filterLabel: v => v || '(Kosong)' },
   { key:'tglJoin', label:'Tgl Join', sortable:true, filterable:true,
     sortValue: c => c.tglJoin || '',
     filterValue: c => c.tglJoin || '', filterLabel: v => v ? fmtShortID(v) : '(Kosong)',
@@ -4131,7 +4135,7 @@ function getTableCandidates(){
   const q = tableSearchQuery.trim().toLowerCase();
   if(q){
     list = list.filter(c => {
-      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp, c.lokasi, c.spv, c.bm, c.rm]
+      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp, c.lokasi, c.spv, c.bm, c.rm, c.posisi]
         .filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(q);
     });
@@ -4241,6 +4245,7 @@ function renderCandRow(c, rowNumber){
       <td class="wrap" title="SPV otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.spv||'-')}</td>
       <td class="wrap" title="BM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.bm||'-')}</td>
       <td class="wrap" title="RM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.rm||'-')}</td>
+      <td class="wrap" title="Posisi otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.posisi||'-')}</td>
       <td>${c.tglJoin ? escapeHtml(fmtShortID(c.tglJoin)) : '-'}</td>
       <td>${c.tglOnboarding ? escapeHtml(fmtShortID(c.tglOnboarding)) : '-'}</td>
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
@@ -4377,7 +4382,7 @@ function buildExcelDetailSheet(list){
 
   rows.push([
     'No', 'Nama', 'PIC', 'Kehadiran', 'Aksi', 'Status Induction',
-    'Atasan', 'Designation', 'Departemen', 'Lokasi', 'SPV', 'BM', 'RM', 'Tgl Join', 'Tgl Induction',
+    'Atasan', 'Designation', 'Departemen', 'Lokasi', 'SPV', 'BM', 'RM', 'Posisi', 'Tgl Join', 'Tgl Induction',
     'Minggu Ke-', 'Aktivasi', 'No HP'
   ]);
 
@@ -4399,6 +4404,7 @@ function buildExcelDetailSheet(list){
       c.spv || '',
       c.bm || '',
       c.rm || '',
+      c.posisi || '',
       c.tglJoin ? fmtShortID(c.tglJoin) : '',
       c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '',
       c.tglOnboarding ? 'Minggu ke-' + onboardingWeekNumber(c.tglOnboarding) : '',
@@ -4435,7 +4441,7 @@ function buildExcelGolonganSheet(list, track){
   const rows = [
     ['DETAIL PROGRESS JOURNEY INDUCTION PER PESERTA'],
     [
-      'No', 'Nama', 'PIC', 'Departemen', 'Designation', 'Lokasi', 'SPV', 'BM', 'RM', 'Status Induction', 'Progress Modul',
+      'No', 'Nama', 'PIC', 'Departemen', 'Designation', 'Lokasi', 'SPV', 'BM', 'RM', 'Posisi', 'Status Induction', 'Progress Modul',
       ...track.modules.map(m => m.label)
     ]
   ];
@@ -4456,6 +4462,7 @@ function buildExcelGolonganSheet(list, track){
       c.spv || '',
       c.bm || '',
       c.rm || '',
+      c.posisi || '',
       dummyOnboardingStatus(c),
       progressLabel,
       ...track.modules.map(m => {
@@ -5979,7 +5986,11 @@ function findLmsHeaderRow(rows){
       const iSpv = norm.findIndex(v => v === 'spv');
       const iBm = norm.findIndex(v => v === 'bm');
       const iRm = norm.findIndex(v => v === 'rm');
-      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign, iDept, iDesignation, iJoin, iLokasi, iSpv, iBm, iRm };
+      // Kolom Posisi dari export LMS -- beda dari "Designation", kolom sendiri.
+      // Sama kayak Lokasi/SPV/BM/RM: gak ada di form input manual PIC Recruitment,
+      // cuma keisi/keupdate lewat upload exported e-training ini.
+      const iPosisi = norm.findIndex(v => v === 'posisi' || v === 'position');
+      return { headerIdx:i, iNama, iUser, iTraining, iStatus, iTgl, iNilai, iResign, iDept, iDesignation, iJoin, iLokasi, iSpv, iBm, iRm, iPosisi };
     }
   }
   return null;
@@ -6221,6 +6232,7 @@ async function cancelLmsFuzzyMatch(id){
     spv: s.spv,
     bm: s.bm,
     rm: s.rm,
+    posisi: s.posisi,
     username: s.username,
     statusKaryawan: s.statusKaryawan,
     tglResign: s.tglResign,
@@ -6580,6 +6592,10 @@ function processLmsRow(row, header, c, maps, counters){
       const rmRaw = String(row[header.iRm] == null ? '' : row[header.iRm]).trim();
       if(rmRaw && rmRaw !== (c.rm || '')) profileFields.rm = rmRaw;
     }
+    if(header.iPosisi > -1){
+      const posisiRaw = String(row[header.iPosisi] == null ? '' : row[header.iPosisi]).trim();
+      if(posisiRaw && posisiRaw !== (c.posisi || '')) profileFields.posisi = posisiRaw;
+    }
     if(Object.keys(profileFields).length && !maps.changedProfile.has(c._id)){
       maps.changedProfile.set(c._id, { c, ...profileFields });
     }
@@ -6635,6 +6651,7 @@ function snapshotLmsCandidateFields(c){
     spv: c.spv,
     bm: c.bm,
     rm: c.rm,
+    posisi: c.posisi,
     username: c.username,
     statusKaryawan: c.statusKaryawan,
     tglResign: c.tglResign,
