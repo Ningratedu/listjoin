@@ -2241,7 +2241,12 @@ function isInductionAfterSelectedMonth(c){
 }
 
 // Daftar opsi bulan buat filter global: gabungan bulan berjalan (selalu ada,
-// biar default konsisten) + semua bulan yang muncul dari tglJoin/tglOnboarding kandidat.
+// biar default konsisten) + semua bulan yang muncul dari tglOnboarding kandidat.
+// Sengaja PATOKANNYA tglOnboarding doang (bukan tglJoin), soalnya semua section
+// & kartu statistik di filter global ini nyaringnya berdasarkan tglOnboarding
+// (lihat isCurrentMonth/isInductionAfterSelectedMonth) -- kalau ikut tglJoin juga,
+// bisa muncul opsi bulan yang keliatan tapi datanya kosong pas dipilih (misal
+// kandidat join Juni tapi Induction-nya baru Juli, opsi "Juni" jadi kosong).
 function getGlobalMonthOptions(){
   const map = new Map();
   const addKey = (y, m) => {
@@ -2251,11 +2256,10 @@ function getGlobalMonthOptions(){
   const now = new Date();
   addKey(now.getFullYear(), now.getMonth());
   candidates.forEach(c => {
-    [c.tglJoin, c.tglOnboarding].forEach(dateStr => {
-      if(!dateStr) return;
-      const d = new Date(String(dateStr).slice(0,10) + 'T00:00:00');
-      if(!isNaN(d)) addKey(d.getFullYear(), d.getMonth());
-    });
+    const dateStr = c.tglOnboarding;
+    if(!dateStr) return;
+    const d = new Date(String(dateStr).slice(0,10) + 'T00:00:00');
+    if(!isNaN(d)) addKey(d.getFullYear(), d.getMonth());
   });
   return Array.from(map.values()).sort((a,b) => a.year - b.year || a.month - b.month);
 }
@@ -3467,11 +3471,15 @@ editModalSaveBtn.addEventListener('click', async () => {
   }
 
   // Kalau PIC baru saja set status jadi "Sudah" (sebelumnya belum "Sudah"), catat
-  // tanggal aktivasi hari ini. Kalau tanggal itu sama dengan tanggal onboarding,
-  // berarti aktivasi dilakukan tepat di hari onboarding -> tampilkan keterangan khusus.
+  // tanggal aktivasi = tanggal Join kandidat (bukan tanggal sistem hari PIC nyimpen
+  // perubahan ini), biar konsisten sama tglAktivasi yang di-generate otomatis dari
+  // upload e-training (lihat autoMarkHadirFromChecklist()) dan sama-sama dipakai
+  // getAktivasiTiming() buat nentuin warna badge status aktivasi. Kalau tanggal itu
+  // sama dengan tanggal onboarding, berarti aktivasi dilakukan tepat di hari
+  // onboarding -> tampilkan keterangan khusus.
   const wasSudah = editingCandOriginal && editingCandOriginal.statusAktivasi === 'Sudah';
   if(fields.statusAktivasi === 'Sudah' && !wasSudah){
-    fields.tglAktivasi = todayISO();
+    fields.tglAktivasi = fields.tglJoin || todayISO();
   }else if(fields.statusAktivasi !== 'Sudah'){
     fields.tglAktivasi = '';
   }
@@ -3745,7 +3753,10 @@ function autoMarkHadirFromChecklist(c, checklist){
 
   if(c.statusAktivasi !== 'Sudah'){
     c.statusAktivasi = 'Sudah';
-    if(!c.tglAktivasi) c.tglAktivasi = todayISO();
+    // tglAktivasi disamakan dengan tanggal Join kandidat (bukan tanggal sistem hari
+    // upload e-training dilakukan), biar mencerminkan kapan kandidat beneran join &
+    // konsisten dipakai getAktivasiTiming() buat warna badge status aktivasi.
+    if(!c.tglAktivasi) c.tglAktivasi = c.tglJoin || todayISO();
     result.aktivasi = true;
   }
 
@@ -7157,11 +7168,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     tglOnboarding: tglOnboardingEl.value,
     statusAktivasi: statusAktivasiEl.value
   };
-  // Kalau pas nambah kandidat baru statusnya langsung diisi "Sudah", catat hari
-  // ini sebagai tglAktivasi -- biar langsung kehitung timing-nya (sebelum/hari-H/
-  // setelah onboarding) tanpa nunggu di-edit ulang.
+  // Kalau pas nambah kandidat baru statusnya langsung diisi "Sudah", tglAktivasi
+  // disamain sama tglJoin (bukan tanggal sistem hari form ini disubmit) -- konsisten
+  // sama alur update lain (edit manual & upload e-training), biar langsung kehitung
+  // timing-nya (sebelum/hari-H/setelah onboarding) tanpa nunggu di-edit ulang.
   if(obj.statusAktivasi === 'Sudah'){
-    obj.tglAktivasi = todayISO();
+    obj.tglAktivasi = obj.tglJoin || todayISO();
   }
 
   try{
