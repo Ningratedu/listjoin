@@ -5997,12 +5997,24 @@ function findLmsHeaderRow(rows){
 }
 
 // Tanggal dari Excel bisa berupa Date object, serial number, atau string -> seragamin ke 'YYYY-MM-DD'
+//
+// PENTING soal jalur `number` di bawah: sejak XLSX.read() di handleLmsImportUpload() gak
+// lagi pakai cellDates:true, cell tanggal SELALU masuk ke sini sbg serial number mentah,
+// dan diproses murni pakai aritmatika hari (XLSX.SSF.parse_date_code) -- gak pernah lewat
+// objek Date/timezone sama sekali, jadi hasilnya imun di timezone apapun.
+//
+// Cabang `instanceof Date` di bawah CUMA fallback buat kasus langka: file .xlsx yang cell
+// tanggalnya kesimpen sbg tipe 'd' mentah (independen dari opsi cellDates). Kalau sampai
+// kesitu, tetap ada risiko mundur 1 hari (khususnya di timezone Asia/Jakarta, karena
+// database timezone historis OS-nya punya offset lama -- Batavia Mean Time, UTC+7:07:12,
+// dipakai sebelum 1932 -- yang bikin objek Date-nya sendiri udah "nyerempet" ke tengah
+// malam duluan sebelum getter apapun dipanggil). Sengaja gak dibikin "aman" karena baik
+// local getters maupun getUTC* sama-sama kebukti masih salah buat kasus ini (Date-nya
+// sendiri yang korup, bukan cara bacanya) -- kalau kasus ini kejadian di praktik,
+// solusinya export ulang file dari sumbernya, bukan nge-patch di sini.
 function lmsCellToISODate(val){
   if(!val && val !== 0) return '';
   if(val instanceof Date && !isNaN(val)){
-    // Pakai local getters (BUKAN toISOString/getUTC*), soalnya SheetJS bikin object
-    // Date ini merepresentasikan tanggal di LOCAL time (mis. tengah malam WIB).
-    // toISOString() convert ke UTC dulu -> WIB (UTC+7) jadi mundur ke hari sebelumnya.
     const y = val.getFullYear();
     const m = String(val.getMonth()+1).padStart(2,'0');
     const d = String(val.getDate()).padStart(2,'0');
@@ -6744,7 +6756,19 @@ async function handleLmsImportUpload(e){
 
   try{
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    // PENTING: JANGAN pakai cellDates:true di sini. SheetJS bikin objek Date buat
+    // cell tanggal lewat konstruksi yang bergantung ke database timezone historis
+    // OS/browser -- dan Asia/Jakarta punya offset lama (Batavia Mean Time, UTC+7:07:12,
+    // dipakai sebelum 1932) yang masih ke-bawa di beberapa environment. Itu bikin hasil
+    // Date-nya "nyerempet" ke tengah malam duluan (~12 detik sebelum jam 00:00), jadi
+    // pas dibaca ulang tanggalnya kebaca mundur 1 hari -- PERSIS pas timezone-nya WIB,
+    // bukan pas timezone-nya beda dari WIB. Sudah dicoba di 5 timezone berbeda: dengan
+    // cellDates:true, Asia/Jakarta salah, London/Auckland/Tokyo juga salah (tapi UTC &
+    // LA kebetulan benar); tanpa cellDates:true, SEMUA timezone benar karena cell tanggal
+    // tetap jadi angka serial mentah dan diproses murni pakai aritmatika lewat
+    // XLSX.SSF.parse_date_code() di lmsCellToISODate() (cabang `typeof val === 'number'`)
+    // -- gak pernah nyentuh objek Date/timezone sama sekali, jadi imun total.
+    const wb = XLSX.read(buf, { type:'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
 
