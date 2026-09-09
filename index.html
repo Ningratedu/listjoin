@@ -5999,7 +5999,15 @@ function findLmsHeaderRow(rows){
 // Tanggal dari Excel bisa berupa Date object, serial number, atau string -> seragamin ke 'YYYY-MM-DD'
 function lmsCellToISODate(val){
   if(!val && val !== 0) return '';
-  if(val instanceof Date && !isNaN(val)) return val.toISOString().slice(0,10);
+  if(val instanceof Date && !isNaN(val)){
+    // Pakai local getters (BUKAN toISOString/getUTC*), soalnya SheetJS bikin object
+    // Date ini merepresentasikan tanggal di LOCAL time (mis. tengah malam WIB).
+    // toISOString() convert ke UTC dulu -> WIB (UTC+7) jadi mundur ke hari sebelumnya.
+    const y = val.getFullYear();
+    const m = String(val.getMonth()+1).padStart(2,'0');
+    const d = String(val.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
   if(typeof val === 'number'){
     const d = XLSX.SSF.parse_date_code(val);
     if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
@@ -6747,7 +6755,60 @@ async function handleLmsImportUpload(e){
       return;
     }
 
-    const dataRows = rows.slice(header.headerIdx + 1).filter(r => r.some(v => String(v).trim() !== ''));
+    const dataRowsRaw = rows.slice(header.headerIdx + 1).filter(r => r.some(v => String(v).trim() !== ''));
+
+    // Filter "1 nama tapi >1 username" -- ini nandain karyawan yang sempat Resign lalu
+    // balik Join lagi (akun e-training-nya baru/beda username). Cuma baris dari akun
+    // dengan Tgl Join TERBARU yang valid diimport; baris dari akun lama (join sebelumnya,
+    // sebelum resign) dibuang total di sini, SEBELUM masuk resolve nama/checklist di bawah,
+    // biar gak numpuk data siklus training yang udah basi ke kandidat yang sekarang aktif.
+    let dataRows = dataRowsRaw;
+    let oldRejoinRowsSkipped = 0, oldRejoinNamesSkipped = 0;
+    if(header.iUser > -1 && header.iJoin > -1){
+      const byName = new Map(); // norm nama -> Map(username -> { rows:[], joinIso:'' })
+      const noUsernameRows = []; // baris tanpa username/nama -- gak bisa dikelompokkan, tetap dipertahankan apa adanya
+      dataRowsRaw.forEach(row => {
+        const namaKey = header.iNama > -1 ? row[header.iNama] : row[header.iUser];
+        const norm = normalizeLmsText(namaKey);
+        const username = String(row[header.iUser] == null ? '' : row[header.iUser]).trim();
+        if(!norm || !username){ noUsernameRows.push(row); return; }
+        if(!byName.has(norm)) byName.set(norm, new Map());
+        const byUser = byName.get(norm);
+        if(!byUser.has(username)) byUser.set(username, { rows:[], joinIso:'' });
+        const entry = byUser.get(username);
+        entry.rows.push(row);
+        if(!entry.joinIso){
+          const joinRawStr = String(row[header.iJoin] == null ? '' : row[header.iJoin]).trim();
+          if(joinRawStr) entry.joinIso = lmsCellToISODate(row[header.iJoin]);
+        }
+      });
+
+      const keptRows = noUsernameRows.slice();
+      byName.forEach(byUser => {
+        if(byUser.size <= 1){
+          byUser.forEach(entry => keptRows.push(...entry.rows));
+          return;
+        }
+        // Nama ini punya >1 username -> cari username dengan Tgl Join paling muda/terbaru
+        let latestUsername = null, latestJoin = '';
+        byUser.forEach((entry, username) => {
+          if(entry.joinIso && entry.joinIso > latestJoin){ latestJoin = entry.joinIso; latestUsername = username; }
+        });
+        if(!latestUsername){
+          // Gak ada satupun username yang kolom Tgl Join-nya keisi -> gak bisa nentuin
+          // mana yang terbaru, jadi amannya tetap dipertahankan semua drpd data ilang diam-diam.
+          byUser.forEach(entry => keptRows.push(...entry.rows));
+          return;
+        }
+        oldRejoinNamesSkipped++;
+        byUser.forEach((entry, username) => {
+          if(username === latestUsername) keptRows.push(...entry.rows);
+          else oldRejoinRowsSkipped += entry.rows.length;
+        });
+      });
+      dataRows = keptRows;
+    }
+
     const changedCandidates = new Map(); // id -> { c, checklist }
     const changedResign = new Map(); // id -> { c, tglResign } -- kandidat yang kedetek Resign dari kolom "Resignation"
     const changedUsername = new Map(); // id -> { c, username } -- kolom "Username" dari file export, ditempel ke kandidat yang namanya cocok
@@ -6860,7 +6921,8 @@ async function handleLmsImportUpload(e){
     const nameFixNote = savedNameFixCount ? `, ${savedNameFixCount} nama dibenerin ikut ejaan LMS` : '';
     const fuzzyNote = fuzzyCount ? `, ${fuzzyCount} nama auto-dicocokin (mirip/typo)` : '';
     const reviewNote = reviewCount ? `, ⚠️ ${reviewCount} nama mirip perlu dicek manual` : '';
-    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${profileNote}${nameFixNote}${fuzzyNote}${reviewNote}${skippedNote}`);
+    const rejoinNote = oldRejoinRowsSkipped ? `, 🔁 ${oldRejoinRowsSkipped} baris data lama diabaikan (${oldRejoinNamesSkipped} nama resign & join ulang)` : '';
+    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${profileNote}${nameFixNote}${fuzzyNote}${reviewNote}${rejoinNote}${skippedNote}`);
   }catch(err){
     lmsImportStatusEl.textContent = '';
     showToast('Gagal membaca file E-Training: ' + err.message, true);
