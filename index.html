@@ -20,8 +20,10 @@
 <script>
 (function(){
   try{
+    // Default tampilan sekarang mode GELAP (bukan lagi ngikutin preferensi sistem OS).
+    // Kalau user pernah manual toggle ke terang/gelap sebelumnya, pilihan itu tetap dihormati.
     var saved = localStorage.getItem('ningrat_theme');
-    var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var theme = saved || 'dark';
     if(theme === 'dark'){ document.documentElement.setAttribute('data-theme', 'dark'); }
   }catch(e){ /* localStorage diblok -> default tema terang */ }
 })();
@@ -81,6 +83,10 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     --scrim:rgba(15,23,32,0.55);
     --radial-1:rgba(23,185,120,0.10);
     --radial-2:rgba(77,107,255,0.10);
+    /* Warna khusus label tab non-aktif -- lebih gelap dari --text-dim biar kontrasnya
+       cukup buat teks kecil di background terang (WCAG AA, bukan cuma "kebaca dikit"). */
+    --tab-inactive:#445059;
+    --tab-active-text:#08694c;
     color-scheme: light;
   }
   html[data-theme="dark"]{
@@ -111,6 +117,8 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     --scrim:rgba(0,0,0,0.65);
     --radial-1:rgba(23,185,120,0.14);
     --radial-2:rgba(77,107,255,0.14);
+    --tab-inactive:#aab8c2;
+    --tab-active-text:var(--accent);
     color-scheme: dark;
   }
   *{box-sizing:border-box;}
@@ -1630,6 +1638,37 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .session-chart-note{font-size:10.5px;color:var(--text-dim);margin-top:8px;}
   @media(max-width:640px){.session-chart-wrap{height:160px;}.session-chart-legend{gap:6px 9px;font-size:9.5px;}}
 
+  /* ==== Tab utama: Info Join & Onboarding vs Statistik Turnover HR ==== */
+  .page-tabs{
+    display:flex;
+    gap:8px;
+    margin:18px 0 4px;
+    border-bottom:1px solid var(--border);
+  }
+  .page-tab-btn{
+    appearance:none;
+    border:none;
+    background:transparent;
+    color:var(--tab-inactive);
+    font-family:inherit;
+    font-size:12.5px;
+    font-weight:700;
+    padding:10px 4px 12px;
+    margin-bottom:-1px;
+    cursor:pointer;
+    border-bottom:2.5px solid transparent;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    transition:color .15s, border-color .15s;
+  }
+  .page-tab-btn:hover{color:var(--text);}
+  .page-tab-btn.active{color:var(--tab-active-text);border-bottom-color:var(--accent);}
+  @media(max-width:640px){
+    .page-tabs{gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .page-tab-btn{font-size:11px;padding:9px 4px 11px;white-space:nowrap;}
+  }
+
 </style>
 </head>
 <body>
@@ -1675,6 +1714,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 
     </div>
   </header>
+
+  <div class="page-tabs" id="pageTabs">
+    <button type="button" class="page-tab-btn active" data-tab="onboarding" id="tabBtnOnboarding">📋 Info Join &amp; Onboarding</button>
+    <button type="button" class="page-tab-btn" data-tab="turnover" id="tabBtnTurnover">📉 Statistik Turnover HR</button>
+  </div>
+
+  <div class="tab-page" data-tab-page="onboarding">
   <div class="global-filter-row">
     <select id="globalMonthFilter" class="global-month-filter field-special"></select>
   </div>
@@ -1858,7 +1904,116 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     <div class="session-chart-wrap"><canvas id="sessionDeptChart"></canvas></div>
     <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> pada bulan yang dipilih.</div>
   </div>
+  </div>
+  <!-- /tab-page onboarding (bagian 1) -->
 
+  <div class="tab-page" data-tab-page="turnover" style="display:none;">
+  <!-- ================= MONITORING & EVALUASI TURNOVER HR ================= -->
+  <div class="list-panel chart-panel" style="margin-top:28px;border-color:var(--danger);">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">📉</span>
+        <div class="chart-heading-text">
+          <span>Monitoring &amp; Evaluasi Turnover HR</span>
+          <span class="chart-sub" id="turnoverAsOf">Dihitung dari file roster Excel bulanan · Jan–Sep 2026</span>
+        </div>
+      </div>
+    </h2>
+    <div class="notice" style="margin:0 0 4px;">
+      📁 Data di bawah dihitung dari <b>Data_karyawan_RSP_aktif.xlsx</b> &amp; <b>Data_Non_Aktif_RSP.xlsx</b> (snapshot roster bulanan), <u>bukan</u> dari data kandidat induction di atas. Kalau ada file roster bulan berikutnya, upload ulang di sini biar chart ke-refresh sendiri tanpa perlu minta bantuan lagi.
+      <div class="upload-row" style="margin-top:8px;flex-wrap:wrap;">
+        <input type="file" id="turnoverAktifInput" accept=".xlsx" style="display:none;">
+        <input type="file" id="turnoverNonAktifInput" accept=".xlsx" style="display:none;">
+        <button type="button" class="upload-btn upload-btn-compact" id="turnoverAktifBtn">📥 Upload Data Aktif Terbaru</button>
+        <button type="button" class="upload-btn upload-btn-compact" id="turnoverNonAktifBtn">📥 Upload Data Non-Aktif Terbaru</button>
+        <button type="button" class="upload-btn upload-btn-compact" id="turnoverResetBtn" title="Balik ke data awal (snapshot Jan-Sep 2026)">↺ Reset ke Data Awal</button>
+        <span class="upload-status" id="turnoverUploadStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row" id="turnoverStatsRow"></div>
+
+  <div class="list-panel chart-panel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">📈</span>
+        <div class="chart-heading-text">
+          <span>Tren Headcount Aktif vs Resign per Bulan</span>
+          <span class="chart-sub" id="turnoverTrendSub">Batang = karyawan aktif · garis merah = jumlah resign</span>
+        </div>
+      </div>
+    </h2>
+    <div style="position:relative;height:320px;">
+      <canvas id="turnoverTrendChart"></canvas>
+    </div>
+  </div>
+
+  <div class="list-panel chart-panel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">🌡️</span>
+        <div class="chart-heading-text">
+          <span>Turnover Rate per Bulan</span>
+          <span class="chart-sub" id="turnoverRateSub">Resign bulan itu ÷ headcount aktif bulan itu × 100%</span>
+        </div>
+      </div>
+    </h2>
+    <div style="position:relative;height:260px;">
+      <canvas id="turnoverRateChart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="list-panel chart-panel">
+      <h2>
+        <div class="chart-heading">
+          <span class="h2-icon">🗂️</span>
+          <div class="chart-heading-text">
+            <span>Distribusi Alasan Resign</span>
+            <span class="chart-sub">Jan–Sep 2026, terbanyak di atas</span>
+          </div>
+        </div>
+      </h2>
+      <div style="position:relative;height:340px;">
+        <canvas id="turnoverReasonChart"></canvas>
+      </div>
+    </div>
+
+    <div class="list-panel chart-panel">
+      <h2>
+        <div class="chart-heading">
+          <span class="h2-icon">🏢</span>
+          <div class="chart-heading-text">
+            <span>Top Departemen Resign</span>
+            <span class="chart-sub">Jumlah resign terbanyak per departemen</span>
+          </div>
+        </div>
+      </h2>
+      <div style="position:relative;height:340px;">
+        <canvas id="turnoverDeptChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="list-panel chart-panel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">⏱️</span>
+        <div class="chart-heading-text">
+          <span>Masa Kerja saat Resign</span>
+          <span class="chart-sub">Proporsi resign di bawah vs di atas 1 bulan kerja</span>
+        </div>
+      </div>
+    </h2>
+    <div style="position:relative;height:260px;max-width:420px;margin:0 auto;">
+      <canvas id="turnoverTenureChart"></canvas>
+    </div>
+  </div>
+  </div>
+  <!-- /tab-page turnover -->
+
+  <div class="tab-page" data-tab-page="onboarding">
   <!-- CARD STATUS ONBOARDING (Total Peserta / Completed / In Progress / Peserta Resign) -- ditaruh
        DI LUAR panel "Detail & Kelola Kandidat", persis di atasnya, biar gak numpang jadi bagian
        dari panel tabel (tapi urutan tampilannya tetap sama kayak sebelumnya). -->
@@ -1895,6 +2050,8 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       </table>
     </div>
   </div>
+  </div>
+  <!-- /tab-page onboarding (bagian 2) -->
 </div>
 
 <!-- POPUP DETAIL GELEMBUNG CHART -->
@@ -7332,6 +7489,41 @@ if(themeToggleBtnEl){
   });
 }
 
+// ==== Tab utama: Info Join & Onboarding vs Statistik Turnover HR ====
+// Dipisah biar chart onboarding & chart turnover gak numpuk di satu layar
+// panjang -- user tinggal klik tab buat ganti tampilan tanpa scroll kebablasan.
+const MAIN_TAB_STORAGE_KEY = 'ningrat_main_tab';
+const pageTabBtnEls = document.querySelectorAll('.page-tab-btn');
+const tabPageEls = document.querySelectorAll('.tab-page');
+
+function switchMainTab(tab, persist){
+  pageTabBtnEls.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  tabPageEls.forEach(page => {
+    page.style.display = (page.dataset.tabPage === tab) ? '' : 'none';
+  });
+  if(persist){
+    try{ localStorage.setItem(MAIN_TAB_STORAGE_KEY, tab); }catch(e){ /* diem-diem aja */ }
+  }
+  // Chart.js ngukur ukuran container pas pertama kali dirender -> kalau waktu itu
+  // tab-nya lagi disembunyiin (display:none), chart-nya kepotong/gepeng. Begitu
+  // tab jadi kelihatan lagi, paksa resize supaya chart nyesuaiin ukuran container asli.
+  setTimeout(() => {
+    if(tab === 'turnover'){
+      if(typeof turnoverCharts !== 'undefined'){
+        Object.values(turnoverCharts).forEach(c => { if(c) c.resize(); });
+      }
+    }else{
+      if(typeof onboardingChart !== 'undefined' && onboardingChart) onboardingChart.resize();
+      if(typeof deptChart !== 'undefined' && deptChart) deptChart.resize();
+      if(typeof sessionDeptChart !== 'undefined' && sessionDeptChart) sessionDeptChart.resize();
+    }
+  }, 30);
+}
+
+pageTabBtnEls.forEach(btn => {
+  btn.addEventListener('click', () => switchMainTab(btn.dataset.tab, true));
+});
+
 // ==== Kuis Budaya Kerja Trusmi Group ====
 // Popup soal situasional (acak 1 dari 30) yang muncul otomatis: (1) pertama kali web ini
 // dibuka di browser tsb, atau (2) setelah user idle (gak ada interaksi sama sekali) selama
@@ -7588,6 +7780,546 @@ function initCultureQuiz(){
 }
 
 
+
+// ============================================================================
+// MONITORING & EVALUASI TURNOVER HR
+// Dihitung dari file roster Excel bulanan (Data_karyawan_RSP_aktif.xlsx &
+// Data_Non_Aktif_RSP.xlsx), independen dari data kandidat induction di atas
+// (yang sumbernya dari Google Sheet tracker). Data awal di-embed langsung
+// dari hasil olah snapshot Jan-Sep 2026, dan bisa di-refresh manual kalau
+// ada file roster bulan baru (upload ulang -> dihitung ulang di browser,
+// gak ngirim apa-apa ke server).
+// ============================================================================
+const DEFAULT_TURNOVER_AGG = {"monthLabels": ["Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026", "Mei 2026", "Jun 2026", "Jul 2026", "Agu 2026", "Sep 2026 (parsial 1-4)"], "headcount": [479, 486, 468, 483, 516, 468, 466, 452, 450], "resignMonthly": [56, 65, 46, 65, 80, 60, 29, 51, 16], "turnoverRate": [11.69, 13.37, 9.83, 13.46, 15.5, 12.82, 6.22, 11.28, 3.56], "reasonBreakdown": [["Tanpa Berita (Mangkir)", 194], ["Tidak Capai Standar Kerja", 84], ["Diputus Kontrak (PHK)", 83], ["Alasan Pribadi", 43], ["Lainnya (wajib isi)", 21], ["Kompensasi/Gaji", 14], ["Kebijakan Perusahaan", 9], ["Diminta User/Atasan", 7], ["Lainnya (Alasan Personal Lainnya)", 7], ["Lingkungan Kerja", 4], ["Fasilitas/Tools Kerja", 2]], "deptResignBreakdown": [["Sales & Marketing", 368], ["Project", 14], ["Digital Marketing", 14], ["Purchasing", 9], ["Pabrikasi", 8], ["Marketing Communication Strategic", 8], ["Project Operations Sampora", 7], ["Business Opr & Adm", 6], ["PDCA", 4], ["Marketing Communication Corporate", 4], ["Operasional Alat Berat", 4], ["Perencana & Surveyor", 3]], "tenureBreakdown": {">1 bulan": 425, "Tidak Diketahui": 34, "<1 bulan": 9}, "deptHeadcountLatest": [["Sales & Marketing", 181], ["Project", 29], ["Project Operations Sampora", 24], ["Business Opr & Adm", 22], ["Digital Marketing", 19], ["Legal", 16], ["Finance & Accounting", 15], ["Perencana & Surveyor", 15], ["Pabrikasi", 13], ["Purchasing", 12], ["Human Resource", 11], ["Marketing Communication Corporate", 11]], "totalResign": 468, "avgTurnoverRate": 10.86, "asOfDate": "2026-09-10", "detail": null};
+
+const MONTH_ALIASES = {
+  'jan':0,'januari':0,
+  'feb':1,'februari':1,
+  'mar':2,'maret':2,
+  'apr':3,'april':3,
+  'mei':4,'may':4,
+  'jun':5,'juni':5,
+  'jul':6,'juli':6,
+  'agu':7,'agt':7,'agustus':7,'aug':7,
+  'sep':8,'sept':8,'september':8,
+  'okt':9,'oktober':9,'oct':9,
+  'nov':10,'november':10,
+  'des':11,'desember':11,'dec':11
+};
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+// Dari nama sheet kayak "Copy of 1-30 Jan 2026" / "Copy of 1-4 September 2026"
+// -> {monthIdx, year, label}. Return null kalau gak ketemu pola bulan+tahun.
+function parseSheetMonthYear(sheetName){
+  const tokens = sheetName.trim().split(/\s+/);
+  let year = null, monthIdx = null;
+  for(let i=0;i<tokens.length;i++){
+    const t = tokens[i].replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+    if(/^(19|20)\d{2}$/.test(t)){ year = parseInt(t,10); continue; }
+    if(MONTH_ALIASES.hasOwnProperty(t)){ monthIdx = MONTH_ALIASES[t]; }
+  }
+  if(year === null || monthIdx === null) return null;
+  return { monthIdx, year, label: MONTH_SHORT[monthIdx] + ' ' + year };
+}
+
+function excelHeaderIndex(headers, ...names){
+  for(const n of names){
+    const idx = headers.findIndex(h => (h||'').toString().trim().toLowerCase() === n.toLowerCase());
+    if(idx !== -1) return idx;
+  }
+  return -1;
+}
+
+// Parse satu workbook (SheetJS) jadi { sheetName: [ {nama, username, departemen, ...} ] }
+function parseRosterWorkbook(wb){
+  const result = {};
+  wb.SheetNames.forEach(sheetName => {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
+    // cari baris header (ada kolom 'No' dan 'Nama Karyawan')
+    let headerRowIdx = -1, headers = [];
+    for(let i=0;i<Math.min(rows.length,8);i++){
+      const r = (rows[i]||[]).map(v => (v||'').toString().trim().toLowerCase());
+      if(r.includes('no') && r.some(v => v.startsWith('nama karyawan'))){
+        headerRowIdx = i; headers = rows[i]; break;
+      }
+    }
+    if(headerRowIdx === -1) return; // sheet gak sesuai format, skip
+    const iNo = excelHeaderIndex(headers,'No');
+    const iNama = excelHeaderIndex(headers,'Nama Karyawan');
+    const iUser = excelHeaderIndex(headers,'Nama Pengguna');
+    const iDept = excelHeaderIndex(headers,'Departemen');
+    const iDesig = excelHeaderIndex(headers,'Designation');
+    const iRM = excelHeaderIndex(headers,'RM');
+    const iBM = excelHeaderIndex(headers,'BM');
+    const iMentor = excelHeaderIndex(headers,'Mentor/SPV','Mentor');
+    const iJoin = excelHeaderIndex(headers,'Tgl Bergabung');
+    const iResign = excelHeaderIndex(headers,'Tgl Resign');
+    const iAlasan = excelHeaderIndex(headers,'Alasan');
+    const iTenure = excelHeaderIndex(headers,'<1 bulan / >1 bulan');
+    const iKontak = excelHeaderIndex(headers,'No Kontak');
+    const out = [];
+    for(let r=headerRowIdx+1; r<rows.length; r++){
+      const row = rows[r];
+      if(!row || row[iNo] === null || row[iNo] === '') continue;
+      out.push({
+        nama: row[iNama] || '',
+        username: (iUser!==-1 ? row[iUser] : '') || row[iNama] || '',
+        departemen: row[iDept] || '',
+        designation: iDesig!==-1 ? (row[iDesig]||'') : '',
+        rm: iRM!==-1 ? row[iRM] : null,
+        bm: iBM!==-1 ? row[iBM] : null,
+        mentor: iMentor!==-1 ? row[iMentor] : null,
+        tglBergabung: iJoin!==-1 ? row[iJoin] : null,
+        tglResign: iResign!==-1 ? row[iResign] : null,
+        alasan: iAlasan!==-1 ? row[iAlasan] : null,
+        tenureBucket: iTenure!==-1 ? row[iTenure] : null,
+        noKontak: iKontak!==-1 ? row[iKontak] : null,
+      });
+    }
+    result[sheetName] = out;
+  });
+  return result;
+}
+
+function normResignReason(a){
+  const raw = (a||'').toString().trim();
+  if(!raw) return 'Tidak Diketahui';
+  const low = raw.toLowerCase();
+  const known = {
+    'tanpa berita':'Tanpa Berita (Mangkir)',
+    'standar kerja':'Tidak Capai Standar Kerja',
+    'diputus kontrak':'Diputus Kontrak (PHK)',
+    'pribadi':'Alasan Pribadi',
+    'compensation':'Kompensasi/Gaji',
+    'perusahaan':'Kebijakan Perusahaan',
+    'user':'Diminta User/Atasan',
+    'lingkungan':'Lingkungan Kerja',
+    'tools':'Fasilitas/Tools Kerja',
+  };
+  if(known[low]) return known[low];
+  if(low.includes('wajib isi')) return 'Lainnya (wajib isi)';
+  return 'Lainnya (Alasan Personal Lainnya)';
+}
+
+// Susun ulang { sheetName: [...] } jadi array kronologis [{monthIdx,year,label,rows}]
+// berdasar nama sheet-nya (skip sheet yang gak match pola bulan/tahun).
+function toChronological(sheetsMap){
+  const arr = [];
+  Object.keys(sheetsMap).forEach(name => {
+    const my = parseSheetMonthYear(name);
+    if(!my) return;
+    arr.push({ ...my, rows: sheetsMap[name] });
+  });
+  arr.sort((a,b) => (a.year - b.year) || (a.monthIdx - b.monthIdx));
+  return arr;
+}
+
+// Hitung agregat turnover dari aktifSheetsMap & nonaktifSheetsMap (masing2
+// hasil parseRosterWorkbook). Logikanya persis sama kayak yang dipakai buat
+// nyiapin data awal DEFAULT_TURNOVER_AGG.
+function computeTurnoverAgg(aktifSheetsMap, nonaktifSheetsMap){
+  const aktifChron = toChronological(aktifSheetsMap);
+  const nonaktifChron = toChronological(nonaktifSheetsMap);
+
+  const monthLabels = aktifChron.map(m => m.label);
+  const headcount = [];
+  const headcountRowsByMonth = [];
+  aktifChron.forEach(m => {
+    const seen = new Set();
+    const rows = [];
+    m.rows.forEach(r => { const u = r.username || r.nama; if(u && !seen.has(u)){ seen.add(u); rows.push(r); } });
+    headcount.push(rows.length);
+    headcountRowsByMonth.push(rows);
+  });
+
+  const resignMonthly = [];
+  const resignRowsByMonth = [];
+  const reasonCounter = {};
+  const reasonRows = {};
+  const deptResignCounter = {};
+  const deptResignRows = {};
+  const tenureCounter = {};
+  const tenureRows = {};
+  nonaktifChron.forEach(m => {
+    const seen = new Set();
+    const rows = [];
+    m.rows.forEach(r => {
+      const u = r.username || r.nama;
+      if(!u || seen.has(u)) return;
+      seen.add(u); rows.push(r);
+    });
+    resignMonthly.push(rows.length);
+    resignRowsByMonth.push(rows);
+    rows.forEach(r => {
+      const reason = normResignReason(r.alasan);
+      reasonCounter[reason] = (reasonCounter[reason]||0)+1;
+      (reasonRows[reason] = reasonRows[reason] || []).push(r);
+      const dept = r.departemen || 'Lainnya';
+      deptResignCounter[dept] = (deptResignCounter[dept]||0)+1;
+      (deptResignRows[dept] = deptResignRows[dept] || []).push(r);
+      const tb = r.tenureBucket || 'Tidak Diketahui';
+      tenureCounter[tb] = (tenureCounter[tb]||0)+1;
+      (tenureRows[tb] = tenureRows[tb] || []).push(r);
+    });
+  });
+
+  const turnoverRate = resignMonthly.map((r,i) => headcount[i] ? Math.round((r/headcount[i])*10000)/100 : 0);
+
+  const deptHeadcountLatest = {};
+  const deptHeadcountLatestRows = {};
+  if(aktifChron.length){
+    aktifChron[aktifChron.length-1].rows.forEach(r => {
+      const d = r.departemen || 'Lainnya';
+      deptHeadcountLatest[d] = (deptHeadcountLatest[d]||0)+1;
+      (deptHeadcountLatestRows[d] = deptHeadcountLatestRows[d] || []).push(r);
+    });
+  }
+
+  const sortEntries = obj => Object.entries(obj).sort((a,b) => b[1]-a[1]);
+
+  const totalResign = resignMonthly.reduce((a,b)=>a+b,0);
+  const avgTurnoverRate = turnoverRate.length ? Math.round((turnoverRate.reduce((a,b)=>a+b,0)/turnoverRate.length)*100)/100 : 0;
+
+  return {
+    monthLabels, headcount, resignMonthly, turnoverRate,
+    reasonBreakdown: sortEntries(reasonCounter),
+    deptResignBreakdown: sortEntries(deptResignCounter).slice(0,12),
+    tenureBreakdown: tenureCounter,
+    deptHeadcountLatest: sortEntries(deptHeadcountLatest).slice(0,12),
+    totalResign, avgTurnoverRate,
+    asOfDate: new Date().toISOString().slice(0,10),
+    // Data per-karyawan buat drill-down waktu chart di-klik. Cuma tersedia kalau agg
+    // ini dihitung dari file Excel yang di-upload user (lihat recomputeTurnoverIfReady) --
+    // snapshot default (DEFAULT_TURNOVER_AGG) sengaja detail:null karena gak ada raw
+    // row-nya, biar gak sok tau/ngarang data karyawan.
+    detail: {
+      headcountRowsByMonth,
+      resignRowsByMonth,
+      reasonRows,
+      deptResignRows,
+      tenureRows,
+      deptHeadcountLatestRows,
+    },
+  };
+}
+
+let turnoverCharts = {};
+let lastAktifWb = null, lastNonAktifWb = null;
+let currentTurnoverAgg = null;
+
+function destroyTurnoverCharts(){
+  Object.values(turnoverCharts).forEach(c => { if(c) c.destroy(); });
+  turnoverCharts = {};
+}
+
+// Normalisasi nilai tanggal dari sheet Excel (bisa Date object kalau kebaca cellDates,
+// bisa juga string) jadi string "yyyy-MM-dd" biar bisa dipakai fmtShortID / fmtID.
+function turnoverDateStr(v){
+  if(!v) return '';
+  if(v instanceof Date){
+    const pad = n => String(n).padStart(2,'0');
+    return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`;
+  }
+  return String(v).slice(0,10);
+}
+
+// Satu kartu karyawan di modal drill-down turnover. Row-nya berasal dari
+// parseRosterWorkbook() (field: nama, username, departemen, designation, rm, bm,
+// mentor, tglBergabung, tglResign, alasan, tenureBucket, noKontak).
+function renderTurnoverRowCard(r){
+  const nama = r.nama || r.username || '(nama belum diisi)';
+  const roleParts = [r.departemen, r.designation].filter(Boolean).join(' · ');
+  const join = turnoverDateStr(r.tglBergabung);
+  const resign = turnoverDateStr(r.tglResign);
+  const alasan = r.alasan ? normResignReason(r.alasan) : '';
+  const kontak = (r.noKontak || '').toString().replace(/[^0-9]/g,'');
+  const waHref = kontak ? `https://wa.me/${kontak.startsWith('0') ? '62'+kontak.slice(1) : kontak}` : '';
+  return `
+    <div class="cand-card dept-mini-card">
+      <div class="dept-mini-name-row">
+        <div class="dept-mini-name">${escapeHtml(nama)}</div>
+        ${waHref ? `<a class="wa-remind-btn" href="${escapeAttr(waHref)}" target="_blank" rel="noopener" title="Chat WhatsApp"><svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg></a>` : ''}
+      </div>
+      <div class="dept-mini-role">${escapeHtml(roleParts || '-')}</div>
+      <div class="dept-mini-row">
+        ${join ? `<span class="meta-item">📥 <b>Join</b> ${escapeHtml(fmtShortID(join))}</span>` : ''}
+        ${resign ? `<span class="meta-item">📤 <b>Resign</b> ${escapeHtml(fmtShortID(resign))}</span>` : ''}
+        ${alasan ? `<span class="meta-item">📝 <b>Alasan</b> ${escapeHtml(alasan)}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+// Modal drill-down generik buat semua chart turnover. Kalau `rows` null (data lagi
+// pakai snapshot default yang gak punya raw per-karyawan), tampilin catatan yang jujur
+// alih-alih ngarang daftar nama.
+function openTurnoverDetailModal(title, subtitleText, rows, aggregateLabel){
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  modalTitleEl.textContent = title;
+  if(modalSubtitleEl){
+    modalSubtitleEl.style.display = subtitleText ? 'block' : 'none';
+    modalSubtitleEl.textContent = subtitleText || '';
+  }
+  if(rows === null){
+    modalBodyEl.innerHTML = `
+      <div class="week-group">
+        <div class="week-header">
+          <span class="week-pill">📊 ${escapeHtml(aggregateLabel || '')}</span>
+        </div>
+        <div class="cand-card dept-mini-card">
+          <div class="dept-mini-role">Ini data snapshot awal (Jan\u2013Sep 2026), jadi daftar nama per-karyawan belum tersimpan di sini. Upload ulang file Excel Data Aktif &amp; Non-Aktif (tombol di atas chart) buat lihat detail per-karyawan pas chart di-klik.</div>
+        </div>
+      </div>`;
+  }else if(rows.length === 0){
+    modalBodyEl.innerHTML = `
+      <div class="week-group">
+        <div class="week-header"><span class="week-pill">📊 ${escapeHtml(aggregateLabel || '')}</span></div>
+        <div class="cand-card dept-mini-card"><div class="dept-mini-role">Gak ada data karyawan buat kategori ini.</div></div>
+      </div>`;
+  }else{
+    modalBodyEl.innerHTML = `
+      <div class="week-group">
+        <div class="week-header">
+          <span class="week-pill">📊 ${escapeHtml(aggregateLabel || '')}</span>
+          <span class="week-count">${rows.length} karyawan</span>
+        </div>
+        ${rows.map(renderTurnoverRowCard).join('')}
+      </div>`;
+  }
+  document.getElementById('chartModalOverlay').classList.add('show');
+}
+
+function renderTurnoverStats(agg){
+  const topReason = agg.reasonBreakdown[0] || ['-',0];
+  const topDept = agg.deptResignBreakdown[0] || ['-',0];
+  const tiles = [
+    { icon:'🔴', iconBg:'rgba(224,87,74,0.12)', iconColor:'var(--danger)', title: agg.totalResign + ' Resign', sub:'Total resign Jan\u2013Sep 2026' },
+    { icon:'🌡️', iconBg:'rgba(201,134,28,0.12)', iconColor:'var(--warn)', title: agg.avgTurnoverRate + '%', sub:'Rata-rata turnover rate/bulan' },
+    { icon:'🗂️', iconBg:'rgba(77,107,255,0.12)', iconColor:'var(--blue)', title: topReason[0], sub: topReason[1] + ' kasus \u2014 alasan resign terbanyak' },
+    { icon:'🏢', iconBg:'rgba(139,92,246,0.12)', iconColor:'var(--purple)', title: topDept[0], sub: topDept[1] + ' resign \u2014 departemen tertinggi' },
+  ];
+  const el = document.getElementById('turnoverStatsRow');
+  el.innerHTML = tiles.map(t => `
+    <div class="stat-tile">
+      <div class="stat-info">
+        <div class="stat-icon" style="background:${t.iconBg};color:${t.iconColor};">${t.icon}</div>
+        <div>
+          <div class="stat-title">${escapeHtml(String(t.title))}</div>
+          <div class="stat-sub">${escapeHtml(t.sub)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTurnoverTrendChart(agg){
+  const ctx = document.getElementById('turnoverTrendChart');
+  turnoverCharts.trend = new Chart(ctx.getContext('2d'), {
+    data: {
+      labels: agg.monthLabels,
+      datasets: [
+        { type:'bar', label:'Karyawan Aktif', data: agg.headcount, backgroundColor: cssVar('--accent')+'55', borderColor: cssVar('--accent'), borderWidth:2, borderRadius:6, yAxisID:'y' },
+        { type:'line', label:'Resign', data: agg.resignMonthly, borderColor: cssVar('--danger'), backgroundColor: cssVar('--danger'), borderWidth:2, tension:0.3, pointRadius:4, pointBackgroundColor: cssVar('--danger'), yAxisID:'y1' },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      onClick:(evt, elements) => {
+        if(!elements.length) return;
+        const el = elements[0];
+        const idx = el.index;
+        const monthLabel = agg.monthLabels[idx];
+        const isResignDataset = el.datasetIndex === 1;
+        const rows = agg.detail ? (isResignDataset ? agg.detail.resignRowsByMonth[idx] : agg.detail.headcountRowsByMonth[idx]) : null;
+        const count = isResignDataset ? agg.resignMonthly[idx] : agg.headcount[idx];
+        openTurnoverDetailModal(
+          isResignDataset ? `🔴 Resign · ${monthLabel}` : `🟢 Karyawan Aktif · ${monthLabel}`,
+          null, rows,
+          `${count} ${isResignDataset ? 'resign' : 'karyawan aktif'} di ${monthLabel}`
+        );
+      },
+      onHover:(evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins:{ legend:{ labels:{ color: cssVar('--text'), font:{size:11} } } },
+      scales: {
+        y: { position:'left', beginAtZero:false, ticks:{color:cssVar('--text-dim')}, grid:{color:cssVar('--border')}, title:{display:true,text:'Karyawan Aktif', color:cssVar('--text-dim')} },
+        y1: { position:'right', beginAtZero:true, ticks:{color:cssVar('--text-dim')}, grid:{display:false}, title:{display:true,text:'Resign', color:cssVar('--text-dim')} },
+        x: { ticks:{color:cssVar('--text-dim')}, grid:{display:false} },
+      }
+    }
+  });
+}
+
+function renderTurnoverRateChart(agg){
+  const ctx = document.getElementById('turnoverRateChart');
+  turnoverCharts.rate = new Chart(ctx.getContext('2d'), {
+    type:'line',
+    data: {
+      labels: agg.monthLabels,
+      datasets: [{
+        label:'Turnover Rate (%)', data: agg.turnoverRate,
+        borderColor: cssVar('--warn'), backgroundColor: cssVar('--warn')+'33',
+        borderWidth:2, tension:0.3, fill:true, pointRadius:4, pointBackgroundColor: cssVar('--warn'),
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      onClick:(evt, elements) => {
+        if(!elements.length) return;
+        const idx = elements[0].index;
+        const monthLabel = agg.monthLabels[idx];
+        const rows = agg.detail ? agg.detail.resignRowsByMonth[idx] : null;
+        openTurnoverDetailModal(`🌡️ Turnover Rate · ${monthLabel}`, null, rows,
+          `${agg.turnoverRate[idx]}% turnover (${agg.resignMonthly[idx]} resign dari ${agg.headcount[idx]} karyawan aktif)`);
+      },
+      onHover:(evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins:{ legend:{ display:false },
+        tooltip:{ callbacks:{ label: c => `Turnover: ${c.parsed.y}%` } } },
+      scales: {
+        y: { beginAtZero:true, ticks:{color:cssVar('--text-dim'), callback:v=>v+'%'}, grid:{color:cssVar('--border')} },
+        x: { ticks:{color:cssVar('--text-dim')}, grid:{display:false} },
+      }
+    }
+  });
+}
+
+const TURNOVER_PALETTE = ['#e0574a','#c9861c','#4d6bff','#8b5cf6','#17b978','#f06292','#4dd0e1','#a1887f','#ffb74d','#b388ff','#00a884','#e05a4e'];
+
+function renderTurnoverReasonChart(agg){
+  const ctx = document.getElementById('turnoverReasonChart');
+  const entries = agg.reasonBreakdown.slice(0,10);
+  turnoverCharts.reason = new Chart(ctx.getContext('2d'), {
+    type:'bar',
+    data: {
+      labels: entries.map(e=>e[0]),
+      datasets: [{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>TURNOVER_PALETTE[i%TURNOVER_PALETTE.length]), borderRadius:6 }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      onClick:(evt, elements) => {
+        if(!elements.length) return;
+        const idx = elements[0].index;
+        const [reason, count] = entries[idx];
+        const rows = agg.detail ? (agg.detail.reasonRows[reason] || []) : null;
+        openTurnoverDetailModal(`🗂️ ${reason}`, null, rows, `${count} kasus \u2014 alasan resign`);
+      },
+      onHover:(evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins:{ legend:{display:false} },
+      scales: {
+        x: { beginAtZero:true, ticks:{color:cssVar('--text-dim')}, grid:{color:cssVar('--border')} },
+        y: { ticks:{color:cssVar('--text'), font:{size:10.5}}, grid:{display:false} },
+      }
+    }
+  });
+}
+
+function renderTurnoverDeptChart(agg){
+  const ctx = document.getElementById('turnoverDeptChart');
+  const entries = agg.deptResignBreakdown.slice(0,10);
+  turnoverCharts.dept = new Chart(ctx.getContext('2d'), {
+    type:'bar',
+    data: {
+      labels: entries.map(e=>e[0]),
+      datasets: [{ data: entries.map(e=>e[1]), backgroundColor: cssVar('--blue')+'99', borderColor: cssVar('--blue'), borderWidth:1.5, borderRadius:6 }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      onClick:(evt, elements) => {
+        if(!elements.length) return;
+        const idx = elements[0].index;
+        const [dept, count] = entries[idx];
+        const rows = agg.detail ? (agg.detail.deptResignRows[dept] || []) : null;
+        openTurnoverDetailModal(`🏢 ${dept}`, null, rows, `${count} resign \u2014 departemen`);
+      },
+      onHover:(evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins:{ legend:{display:false} },
+      scales: {
+        x: { beginAtZero:true, ticks:{color:cssVar('--text-dim')}, grid:{color:cssVar('--border')} },
+        y: { ticks:{color:cssVar('--text'), font:{size:10.5}}, grid:{display:false} },
+      }
+    }
+  });
+}
+
+function renderTurnoverTenureChart(agg){
+  const ctx = document.getElementById('turnoverTenureChart');
+  const order = ['<1 bulan','>1 bulan','Tidak Diketahui'];
+  const labels = order.filter(k => agg.tenureBreakdown[k]);
+  const data = labels.map(k => agg.tenureBreakdown[k]);
+  const colors = { '<1 bulan': cssVar('--danger'), '>1 bulan': cssVar('--accent'), 'Tidak Diketahui': cssVar('--text-dim') };
+  turnoverCharts.tenure = new Chart(ctx.getContext('2d'), {
+    type:'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: labels.map(l=>colors[l]), borderColor: cssVar('--panel'), borderWidth:2 }] },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      onClick:(evt, elements) => {
+        if(!elements.length) return;
+        const idx = elements[0].index;
+        const bucket = labels[idx];
+        const rows = agg.detail ? (agg.detail.tenureRows[bucket] || []) : null;
+        openTurnoverDetailModal(`⏳ Masa Kerja ${bucket}`, null, rows, `${data[idx]} resign \u2014 masa kerja ${bucket}`);
+      },
+      onHover:(evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins:{ legend:{ position:'bottom', labels:{ color: cssVar('--text'), font:{size:11.5} } } }
+    }
+  });
+}
+
+function renderTurnoverAll(agg){
+  currentTurnoverAgg = agg;
+  destroyTurnoverCharts();
+  document.getElementById('turnoverAsOf').textContent = `Data per ${fmtShortID ? fmtShortID(agg.asOfDate) : agg.asOfDate} \u00b7 ${agg.monthLabels[0]}\u2013${agg.monthLabels[agg.monthLabels.length-1]} \u00b7 klik bar/titik/segmen chart buat lihat detail`;
+  renderTurnoverStats(agg);
+  renderTurnoverTrendChart(agg);
+  renderTurnoverRateChart(agg);
+  renderTurnoverReasonChart(agg);
+  renderTurnoverDeptChart(agg);
+  renderTurnoverTenureChart(agg);
+}
+
+function recomputeTurnoverIfReady(){
+  if(!lastAktifWb || !lastNonAktifWb) return;
+  const statusEl = document.getElementById('turnoverUploadStatus');
+  try{
+    const aktifSheets = parseRosterWorkbook(lastAktifWb);
+    const nonAktifSheets = parseRosterWorkbook(lastNonAktifWb);
+    const agg = computeTurnoverAgg(aktifSheets, nonAktifSheets);
+    renderTurnoverAll(agg);
+    statusEl.textContent = '\u2705 Chart ter-update dari file baru.';
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = '\u26a0\ufe0f Gagal baca file: ' + err.message;
+  }
+}
+
+document.getElementById('turnoverAktifBtn').addEventListener('click', () => document.getElementById('turnoverAktifInput').click());
+document.getElementById('turnoverNonAktifBtn').addEventListener('click', () => document.getElementById('turnoverNonAktifInput').click());
+document.getElementById('turnoverAktifInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if(!file) return;
+  document.getElementById('turnoverUploadStatus').textContent = 'Membaca ' + file.name + '...';
+  const buf = await file.arrayBuffer();
+  lastAktifWb = XLSX.read(buf, { type:'array', cellDates:true });
+  recomputeTurnoverIfReady();
+  if(!lastNonAktifWb) document.getElementById('turnoverUploadStatus').textContent = 'Data aktif ke-baca. Upload juga file Non-Aktif buat hitung ulang chart.';
+});
+document.getElementById('turnoverNonAktifInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if(!file) return;
+  document.getElementById('turnoverUploadStatus').textContent = 'Membaca ' + file.name + '...';
+  const buf = await file.arrayBuffer();
+  lastNonAktifWb = XLSX.read(buf, { type:'array', cellDates:true });
+  recomputeTurnoverIfReady();
+  if(!lastAktifWb) document.getElementById('turnoverUploadStatus').textContent = 'Data non-aktif ke-baca. Upload juga file Aktif buat hitung ulang chart.';
+});
+document.getElementById('turnoverResetBtn').addEventListener('click', () => {
+  lastAktifWb = null; lastNonAktifWb = null;
+  renderTurnoverAll(DEFAULT_TURNOVER_AGG);
+  document.getElementById('turnoverUploadStatus').textContent = 'Balik ke data awal (snapshot Jan-Sep 2026).';
+});
+
+renderTurnoverAll(DEFAULT_TURNOVER_AGG);
+
 initHeaderChip();
 populateGlobalMonthFilter();
 initDateOverlays();
@@ -7595,6 +8327,15 @@ setDefaultOnboarding();
 lastOnboardingPic = picNameEl.value.trim();
 loadCandidates();
 initCultureQuiz();
+
+// Balikin ke tab terakhir yang dipilih user di browser ini (default: Info Join & Onboarding).
+// Ditaruh paling akhir biar semua chart (termasuk turnoverCharts) udah pasti kebentuk duluan.
+(function(){
+  let savedTab = 'onboarding';
+  try{ savedTab = localStorage.getItem(MAIN_TAB_STORAGE_KEY) || 'onboarding'; }catch(e){ /* diem-diem aja */ }
+  if(savedTab !== 'turnover') savedTab = 'onboarding';
+  switchMainTab(savedTab, false);
+})();
 </script>
 <datalist id="picOptions">
   <option value="Ade"></option>
