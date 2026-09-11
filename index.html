@@ -1926,7 +1926,6 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
         <input type="file" id="turnoverNonAktifInput" accept=".xlsx" style="display:none;">
         <button type="button" class="upload-btn upload-btn-compact" id="turnoverAktifBtn">📥 Upload Data Aktif Terbaru</button>
         <button type="button" class="upload-btn upload-btn-compact" id="turnoverNonAktifBtn">📥 Upload Data Non-Aktif Terbaru</button>
-        <button type="button" class="upload-btn upload-btn-compact" id="turnoverResetBtn" title="Balik ke data awal (snapshot Jan-Sep 2026)">↺ Reset ke Data Awal</button>
         <span class="upload-status" id="turnoverUploadStatus"></span>
       </div>
     </div>
@@ -2132,6 +2131,11 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
             <input type="date" id="efTglOnboarding">
             <span class="date-overlay is-empty" id="efTglOnboardingOverlay"></span>
           </div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Alasan Resign</label>
+          <input type="text" id="efAlasanResign" placeholder="Diisi otomatis dari sinkronisasi Data Non-Aktif, atau isi manual bila perlu">
         </div>
       </div>
       <div class="edit-modal-actions">
@@ -3255,6 +3259,7 @@ function renderCandMiniCard(c, context){
       <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
       <span class="meta-item">🔴 <b>Resign</b> ${escapeHtml(c.tglResign ? fmtShortID(c.tglResign) : '-')}</span>
       ${diff !== null ? `<span class="meta-item">⏱️ <b>Selisih</b> ${Math.abs(diff)} hari dari induction</span>` : ''}
+      ${c.alasanResign ? `<span class="meta-item">📝 <b>Alasan</b> ${escapeHtml(c.alasanResign)}</span>` : ''}
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
   } else { // 'total' (default)
     metaHtml = `
@@ -3579,6 +3584,7 @@ const efAtasanEl = document.getElementById('efAtasan');
 const efStatusAktivasiEl = document.getElementById('efStatusAktivasi');
 const efTglJoinEl = document.getElementById('efTglJoin');
 const efTglOnboardingEl = document.getElementById('efTglOnboarding');
+const efAlasanResignEl = document.getElementById('efAlasanResign');
 const editModalSaveBtn = document.getElementById('editModalSave');
 
 function openEditModal(c){
@@ -3593,6 +3599,7 @@ function openEditModal(c){
   efStatusAktivasiEl.value = c.statusAktivasi || '';
   setDateInputValue(efTglJoinEl, String(c.tglJoin || '').slice(0,10));
   setDateInputValue(efTglOnboardingEl, String(c.tglOnboarding || '').slice(0,10));
+  efAlasanResignEl.value = c.alasanResign || '';
   editModalSaveBtn.disabled = false;
   editModalSaveBtn.textContent = '💾 Simpan';
   editModalOverlayEl.classList.add('show');
@@ -3620,7 +3627,8 @@ editModalSaveBtn.addEventListener('click', async () => {
     atasan: efAtasanEl.value.trim(),
     tglJoin: efTglJoinEl.value,
     tglOnboarding: efTglOnboardingEl.value,
-    statusAktivasi: efStatusAktivasiEl.value
+    statusAktivasi: efStatusAktivasiEl.value,
+    alasanResign: efAlasanResignEl.value.trim()
   };
   if(!fields.nama || !fields.noHp){
     showToast('Nama & Nomor HP wajib diisi', true);
@@ -3653,6 +3661,7 @@ editModalSaveBtn.addEventListener('click', async () => {
   if(isRejoining){
     fields.statusKaryawan = '';
     fields.tglResign = '';
+    fields.alasanResign = '';
   }
 
   const id = editingCandId;
@@ -4088,7 +4097,14 @@ const TABLE_COLUMNS = [
     filterValue: c => c.statusAktivasi || '', filterLabel: v => v || '(Kosong)' },
   { key:'noHp', label:'No HP', sortable:true, filterable:true,
     sortValue: c => (c.noHp||'').toLowerCase(),
-    filterValue: c => c.noHp || '', filterLabel: v => v || '(Kosong)' }
+    filterValue: c => c.noHp || '', filterLabel: v => v || '(Kosong)' },
+  { key:'tglResign', label:'Tgl Resign', sortable:true, filterable:true,
+    sortValue: c => c.tglResign || '',
+    filterValue: c => c.tglResign || '', filterLabel: v => v ? fmtShortID(v) : '(Masih Aktif)',
+    sortAsDate:true },
+  { key:'alasanResign', label:'Alasan Resign', sortable:true, filterable:true,
+    sortValue: c => (c.alasanResign||'').toLowerCase(),
+    filterValue: c => c.alasanResign || '', filterLabel: v => v || '(Kosong)' }
 ];
 
 const FILTER_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 2.5h13l-5 6v4.2l-3 1.3V8.5l-5-6z" fill="currentColor"/></svg>';
@@ -4303,7 +4319,7 @@ function getTableCandidates(){
   const q = tableSearchQuery.trim().toLowerCase();
   if(q){
     list = list.filter(c => {
-      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp, c.lokasi, c.spv, c.bm, c.rm, c.posisi]
+      const haystack = [c.nama, c.pic, c.departemen, c.designation, c.atasan, c.noHp, c.lokasi, c.spv, c.bm, c.rm, c.posisi, c.alasanResign]
         .filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(q);
     });
@@ -4419,6 +4435,8 @@ function renderCandRow(c, rowNumber){
       <td>${c.tglOnboarding ? `<span class="week-chip">Minggu ke-${onboardingWeekNumber(c.tglOnboarding)}</span>` : '-'}</td>
       <td>${c.statusAktivasi ? `<span class="status-badge ${getAktivasiColClass(c)}" title="${escapeAttr(aktivasiColTooltip(c))}">${escapeHtml(c.statusAktivasi)}</span>` : `<span class="status-badge status-belum-verif">-</span>`}</td>
       <td class="wrap">${escapeHtml(c.noHp||'-')}</td>
+      <td>${c.tglResign ? escapeHtml(fmtShortID(c.tglResign)) : '-'}</td>
+      <td class="wrap">${escapeHtml(c.alasanResign||'-')}</td>
     </tr>`;
 }
 
@@ -6570,7 +6588,8 @@ function getStatusKaryawan(c){
 // lewat toast, konsisten di semua tempat badge ini dipakai.
 function renderResignBadge(c){
   const tglLabel = c.tglResign ? fmtShortID(c.tglResign) : 'tanggal tidak diketahui';
-  const label = escapeAttr('Resign: ' + tglLabel);
+  const alasanLabel = c.alasanResign ? (' \u00b7 ' + c.alasanResign) : '';
+  const label = escapeAttr('Resign: ' + tglLabel + alasanLabel);
   return `<span class="status-badge status-belum status-karyawan-resign" data-resign-label="${label}" onmouseenter="showResignTooltip(event)" onmouseleave="hideResignTooltip()" onclick="toggleResignTooltip(event)">🔴 Resign</span>`;
 }
 
@@ -7904,13 +7923,21 @@ function normResignReason(a){
 
 // Susun ulang { sheetName: [...] } jadi array kronologis [{monthIdx,year,label,rows}]
 // berdasar nama sheet-nya (skip sheet yang gak match pola bulan/tahun).
+// Susun ulang { sheetName: [...] } jadi array kronologis [{monthIdx,year,label,rows}]
+// berdasar nama sheet-nya (skip sheet yang gak match pola bulan/tahun). Kalau ada LEBIH
+// DARI SATU sheet yang jatuh ke bulan+tahun yang sama (misal ada tab "1-15 April 2026"
+// dan "16-30 Apr 2026", atau tab lama ke-duplikat), baris-barisnya DIGABUNG jadi satu
+// entri bulan -- bukan jadi dua bar/titik terpisah di chart walau labelnya sama.
 function toChronological(sheetsMap){
-  const arr = [];
+  const byMonth = {};
   Object.keys(sheetsMap).forEach(name => {
     const my = parseSheetMonthYear(name);
     if(!my) return;
-    arr.push({ ...my, rows: sheetsMap[name] });
+    const key = my.year + '-' + my.monthIdx;
+    if(!byMonth[key]) byMonth[key] = { ...my, rows: [] };
+    byMonth[key].rows = byMonth[key].rows.concat(sheetsMap[name]);
   });
+  const arr = Object.values(byMonth);
   arr.sort((a,b) => (a.year - b.year) || (a.monthIdx - b.monthIdx));
   return arr;
 }
@@ -7918,10 +7945,11 @@ function toChronological(sheetsMap){
 // Hitung agregat turnover dari aktifSheetsMap & nonaktifSheetsMap (masing2
 // hasil parseRosterWorkbook). Logikanya persis sama kayak yang dipakai buat
 // nyiapin data awal DEFAULT_TURNOVER_AGG.
-function computeTurnoverAgg(aktifSheetsMap, nonaktifSheetsMap){
-  const aktifChron = toChronological(aktifSheetsMap);
-  const nonaktifChron = toChronological(nonaktifSheetsMap);
-
+// NOTE: nerima array kronologis [{monthIdx,year,label,rows}] langsung (hasil
+// toChronological() atau groupRawIntoChron()), BUKAN sheetsMap mentah -- biar bisa
+// dipakai bareng baik dari workbook yang baru di-upload maupun dari data yang udah
+// tersimpan permanen di server (lihat initTurnoverFromServer() & recomputeTurnoverIfReady()).
+function computeTurnoverAgg(aktifChron, nonaktifChron){
   const monthLabels = aktifChron.map(m => m.label);
   const headcount = [];
   const headcountRowsByMonth = [];
@@ -7933,6 +7961,13 @@ function computeTurnoverAgg(aktifSheetsMap, nonaktifSheetsMap){
     headcountRowsByMonth.push(rows);
   });
 
+  // Cocokin bulan Non-Aktif ke bulan Aktif berdasarkan (year, monthIdx), BUKAN posisi
+  // array -- soalnya kalau jumlah/urutan bulan di file Aktif & Non-Aktif beda (misal salah
+  // satu punya bulan yang gak ada di file lain), matching per-index bakal bikin data bulan
+  // ketuker (angka resign bulan Maret ke-pasang ke bar bulan Februari, dst).
+  const nonaktifByKey = {};
+  nonaktifChron.forEach(m => { nonaktifByKey[m.year + '-' + m.monthIdx] = m; });
+
   const resignMonthly = [];
   const resignRowsByMonth = [];
   const reasonCounter = {};
@@ -7941,10 +7976,11 @@ function computeTurnoverAgg(aktifSheetsMap, nonaktifSheetsMap){
   const deptResignRows = {};
   const tenureCounter = {};
   const tenureRows = {};
-  nonaktifChron.forEach(m => {
+  aktifChron.forEach(am => {
+    const m = nonaktifByKey[am.year + '-' + am.monthIdx];
     const seen = new Set();
     const rows = [];
-    m.rows.forEach(r => {
+    (m ? m.rows : []).forEach(r => {
       const u = r.username || r.nama;
       if(!u || seen.has(u)) return;
       seen.add(u); rows.push(r);
@@ -8005,8 +8041,96 @@ function computeTurnoverAgg(aktifSheetsMap, nonaktifSheetsMap){
 }
 
 let turnoverCharts = {};
-let lastAktifWb = null, lastNonAktifWb = null;
+// Chron = array [{monthIdx,year,label,rows}], hasil toChronological() (dari file baru
+// di-upload) atau groupRawIntoChron() (dari data yang udah tersimpan permanen di server).
+let lastAktifChron = null, lastNonAktifChron = null;
 let currentTurnoverAgg = null;
+
+// Susun ulang array flat hasil GET turnoverGetRaw (per baris ada monthLabel/monthIdx/year)
+// balik jadi struktur kronologis [{monthIdx,year,label,rows}] yang dipahami computeTurnoverAgg().
+// PENTING: dikelompokkan berdasarkan (year, monthIdx) -- BUKAN teks monthLabel -- soalnya
+// baris lama yang ke-save sebelum format label diseragamkan bisa punya teks label yang beda
+// (mis. "Januari 2026" vs "Jan 2026") padahal bulan & tahunnya sama persis. Kalau dikelompokkan
+// pakai teks label, dua varian itu jadi keitung dua bulan/dua bar terpisah di chart (bug "double
+// batang Januari"). Label yang dipakai buat ditampilkan selalu diseragamkan ulang ke format
+// pendek (MONTH_SHORT + tahun) biar konsisten apa pun teks label yang tersimpan di baris asalnya.
+function groupRawIntoChron(rows){
+  const byMonth = {};
+  rows.forEach(r => {
+    const monthIdx = Number(r.monthIdx);
+    const year = Number(r.year);
+    if(!Number.isInteger(monthIdx) || monthIdx < 0 || monthIdx > 11 || !year) return;
+    const key = year + '-' + monthIdx;
+    if(!byMonth[key]) byMonth[key] = { monthIdx, year, label: MONTH_SHORT[monthIdx] + ' ' + year, rows: [] };
+    byMonth[key].rows.push(r);
+  });
+  return Object.values(byMonth).sort((a,b) => (a.year - b.year) || (a.monthIdx - b.monthIdx));
+}
+
+// Ratakan struktur kronologis jadi array flat siap dikirim ke backend (action
+// 'turnoverSaveRaw'), tiap baris dikasih tau bulan/tahunnya biar bisa disusun ulang
+// lagi lewat groupRawIntoChron() pas di-load balik.
+function flattenChronForSave(chron){
+  const rows = [];
+  chron.forEach(m => {
+    m.rows.forEach(r => {
+      rows.push({
+        monthLabel: m.label, monthIdx: m.monthIdx, year: m.year,
+        nama: r.nama || '', username: r.username || '', departemen: r.departemen || '',
+        designation: r.designation || '', rm: r.rm || '', bm: r.bm || '', mentor: r.mentor || '',
+        tglBergabung: turnoverDateStr(r.tglBergabung), tglResign: turnoverDateStr(r.tglResign),
+        alasan: r.alasan || '', tenureBucket: r.tenureBucket || '', noKontak: r.noKontak || ''
+      });
+    });
+  });
+  return rows;
+}
+
+// Simpan PERMANEN ke sheet "TurnoverRoster" di backend -- sekali tersimpan, chart &
+// detail drill-down-nya kebaca lagi otomatis pas web ini dibuka lagi, gak perlu upload
+// ulang file Excel-nya tiap kali (lihat initTurnoverFromServer()).
+async function saveTurnoverRaw(source, chron){
+  const rows = flattenChronForSave(chron);
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'turnoverSaveRaw', source: source, rows: rows })
+  });
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || 'Gagal simpan data turnover ke server');
+  return json;
+}
+
+async function fetchTurnoverRawFromServer(){
+  const res = await fetch(API_URL + '?action=turnoverGetRaw');
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || 'Gagal ambil data turnover tersimpan');
+  return Array.isArray(json.rows) ? json.rows : [];
+}
+
+// Sinkronin roster resign (dari upload "Data Non-Aktif") ke sheet Candidates: kandidat
+// yang username/nama-nya ketemu otomatis di-set statusKaryawan="Resign" + tglResign +
+// alasanResign-nya, biar tabel detail kandidat gak perlu diisi manual satu-satu lagi.
+async function syncTurnoverToCandidates(nonAktifChron){
+  const rows = [];
+  nonAktifChron.forEach(m => {
+    m.rows.forEach(r => {
+      const resignDate = turnoverDateStr(r.tglResign);
+      if(!resignDate) return;
+      rows.push({
+        username: r.username || '', nama: r.nama || '',
+        tglResign: resignDate, alasan: r.alasan ? normResignReason(r.alasan) : ''
+      });
+    });
+  });
+  if(rows.length === 0) return { updated: 0, notFound: 0, total: 0 };
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'turnoverSyncCandidates', rows: rows })
+  });
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || 'Gagal sinkronkan status resign ke Candidates');
+  return json;
+}
 
 function destroyTurnoverCharts(){
   Object.values(turnoverCharts).forEach(c => { if(c) c.destroy(); });
@@ -8280,17 +8404,14 @@ function renderTurnoverAll(agg){
 }
 
 function recomputeTurnoverIfReady(){
-  if(!lastAktifWb || !lastNonAktifWb) return;
+  if(!lastAktifChron || !lastNonAktifChron) return;
   const statusEl = document.getElementById('turnoverUploadStatus');
   try{
-    const aktifSheets = parseRosterWorkbook(lastAktifWb);
-    const nonAktifSheets = parseRosterWorkbook(lastNonAktifWb);
-    const agg = computeTurnoverAgg(aktifSheets, nonAktifSheets);
+    const agg = computeTurnoverAgg(lastAktifChron, lastNonAktifChron);
     renderTurnoverAll(agg);
-    statusEl.textContent = '\u2705 Chart ter-update dari file baru.';
   }catch(err){
     console.error(err);
-    statusEl.textContent = '\u26a0\ufe0f Gagal baca file: ' + err.message;
+    statusEl.textContent = '\u26a0\ufe0f Gagal hitung ulang chart: ' + err.message;
   }
 }
 
@@ -8298,27 +8419,86 @@ document.getElementById('turnoverAktifBtn').addEventListener('click', () => docu
 document.getElementById('turnoverNonAktifBtn').addEventListener('click', () => document.getElementById('turnoverNonAktifInput').click());
 document.getElementById('turnoverAktifInput').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return;
-  document.getElementById('turnoverUploadStatus').textContent = 'Membaca ' + file.name + '...';
-  const buf = await file.arrayBuffer();
-  lastAktifWb = XLSX.read(buf, { type:'array', cellDates:true });
-  recomputeTurnoverIfReady();
-  if(!lastNonAktifWb) document.getElementById('turnoverUploadStatus').textContent = 'Data aktif ke-baca. Upload juga file Non-Aktif buat hitung ulang chart.';
+  turnoverUserHasUploaded = true;
+  const statusEl = document.getElementById('turnoverUploadStatus');
+  statusEl.textContent = 'Membaca ' + file.name + '...';
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    lastAktifChron = toChronological(parseRosterWorkbook(wb));
+    recomputeTurnoverIfReady();
+    statusEl.textContent = 'Menyimpan data aktif secara permanen ke server...';
+    await saveTurnoverRaw('aktif', lastAktifChron);
+    statusEl.textContent = lastNonAktifChron
+      ? '\u2705 Chart ter-update & data aktif tersimpan permanen di server.'
+      : '\u2705 Data aktif tersimpan permanen. Upload juga file Non-Aktif buat hitung ulang chart.';
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = '\u26a0\ufe0f Gagal baca/simpan file: ' + err.message;
+  }
 });
 document.getElementById('turnoverNonAktifInput').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return;
-  document.getElementById('turnoverUploadStatus').textContent = 'Membaca ' + file.name + '...';
-  const buf = await file.arrayBuffer();
-  lastNonAktifWb = XLSX.read(buf, { type:'array', cellDates:true });
-  recomputeTurnoverIfReady();
-  if(!lastAktifWb) document.getElementById('turnoverUploadStatus').textContent = 'Data non-aktif ke-baca. Upload juga file Aktif buat hitung ulang chart.';
+  turnoverUserHasUploaded = true;
+  const statusEl = document.getElementById('turnoverUploadStatus');
+  statusEl.textContent = 'Membaca ' + file.name + '...';
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    lastNonAktifChron = toChronological(parseRosterWorkbook(wb));
+    recomputeTurnoverIfReady();
+    statusEl.textContent = 'Menyimpan data non-aktif secara permanen ke server...';
+    await saveTurnoverRaw('nonaktif', lastNonAktifChron);
+    if(!lastAktifChron){
+      statusEl.textContent = 'Data non-aktif tersimpan permanen. Upload juga file Aktif buat hitung ulang chart.';
+      return;
+    }
+    statusEl.textContent = 'Menyinkronkan status resign ke data kandidat...';
+    const syncResult = await syncTurnoverToCandidates(lastNonAktifChron);
+    await loadCandidates();
+    statusEl.textContent = `\u2705 Chart ter-update, data tersimpan permanen, & ${syncResult.updated} kandidat disinkronkan jadi Resign di tabel detail.`;
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = '\u26a0\ufe0f Gagal baca/simpan/sinkron file: ' + err.message;
+  }
 });
-document.getElementById('turnoverResetBtn').addEventListener('click', () => {
-  lastAktifWb = null; lastNonAktifWb = null;
-  renderTurnoverAll(DEFAULT_TURNOVER_AGG);
-  document.getElementById('turnoverUploadStatus').textContent = 'Balik ke data awal (snapshot Jan-Sep 2026).';
-});
+// Coba muat data turnover yang sudah tersimpan permanen di server dulu (hasil upload
+// sesi-sesi sebelumnya), biar chart + detail drill-down-nya langsung kebaca tanpa perlu
+// upload ulang file Excel. Fallback ke snapshot default kalau belum ada data tersimpan
+// atau kalau server gagal dihubungi.
+// Flag anti-race-condition: kalau user udah mulai upload manual sebelum fetch data
+// server ini selesai, jangan biarin hasil fetch yang telat nimpa balik chart yang
+// udah dihitung dari file yang baru diupload (dulu ini yang bikin kayak "muncul lagi
+// data lama" secara acak tiap kali upload, tergantung cepat-lambatnya koneksi).
+let turnoverUserHasUploaded = false;
 
-renderTurnoverAll(DEFAULT_TURNOVER_AGG);
+async function initTurnoverFromServer(){
+  const statusEl = document.getElementById('turnoverUploadStatus');
+  try{
+    statusEl.textContent = 'Memuat data turnover tersimpan dari server...';
+    const rawRows = await fetchTurnoverRawFromServer();
+    if(turnoverUserHasUploaded) return; // user udah upload manual duluan, jangan ditimpa
+    const aktifRows = rawRows.filter(r => r.source === 'aktif');
+    const nonaktifRows = rawRows.filter(r => r.source === 'nonaktif');
+    if(aktifRows.length && nonaktifRows.length){
+      lastAktifChron = groupRawIntoChron(aktifRows);
+      lastNonAktifChron = groupRawIntoChron(nonaktifRows);
+      const agg = computeTurnoverAgg(lastAktifChron, lastNonAktifChron);
+      renderTurnoverAll(agg);
+      statusEl.textContent = '\u2705 Data turnover dimuat dari penyimpanan permanen di server \u00b7 klik bar/titik/segmen chart buat lihat detail.';
+      return;
+    }
+    renderTurnoverAll(DEFAULT_TURNOVER_AGG);
+    statusEl.textContent = '';
+  }catch(err){
+    console.error(err);
+    if(turnoverUserHasUploaded) return;
+    renderTurnoverAll(DEFAULT_TURNOVER_AGG);
+    statusEl.textContent = '\u26a0\ufe0f Gagal muat data tersimpan dari server, menampilkan snapshot awal: ' + err.message;
+  }
+}
+
+initTurnoverFromServer();
 
 initHeaderChip();
 populateGlobalMonthFilter();
