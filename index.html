@@ -3497,7 +3497,7 @@ async function runAIInsight(kind){
   grid.innerHTML = `<div class="ai-insight-loading">🤖 Gemini lagi menganalisis data ${escapeHtml(cfg.label.toLowerCase())}, tunggu sebentar (bisa nyoba ulang otomatis kalau kena timeout)...</div>`;
 
   try{
-    const systemPrompt = `Kamu analis People Analytics/HR yang tajam & jujur, ngebantu tim HR baca data dashboard internal (bahasa Indonesia gaya santai-profesional, boleh singkat "PIC", "resign", dst). Kamu akan dikasih ringkasan data terstruktur JSON. Tugasmu: cari pola/korelasi/anomali yang BUTUH PENALARAN -- jangan cuma ngulang angka mentah yang udah keliatan jelas di data. Kalau sampelnya kekecilan buat disimpulkan jadi pola, JUJUR bilang gitu, jangan mengarang/hallucinate angka yang gak ada di data. Balas HANYA JSON array valid, TANPA markdown/backtick/teks lain di luar JSON. Format tiap elemen: {"icon":"<1 emoji relevan>","title":"<judul singkat maks 8 kata>","text":"<1-3 kalimat insight, boleh <b>bold</b> buat highlight angka/nama penting>","rekomendasi":"<1 kalimat aksi konkret>"}. WAJIB setiap field text/title/rekomendasi singkat & padat, JANGAN mengulang kata/frasa yang sama berkali-kali. Buat 2-4 insight (gak usah maksa 4 kalau datanya emang cuma cukup buat 2).`;
+    const systemPrompt = `Kamu analis People Analytics/HR yang tajam & jujur, ngebantu tim HR baca data dashboard internal (bahasa Indonesia gaya santai-profesional, boleh singkat "PIC", "resign", dst). Kamu akan dikasih ringkasan data terstruktur JSON. Tugasmu: cari pola/korelasi/anomali yang BUTUH PENALARAN -- jangan cuma ngulang angka mentah yang udah keliatan jelas di data. Kalau sampelnya kekecilan buat disimpulkan jadi pola, JUJUR bilang gitu, jangan mengarang/hallucinate angka yang gak ada di data. Balas HANYA JSON array valid, TANPA markdown/backtick/teks lain di luar JSON. Format tiap elemen: {"icon":"<1 emoji relevan>","title":"<judul singkat maks 8 kata>","text":"<1-3 kalimat insight, TEKS POLOS TANPA HTML/markdown/tag apapun (jangan pakai <b>, *, atau simbol formatting lain)>","rekomendasi":"<1 kalimat aksi konkret, teks polos juga tanpa tag/markdown>"}. WAJIB setiap field text/title/rekomendasi singkat & padat, JANGAN mengulang kata/frasa yang sama berkali-kali. Buat 2-4 insight (gak usah maksa 4 kalau datanya emang cuma cukup buat 2).`;
 
     const items = await callGeminiInsight(systemPrompt, `Data ${cfg.label} (JSON):\n${JSON.stringify(context)}`);
     if(!Array.isArray(items) || !items.length) throw new Error('AI gak ngasih insight yang valid');
@@ -3505,8 +3505,8 @@ async function runAIInsight(kind){
     grid.innerHTML = items.map(it => `
       <div class="ai-insight-item">
         <p class="ai-insight-item-title">${escapeHtml(it.icon || '✨')} ${escapeHtml(it.title || 'Insight AI')}</p>
-        <p class="ai-insight-item-text">${it.text || ''}</p>
-        ${it.rekomendasi ? `<p class="ai-insight-item-reco">✅ <b>Rekomendasi:</b> ${it.rekomendasi}</p>` : ''}
+        <p class="ai-insight-item-text">${escapeHtml(cleanAiText(it.text))}</p>
+        ${it.rekomendasi ? `<p class="ai-insight-item-reco">✅ <b>Rekomendasi:</b> ${escapeHtml(cleanAiText(it.rekomendasi))}</p>` : ''}
       </div>
     `).join('');
   } catch(err){
@@ -7862,6 +7862,15 @@ function escapeHtml(str){
 }
 function escapeAttr(str){
   return String(str).replace(/"/g,'&quot;');
+}
+// Bersihin teks hasil AI (Gemini) dari tag/kode HTML yang gak perlu (misal "<b>", "</b>",
+// atau versi yang udah ke-escape kayak "&lt;b&gt;") -- insight cukup ditampilkan sebagai teks polos.
+function cleanAiText(str){
+  if(!str) return '';
+  let s = String(str);
+  s = s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  s = s.replace(/<\/?[a-zA-Z][^<>]*>/g, ''); // buang tag HTML yang beneran (ada <...> lengkap), aman dari "<" nyasar yg bukan tag
+  return s.trim();
 }
 
 // Semua field wajib diisi sebelum submit
