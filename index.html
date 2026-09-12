@@ -8365,14 +8365,14 @@ function renderTurnoverStats(agg){
   const topReason = agg.reasonBreakdown[0] || ['-',0];
   const topDept = agg.deptResignBreakdown[0] || ['-',0];
   const tiles = [
-    { icon:'🔴', iconBg:'rgba(224,87,74,0.12)', iconColor:'var(--danger)', title: agg.totalResign + ' Resign', sub:'Total resign Jan\u2013Sep 2026' },
-    { icon:'🌡️', iconBg:'rgba(201,134,28,0.12)', iconColor:'var(--warn)', title: agg.avgTurnoverRate + '%', sub:'Rata-rata turnover rate/bulan' },
-    { icon:'🗂️', iconBg:'rgba(77,107,255,0.12)', iconColor:'var(--blue)', title: topReason[0], sub: topReason[1] + ' kasus \u2014 alasan resign terbanyak' },
-    { icon:'🏢', iconBg:'rgba(139,92,246,0.12)', iconColor:'var(--purple)', title: topDept[0], sub: topDept[1] + ' resign \u2014 departemen tertinggi' },
+    { type:'resignTotal', icon:'🔴', iconBg:'rgba(224,87,74,0.12)', iconColor:'var(--danger)', title: agg.totalResign + ' Resign', sub:'Total resign Jan\u2013Sep 2026' },
+    { type:'resignRate', icon:'🌡️', iconBg:'rgba(201,134,28,0.12)', iconColor:'var(--warn)', title: agg.avgTurnoverRate + '%', sub:'Rata-rata turnover rate/bulan' },
+    { type:'resignReason', icon:'🗂️', iconBg:'rgba(77,107,255,0.12)', iconColor:'var(--blue)', title: topReason[0], sub: topReason[1] + ' kasus \u2014 alasan resign terbanyak' },
+    { type:'resignDept', icon:'🏢', iconBg:'rgba(139,92,246,0.12)', iconColor:'var(--purple)', title: topDept[0], sub: topDept[1] + ' resign \u2014 departemen tertinggi' },
   ];
   const el = document.getElementById('turnoverStatsRow');
   el.innerHTML = tiles.map(t => `
-    <div class="stat-tile">
+    <div class="stat-tile" data-stat="${t.type}">
       <div class="stat-info">
         <div class="stat-icon" style="background:${t.iconBg};color:${t.iconColor};">${t.icon}</div>
         <div>
@@ -8382,6 +8382,57 @@ function renderTurnoverStats(agg){
       </div>
     </div>
   `).join('');
+  bindTurnoverStatTileEvents(agg);
+}
+
+// Card bulanan buat modal breakdown "Rata-rata Turnover Rate" -- satu card per bulan,
+// bulan dengan rate tertinggi (peak) dikasih penanda biar langsung keliatan.
+function renderTurnoverMonthCard(label, headcount, resign, rate, isPeak){
+  return `
+    <div class="cand-card dept-mini-card${isPeak ? ' cand-stale' : ''}">
+      <div class="dept-mini-name-row">
+        <div class="dept-mini-name">${escapeHtml(label)}${isPeak ? ' \u{1F525}' : ''}</div>
+      </div>
+      <div class="dept-mini-row">
+        <span class="meta-item">👥 <b>Aktif</b> ${headcount}</span>
+        <span class="meta-item">📤 <b>Resign</b> ${resign}</span>
+        <span class="meta-item">🌡️ <b>Rate</b> ${rate}%</span>
+      </div>
+    </div>`;
+}
+
+// Klik salah satu dari 4 card ringkasan turnover -> buka modal drill-down yang sesuai
+// konteks card-nya masing-masing (bukan cuma 1 modal generik buat semuanya).
+function bindTurnoverStatTileEvents(agg){
+  document.querySelectorAll('#turnoverStatsRow .stat-tile').forEach(el => {
+    el.addEventListener('click', () => {
+      const type = el.dataset.stat;
+      const rangeLabel = `${agg.monthLabels[0]}\u2013${agg.monthLabels[agg.monthLabels.length-1]}`;
+      if(type === 'resignTotal'){
+        const allRows = agg.detail ? Object.values(agg.detail.resignRowsByMonth).flat() : null;
+        openTurnoverDetailModal('🔴 Total Resign', null, allRows, `${agg.totalResign} kasus \u2014 semua resign ${rangeLabel}`);
+      }else if(type === 'resignRate'){
+        let peakIdx = 0;
+        agg.turnoverRate.forEach((r,i) => { if(r > agg.turnoverRate[peakIdx]) peakIdx = i; });
+        const bodyHtml = `
+          <div class="week-group">
+            <div class="week-header">
+              <span class="week-pill">📊 Rata-rata ${agg.avgTurnoverRate}%/bulan \u2014 ${rangeLabel}</span>
+            </div>
+            ${agg.monthLabels.map((label,i) => renderTurnoverMonthCard(label, agg.headcount[i], agg.resignMonthly[i], agg.turnoverRate[i], i===peakIdx)).join('')}
+          </div>`;
+        openStatModal(`🌡️ Turnover Rate per Bulan \u2014 ${rangeLabel}`, bodyHtml, {icon:'🌡️', accent:'onboarding'});
+      }else if(type === 'resignReason'){
+        const [reason, count] = agg.reasonBreakdown[0] || ['-',0];
+        const rows = agg.detail ? (agg.detail.reasonRows[reason] || []) : null;
+        openTurnoverDetailModal(`🗂️ ${reason}`, null, rows, `${count} kasus \u2014 alasan resign terbanyak`);
+      }else if(type === 'resignDept'){
+        const [dept, count] = agg.deptResignBreakdown[0] || ['-',0];
+        const rows = agg.detail ? (agg.detail.deptResignRows[dept] || []) : null;
+        openTurnoverDetailModal(`🏢 ${dept}`, null, rows, `${count} resign \u2014 departemen tertinggi`);
+      }
+    });
+  });
 }
 
 function renderTurnoverTrendChart(agg){
