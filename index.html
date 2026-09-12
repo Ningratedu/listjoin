@@ -790,7 +790,15 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     flex-wrap:wrap;
     gap:8px;
   }
-  /* insight & rekomendasi (turnover + induction) */
+  /* insight & rekomendasi (turnover + induction + recruitment) -- ketiga panelnya dikasih
+     border putus-putus + tint warna aksen biar langsung keliatan beda dari panel chart
+     biasa (nandain "ini rangkuman actionable", bukan cuma chart mentah). */
+  .insight-panel{
+    border:2px dashed var(--accent);
+    background:
+      linear-gradient(180deg, var(--bubble), var(--panel) 140px),
+      var(--panel);
+  }
   .insight-col-title{font-size:12px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:0;display:flex;align-items:center;gap:6px;}
   .insight-pair-header{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px;}
   .insight-pair-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;align-items:stretch;}
@@ -1754,7 +1762,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 
   <div class="stats-row" id="statsRow"></div>
 
-  <div class="list-panel chart-panel" id="recruitmentInsightPanel">
+  <div class="list-panel chart-panel insight-panel" id="recruitmentInsightPanel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">💡</span>
@@ -2053,7 +2061,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     </div>
   </div>
 
-  <div class="list-panel chart-panel" id="turnoverInsightPanel">
+  <div class="list-panel chart-panel insight-panel" id="turnoverInsightPanel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">💡</span>
@@ -2078,7 +2086,7 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
        dari panel tabel (tapi urutan tampilannya tetap sama kayak sebelumnya). -->
   <div class="stats-row" id="onboardingStatsRow"></div>
 
-  <div class="list-panel chart-panel" id="inductionInsightPanel">
+  <div class="list-panel chart-panel insight-panel" id="inductionInsightPanel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">💡</span>
@@ -3216,6 +3224,13 @@ function computeInductionInsights(allCandidates){
   const inProgress = active.filter(c => dummyOnboardingStatus(c) === 'In Progress');
   const resignList = peserta.filter(c => getStatusKaryawan(c) === 'Resign');
 
+  // Sampel minimal sebelum sebuah rasio/persentase dianggap layak dijadiin insight.
+  // Alasannya: kalau basisnya cuma 1-2 kandidat, persentase gampang jadi ekstrem
+  // (mis. 1 dari 1 resign = "100%") padahal itu cuma 1 kejadian, bukan pola/masalah
+  // sistemik yang tergambar dari sekian banyak kandidat. Dipakai di insight #1 (severity)
+  // & #3 (korelasi resign) biar gak "teriak" duluan dari sampel yang kekecilan.
+  const MIN_SAMPLE_FOR_PCT = 3;
+
   // --- 1) Kandidat nyangkut lama di "In Progress" ---
   // NOTE: sebelumnya dikelompokkan per c.pic (PIC Recruitment / recruiter) -- padahal
   // yang bertanggung jawab nyelesain journey induction adalah TIM INDUCTION (grup modul:
@@ -3229,10 +3244,12 @@ function computeInductionInsights(allCandidates){
       byTeam[team] = (byTeam[team]||0)+1;
     });
     const topTeam = Object.entries(byTeam).sort((a,b)=>b[1]-a[1])[0];
-    const sev = active.length && (stale.length/active.length) >= 0.2 ? 'danger' : 'warn';
+    // Severity "danger" cuma dipakai kalau basis kandidat aktifnya cukup (>=MIN_SAMPLE_FOR_PCT) --
+    // di basis kecil, rasio stale/active gampang keliatan gede padahal cuma 1-2 kasus.
+    const sev = (active.length >= MIN_SAMPLE_FOR_PCT && (stale.length/active.length) >= 0.2) ? 'danger' : 'warn';
     insights.push({
       icon:'⏳', sev, title:'Kandidat nyangkut lama di In Progress',
-      text:`${stale.length} kandidat udah \u22655 hari dari jadwal induction tapi journey-nya belum kelar${topTeam ? `, paling banyak nyangkut di modul tim <b>${escapeHtml(topTeam[0])}</b> (${topTeam[1]} kandidat)` : ''}.`
+      text:`${stale.length} dari ${active.length} kandidat aktif bulan ini (${active.length ? Math.round(stale.length/active.length*100) : 0}%) udah \u22655 hari dari jadwal induction tapi journey-nya belum kelar${topTeam ? `, paling banyak nyangkut di modul tim <b>${escapeHtml(topTeam[0])}</b> (${topTeam[1]} kandidat)` : ''}.`
     });
     recos.push(`Follow-up manual ${stale.length} kandidat yang nyangkut &gt;5 hari di In Progress${topTeam ? ` \u2014 mulai dari tim <b>${escapeHtml(topTeam[0])}</b>` : ''}, sebelum makin lama dan berisiko jadi resign "tanpa berita".`);
   }
@@ -3249,7 +3266,7 @@ function computeInductionInsights(allCandidates){
       if(m.done) teamGroups[team].completed++;
     });
   });
-  const teamEntries = Object.entries(teamGroups).filter(([,v]) => v.total >= 3);
+  const teamEntries = Object.entries(teamGroups).filter(([,v]) => v.total >= MIN_SAMPLE_FOR_PCT);
   if(teamEntries.length){
     teamEntries.sort((a,b) => (a[1].completed/a[1].total) - (b[1].completed/b[1].total));
     const [worstTeam, worstStat] = teamEntries[0];
@@ -3264,15 +3281,37 @@ function computeInductionInsights(allCandidates){
   }
 
   // --- 3) Korelasi: resign terjadi sebelum induction kelar ---
-  if(resignList.length){
-    const resignNotCompleted = resignList.filter(c => dummyOnboardingStatus(c) !== 'Completed');
-    const pct = Math.round((resignNotCompleted.length/resignList.length)*100);
-    if(pct >= 50){
+  // Dipecah jadi 2 level berdasarkan kekuatan sampelnya, biar tetap ada insight+reko
+  // walaupun kasusnya dikit, tapi bahasanya disesuaikan sama seberapa yakin datanya:
+  //  - Sampel CUKUP (>=MIN_SAMPLE_FOR_PCT resign): boleh disimpulkan jadi pola ->
+  //    insight "danger", reko-nya langsung ke perbaikan proses/modul minggu pertama.
+  //  - Sampel KURANG (1-2 resign): belum layak disimpulkan jadi pola sistemik, tapi
+  //    tetap perlu ditindaklanjuti per-kasus -> insight "blue" yang isinya minta
+  //    KONFIRMASI/IDENTIFIKASI alasan resignnya satu-satu (barangkali emang berkaitan
+  //    sama metode, fasilitas, atau perlakuan tim induction yang kurang maksimal),
+  //    bukan langsung nge-judge itu masalah sistemik dari 1-2 data doang.
+  // Kedua level juga ngecek field alasanResign (isian manual di form kandidat) --
+  // kalau masih kosong, itu ditandain karena artinya belum ada dokumentasi alasannya
+  // sama sekali, jadi konfirmasi ke kandidat/atasan-nya jadi lebih mendesak.
+  const resignNotCompleted = resignList.filter(c => dummyOnboardingStatus(c) !== 'Completed');
+  if(resignNotCompleted.length){
+    const belumAdaAlasan = resignNotCompleted.filter(c => !(c.alasanResign || '').trim()).length;
+    const alasanNote = belumAdaAlasan ? `, ${belumAdaAlasan} di antaranya belum ada catatan alasan resign sama sekali` : '';
+    if(resignList.length >= MIN_SAMPLE_FOR_PCT){
+      const pct = Math.round((resignNotCompleted.length/resignList.length)*100);
+      if(pct >= 50){
+        insights.push({
+          icon:'🔗', sev:'danger', title:'Resign banyak terjadi sebelum induction kelar',
+          text:`${resignNotCompleted.length} dari ${resignList.length} kandidat yang resign bulan ini (${pct}%) belum menyelesaikan journey induction-nya saat resign${alasanNote}.`
+        });
+        recos.push(`Karena mayoritas resign bulan ini terjadi sebelum induction kelar, konfirmasi &amp; catat alasan resign tiap kandidatnya (kalau belum ada) \u2014 cek apakah ada kaitan sama metode, fasilitas, atau perlakuan tim induction yang kurang maksimal, sebelum percepat modul-modul krusial di minggu pertama &amp; tambah pendampingan.`);
+      }
+    } else {
       insights.push({
-        icon:'🔗', sev:'danger', title:'Resign banyak terjadi sebelum induction kelar',
-        text:`${resignNotCompleted.length} dari ${resignList.length} kandidat yang resign bulan ini (${pct}%) belum sempat menyelesaikan journey induction-nya \u2014 sinyal kalau onboarding awal belum berhasil bikin karyawan "nempel".`
+        icon:'❓', sev:'blue', title:'Ada resign yang belum kelar induction (sampel masih kecil)',
+        text:`${resignNotCompleted.length} dari ${resignList.length} kandidat yang resign bulan ini belum menyelesaikan journey induction-nya saat resign${alasanNote} \u2014 sampelnya masih di bawah ${MIN_SAMPLE_FOR_PCT} kasus, jadi belum layak disimpulkan jadi pola sistemik, tapi tetap perlu dicek satu-satu.`
       });
-      recos.push(`Karena banyak resign sebelum induction kelar, percepat modul-modul krusial di minggu pertama &amp; kasih pendampingan lebih intens sebelum journey penuh selesai.`);
+      recos.push(`Konfirmasi langsung ke ${resignNotCompleted.length} kandidat ini kenapa mereka resign${belumAdaAlasan ? ` (${belumAdaAlasan} belum ada catatan alasannya)` : ''} \u2014 identifikasi apakah ada kaitan sama metode, fasilitas, atau perlakuan tim induction yang kurang maksimal, biar ketahuan dari awal sebelum kasus serupa berulang & baru kelihatan polanya.`);
     }
   }
 
@@ -3280,7 +3319,7 @@ function computeInductionInsights(allCandidates){
   const tidakHadir = inMonth.filter(c => c.kehadiran === 'Tidak Hadir');
   if(tidakHadir.length){
     insights.push({
-      icon:'🚫', sev: tidakHadir.length >= 3 ? 'warn' : 'blue',
+      icon:'🚫', sev: tidakHadir.length >= MIN_SAMPLE_FOR_PCT ? 'warn' : 'blue',
       title:'Kandidat belum hadir induction',
       text:`${tidakHadir.length} kandidat bulan ini tercatat "Tidak Hadir" pada jadwal induction-nya.`
     });
@@ -3317,6 +3356,13 @@ function computeRecruitmentInsights(allCandidates){
   });
   const picEntries = Object.entries(byPic);
 
+  // Selain syarat sampel minimal (>=3 kandidat) buat masuk perbandingan, insight #2 & #3
+  // di bawah juga butuh minimal sekian KASUS KONKRET (bukan cuma %) sebelum nge-judge
+  // PIC "paling jelek" -- biar PIC yang pas mepet di sampel minimal gak langsung ke-cap
+  // gara-gara 1 kasus apes doang, sementara PIC dengan kandidat lebih banyak & jumlah
+  // kasus sama tetap kena sorot yang sepadan.
+  const MIN_CASE_COUNT = 2;
+
   // --- 1) Kandidat menumpuk di 1 PIC Recruitment (beban sourcing gak merata) ---
   if(picEntries.length >= 2){
     const byVolume = [...picEntries].sort((a,b) => b[1].length - a[1].length);
@@ -3332,37 +3378,76 @@ function computeRecruitmentInsights(allCandidates){
   }
 
   // --- 2) PIC Recruitment dengan kandidat "Tidak Hadir" induction paling tinggi (min 3 kandidat) ---
+  // Butuh minimal 2 PIC yang sama-sama punya sampel cukup (>=3 kandidat) biar klaim
+  // "paling tinggi dibanding PIC lain" itu jujur -- kalau cuma ada 1 PIC yang lolos
+  // syarat sampel, dia otomatis "menang" padahal gak ada PIC lain buat dibandingin.
+  // TAMBAHAN FAIRNESS: selain lolos syarat sampel, PIC yang mau di-flag juga wajib
+  // punya minimal MIN_CASE_COUNT kasus "Tidak Hadir" beneran -- biar PIC yang pas mepet
+  // di sampel minimal (3 kandidat) gak langsung ke-cap "paling tinggi" cuma gara-gara
+  // 1 kasus apes doang, padahal itu belum tentu pola.
   const attendanceEntries = picEntries
     .filter(([,list]) => list.length >= 3)
     .map(([p, list]) => [p, list.filter(c => c.kehadiran === 'Tidak Hadir').length, list.length]);
-  if(attendanceEntries.length){
-    attendanceEntries.sort((a,b) => (b[1]/b[2]) - (a[1]/a[2]));
-    const [worstPic, tidakN, totalN] = attendanceEntries[0];
-    const pct = Math.round((tidakN/totalN)*100);
-    if(pct >= 30){
-      insights.push({
-        icon:'🚫', sev: pct >= 50 ? 'danger' : 'warn', title:'PIC dengan kandidat "Tidak Hadir" paling tinggi',
-        text:`${tidakN} dari ${totalN} kandidat (${pct}%) yang dibawa PIC <b>${escapeHtml(worstPic)}</b> tercatat "Tidak Hadir" saat jadwal induction \u2014 paling tinggi dibanding PIC lain bulan ini.`
-      });
-      recos.push(`Evaluasi proses screening &amp; komitmen kandidat dari PIC <b>${escapeHtml(worstPic)}</b> \u2014 tingkat "Tidak Hadir"-nya paling tinggi, kemungkinan kandidat belum benar-benar fix sebelum dijadwalkan induction.`);
+  if(attendanceEntries.length >= 2){
+    const attendanceCandidates = attendanceEntries.filter(([,tidakN]) => tidakN >= MIN_CASE_COUNT);
+    if(attendanceCandidates.length){
+      attendanceCandidates.sort((a,b) => (b[1]/b[2]) - (a[1]/a[2]));
+      const [worstPic, tidakN, totalN] = attendanceCandidates[0];
+      const pct = Math.round((tidakN/totalN)*100);
+      if(pct >= 30){
+        insights.push({
+          icon:'🚫', sev: pct >= 50 ? 'danger' : 'warn', title:'PIC dengan kandidat "Tidak Hadir" paling tinggi',
+          text:`${tidakN} dari ${totalN} kandidat (${pct}%) yang dibawa PIC <b>${escapeHtml(worstPic)}</b> tercatat "Tidak Hadir" saat jadwal induction \u2014 paling tinggi dibanding PIC lain bulan ini.`
+        });
+        recos.push(`Evaluasi proses screening &amp; komitmen kandidat dari PIC <b>${escapeHtml(worstPic)}</b> \u2014 tingkat "Tidak Hadir"-nya paling tinggi, kemungkinan kandidat belum benar-benar fix sebelum dijadwalkan induction.`);
+      }
     }
   }
 
   // --- 3) PIC Recruitment dengan aktivasi sebelum induction paling rendah (min 3 kandidat) ---
+  // Sama kayak #2 di atas -- butuh minimal 2 PIC yang lolos syarat sampel biar
+  // perbandingannya valid, bukan cuma 1 PIC yang "menang sendirian" tanpa pembanding.
+  // TAMBAHAN FAIRNESS: sama kayak #2, PIC yang mau di-flag wajib punya minimal
+  // MIN_CASE_COUNT kasus "telat" (bukan "sebelum") beneran -- biar 1 kasus apes di
+  // sampel mepet gak langsung nge-cap PIC itu "paling rendah" dibanding PIC lain yang
+  // kandidatnya lebih banyak tapi jumlah kasus telatnya sama atau malah lebih parah.
   const aktivasiEntries = picEntries
     .filter(([,list]) => list.length >= 3)
-    .map(([p, list]) => [p, list.filter(c => getAktivasiTiming(c) === 'sebelum').length, list.length]);
-  if(aktivasiEntries.length){
-    aktivasiEntries.sort((a,b) => (a[1]/a[2]) - (b[1]/b[2]));
-    const [worstPic, sebelumN, totalN] = aktivasiEntries[0];
-    const pct = Math.round((sebelumN/totalN)*100);
-    if(pct < 40){
-      insights.push({
-        icon:'🔑', sev:'warn', title:'PIC dengan aktivasi sebelum induction paling rendah',
-        text:`Cuma ${sebelumN} dari ${totalN} kandidat (${pct}%) dari PIC <b>${escapeHtml(worstPic)}</b> yang aktivasinya kelar sebelum jadwal induction \u2014 paling rendah dibanding PIC lain bulan ini.`
-      });
-      recos.push(`Ingetin PIC <b>${escapeHtml(worstPic)}</b> buat submit &amp; lengkapin data aktivasi kandidatnya lebih awal, biar gak mepet/lewat jadwal induction.`);
+    .map(([p, list]) => {
+      const sebelumN = list.filter(c => getAktivasiTiming(c) === 'sebelum').length;
+      return [p, sebelumN, list.length, list.length - sebelumN];
+    });
+  if(aktivasiEntries.length >= 2){
+    const aktivasiCandidates = aktivasiEntries.filter(([,,,telatN]) => telatN >= MIN_CASE_COUNT);
+    if(aktivasiCandidates.length){
+      aktivasiCandidates.sort((a,b) => (a[1]/a[2]) - (b[1]/b[2]));
+      const [worstPic, sebelumN, totalN] = aktivasiCandidates[0];
+      const pct = Math.round((sebelumN/totalN)*100);
+      if(pct < 40){
+        insights.push({
+          icon:'🔑', sev:'warn', title:'PIC dengan aktivasi sebelum induction paling rendah',
+          text:`Cuma ${sebelumN} dari ${totalN} kandidat (${pct}%) dari PIC <b>${escapeHtml(worstPic)}</b> yang aktivasinya kelar sebelum jadwal induction \u2014 paling rendah dibanding PIC lain bulan ini.`
+        });
+        recos.push(`Ingetin PIC <b>${escapeHtml(worstPic)}</b> buat submit &amp; lengkapin data aktivasi kandidatnya lebih awal, biar gak mepet/lewat jadwal induction.`);
+      }
     }
+  }
+
+  // --- 4) Transparansi PIC dengan sampel masih kecil (<3 kandidat) ---
+  // PIC di bawah ambang minimal gak pernah masuk insight #2 & #3 di atas (biar gak
+  // dihakimi cuma dari 1-2 data), TAPI itu jangan bikin datanya ilang & PIC-nya jadi
+  // "kebal" gitu aja -- biar adil dibanding PIC yang kandidatnya banyak & kena sorot,
+  // PIC kecil ini tetap dicatat di sini sebagai referensi transparan, cuma sengaja
+  // gak dihakimi "bagus/jelek" karena sampelnya emang belum cukup buat disimpulkan.
+  const smallSamplePics = picEntries.filter(([,list]) => list.length > 0 && list.length < 3);
+  if(smallSamplePics.length){
+    const detail = smallSamplePics
+      .map(([p, list]) => `<b>${escapeHtml(p)}</b> (${list.length} kandidat)`)
+      .join(', ');
+    insights.push({
+      icon:'📌', sev:'blue', title:'PIC dengan kandidat masih sedikit bulan ini',
+      text:`${smallSamplePics.length} PIC punya kandidat di bawah ambang minimal (3) bulan ini: ${detail} \u2014 sengaja belum dibandingin/dinilai di insight lain di atas karena sampelnya masih terlalu kecil buat disimpulkan jadi pola.`
+    });
   }
 
   return { insights, recos };
@@ -8169,8 +8254,8 @@ function parseRosterWorkbook(wb){
         rm: iRM!==-1 ? row[iRM] : null,
         bm: iBM!==-1 ? row[iBM] : null,
         mentor: iMentor!==-1 ? row[iMentor] : null,
-        tglBergabung: iJoin!==-1 ? row[iJoin] : null,
-        tglResign: iResign!==-1 ? row[iResign] : null,
+        tglBergabung: iJoin!==-1 ? lmsCellToISODate(row[iJoin]) : null,
+        tglResign: iResign!==-1 ? lmsCellToISODate(row[iResign]) : null,
         alasan: iAlasan!==-1 ? row[iAlasan] : null,
         tenureBucket: iTenure!==-1 ? row[iTenure] : null,
         noKontak: iKontak!==-1 ? row[iKontak] : null,
@@ -8889,7 +8974,13 @@ document.getElementById('turnoverAktifInput').addEventListener('change', async (
   statusEl.textContent = 'Membaca ' + file.name + '...';
   try{
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    // PENTING: JANGAN pakai cellDates:true di sini -- ini sumber bug "tgl Resign mundur
+    // 1 hari" yang sempat kejadian sebelumnya (root cause-nya sama kayak yang udah
+    // dijelasin detail di lmsCellToISODate(): Date object dari SheetJS bisa "nyerempet"
+    // ke tengah malam duluan di timezone Asia/Jakarta). Tanpa cellDates:true, cell
+    // tanggal masuk ke parseRosterWorkbook() sbg serial number mentah & dikonversi lewat
+    // lmsCellToISODate() (aritmatika murni, imun timezone) -- bukan lewat objek Date.
+    const wb = XLSX.read(buf, { type:'array' });
     lastAktifChron = toChronological(parseRosterWorkbook(wb));
     recomputeTurnoverIfReady();
     statusEl.textContent = 'Menyimpan data aktif secara permanen ke server...';
@@ -8909,7 +9000,10 @@ document.getElementById('turnoverNonAktifInput').addEventListener('change', asyn
   statusEl.textContent = 'Membaca ' + file.name + '...';
   try{
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    // PENTING: JANGAN pakai cellDates:true di sini -- sama alasannya kayak di upload
+    // Data Aktif di atas (lihat komentar di situ) & di lmsCellToISODate(): ini sumber
+    // bug "tgl Resign mundur 1 hari" yang sempat terulang.
+    const wb = XLSX.read(buf, { type:'array' });
     lastNonAktifChron = toChronological(parseRosterWorkbook(wb));
     recomputeTurnoverIfReady();
     statusEl.textContent = 'Menyimpan data non-aktif secara permanen ke server...';
