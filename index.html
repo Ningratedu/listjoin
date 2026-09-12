@@ -3051,6 +3051,14 @@ async function loadCandidates(){
     hasRunCompbenBackfill = true;
     backfillCompbenAndAktivasi();
   }
+
+  // 4) Auto-mark kandidat yang kehadirannya gak kunjung diverifikasi (>=2 hari dari jadwal
+  //    induction) jadi "Tidak Hadir". Sama kayak backfill di atas: sekali per sesi, aman
+  //    dipanggil berkali-kali.
+  if(!hasRunKehadiranAutoMark){
+    hasRunKehadiranAutoMark = true;
+    autoMarkTidakHadirIfStale();
+  }
 }
 
 function initHeaderChip(){
@@ -3278,9 +3286,31 @@ function computeInductionInsights(allCandidates){
   // Sampel minimal sebelum sebuah rasio/persentase dianggap layak dijadiin insight.
   // Alasannya: kalau basisnya cuma 1-2 kandidat, persentase gampang jadi ekstrem
   // (mis. 1 dari 1 resign = "100%") padahal itu cuma 1 kejadian, bukan pola/masalah
-  // sistemik yang tergambar dari sekian banyak kandidat. Dipakai di insight #1 (severity)
-  // & #3 (korelasi resign) biar gak "teriak" duluan dari sampel yang kekecilan.
+  // sistemik yang tergambar dari sekian banyak kandidat. Dipakai di insight #0 (resign
+  // rate), #1 (severity stale) & #3 (korelasi resign) biar gak "teriak" duluan dari
+  // sampel yang kekecilan.
   const MIN_SAMPLE_FOR_PCT = 3;
+
+  // --- 0) Resign rate peserta induction, TERLEPAS dari status completion induction-nya ---
+  // NOTE: ini beda dari insight #3 di bawah (korelasi resign vs induction belum kelar).
+  // #3 cuma nyala kalau peserta yang resign itu journey induction-nya BELUM "Completed"
+  // saat resign -- jadi kalau semua yang resign kebetulan udah kelar semua modulnya
+  // duluan sebelum resign, #3 gak akan pernah nyala walaupun resign rate-nya sendiri
+  // tinggi. Makanya perlu rule terpisah yang cuma liat rasio resign/total peserta,
+  // gak peduli status completion induction-nya gimana -- biar attrition rate yang
+  // tinggi tetap ke-flag sebagai insight, bukan cuma "diselamatkan" gara-gara semua
+  // modulnya sempat kecentang duluan.
+  if(peserta.length >= MIN_SAMPLE_FOR_PCT && resignList.length){
+    const resignPct = Math.round((resignList.length/peserta.length)*100);
+    if(resignPct >= 30){
+      insights.push({
+        icon:'📉', sev: resignPct >= 45 ? 'danger' : 'warn',
+        title:'Resign rate peserta induction tinggi',
+        text:`${resignList.length} dari ${peserta.length} peserta induction bulan ini (${resignPct}%) sudah resign \u2014 cukup tinggi, terlepas dari status completion induction-nya masing-masing.`
+      });
+      recos.push(`Resign rate ${resignPct}% ini layak digali lebih dalam \u2014 cek exit interview &amp; pola per PIC/departemen buat cari akar masalahnya, meskipun journey induction-nya sendiri sempat kelar.`);
+    }
+  }
 
   // --- 1) Kandidat nyangkut lama di "In Progress" ---
   // NOTE: sebelumnya dikelompokkan per c.pic (PIC Recruitment / recruiter) -- padahal
@@ -4490,6 +4520,62 @@ async function backfillCompbenAndAktivasi(){
     showToast('Aktivasi & ceklis Comben otomatis diperbarui untuk kandidat yang sudah selesai salah satu modul e-training 🎉');
   }
 }
+
+// ================= AUTO-MARK "Tidak Hadir" kalau kehadiran gak kunjung diverifikasi =================
+// Kandidat yang kehadirannya masih kosong (bukan "Hadir" dari e-training, bukan "Tidak Hadir"
+// manual/import) dan udah >=2 hari dari tanggal Rencana Induction (tglOnboarding) dianggap
+// gak pernah dikonfirmasi -> otomatis ditandain "Tidak Hadir", biar:
+//  1) gak numpuk selamanya sebagai "Belum diverifikasi" di tabel/stats,
+//  2) insight & rekomendasi (rule #4 computeInductionInsights, dan insight #2 PIC recruitment)
+//     yang bergantung ke status "Tidak Hadir" ini beneran kebaca, bukan ke-skip gara-gara
+//     datanya nyangkut kosong terus.
+// Sama prinsipnya kayak backfillCompbenAndAktivasi() di atas: dipanggil sekali tiap load data,
+// pakai batchUpdateCandidates biar hemat request kalau kandidat yang kena banyak, dan aman
+// dipanggil berkali-kali (kalau udah gak ada yang stale, fungsinya gak ngapa-ngapain).
+let hasRunKehadiranAutoMark = false;
+
+async function autoMarkTidakHadirIfStale(){
+  try{
+    const targets = candidates.filter(c => {
+      if(c.kehadiran === 'Hadir' || c.kehadiran === 'Tidak Hadir') return false;
+      if(!c.tglOnboarding) return false;
+      const d = daysSinceOnboarding(c);
+      return d !== null && d >= 2;
+    });
+    // Log diagnostik -- buka DevTools Console (F12) buat lihat kandidat mana aja yang
+    // kena syarat & berapa hari udah lewat dari jadwal induction-nya, biar gampang
+    // dicek kalau ternyata ada yang keharusnya kena tapi gak ke-filter.
+    console.log('[autoMarkTidakHadirIfStale] kandidat yang memenuhi syarat (kehadiran kosong, >=2 hari):', targets.length,
+      targets.map(c => ({ nama:c.nama, tglOnboarding:c.tglOnboarding, hariLewat:daysSinceOnboarding(c), kehadiranSaatIni:c.kehadiran })));
+    if(targets.length === 0) return;
+
+    const updates = targets.map(c => ({ id: c._id, kehadiran: 'Tidak Hadir' }));
+    const result = await batchUpdateCandidates(updates);
+    console.log('[autoMarkTidakHadirIfStale] hasil batchUpdate ke server:', result);
+    if(result && result.success && result.updated > 0){
+      targets.forEach(c => {
+        c.kehadiran = 'Tidak Hadir';
+        delete pendingKehadiran[c._id];
+      });
+      renderTable();
+      renderStats();
+      renderInductionInsights();
+      renderRecruitmentInsights();
+      showToast(`${result.updated} kandidat otomatis ditandai "Tidak Hadir" (belum diverifikasi \u22652 hari dari jadwal induction) 🕑`);
+    } else if(result && !result.success){
+      console.error('[autoMarkTidakHadirIfStale] batchUpdate gagal:', result);
+      showToast('⚠️ Auto-mark Tidak Hadir gagal simpan ke server, cek console', true);
+    }
+  }catch(err){
+    console.error('[autoMarkTidakHadirIfStale] error tak terduga:', err);
+    showToast('⚠️ Auto-mark Tidak Hadir error, cek console: ' + err.message, true);
+  }
+}
+
+// Trigger manual dari Console kalau mau test tanpa nunggu reload penuh / nunggu
+// hasRunKehadiranAutoMark flag -- cukup panggil window.debugAutoMarkTidakHadir()
+// di DevTools Console kapan aja.
+window.debugAutoMarkTidakHadir = autoMarkTidakHadirIfStale;
 
 function getOnboardingModules(c){
   if(isSalesSupervisorDesignation(c)) return SALES_SUPERVISOR_ONBOARDING_MODULES;
