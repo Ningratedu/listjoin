@@ -1754,6 +1754,23 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 
   <div class="stats-row" id="statsRow"></div>
 
+  <div class="list-panel chart-panel" id="recruitmentInsightPanel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">💡</span>
+        <div class="chart-heading-text">
+          <span>Insight &amp; Rekomendasi Recruitment</span>
+          <span class="chart-sub">Dihitung otomatis dari kandidat bulan terpilih di atas — sudut pandang PIC Recruitment</span>
+        </div>
+      </div>
+    </h2>
+    <div class="insight-pair-header">
+      <p class="insight-col-title">🔍 Insight</p>
+      <p class="insight-col-title">✅ Rekomendasi</p>
+    </div>
+    <div class="insight-pair-grid" id="recruitmentInsightGrid"></div>
+  </div>
+
   <div class="notice">⚠️ List di bawah bersifat <b>bersama (shared)</b> — semua orang yang buka link ini bisa lihat dan menambah data yang sama. Data disimpan di Google Sheet.</div>
 
   <div class="grid">
@@ -3073,6 +3090,7 @@ function renderStats(){
   }
 
   renderStatTileRow('statsRow', tiles, renderStatBadge);
+  renderRecruitmentInsights();
 
   renderOnboardingStats();
   renderInductionInsights();
@@ -3199,38 +3217,49 @@ function computeInductionInsights(allCandidates){
   const resignList = peserta.filter(c => getStatusKaryawan(c) === 'Resign');
 
   // --- 1) Kandidat nyangkut lama di "In Progress" ---
+  // NOTE: sebelumnya dikelompokkan per c.pic (PIC Recruitment / recruiter) -- padahal
+  // yang bertanggung jawab nyelesain journey induction adalah TIM INDUCTION (grup modul:
+  // PIC: Training / PIC: OD / PIC: Compben, dst), bukan recruiter yang closing kandidatnya.
+  // Jadi sekarang dikelompokkan berdasarkan grup modul pertama yang belum dicentang.
   const stale = inProgress.filter(isStaleInProgress);
   if(stale.length){
-    const byPic = {};
-    stale.forEach(c => { const p = c.pic || '(Belum diisi)'; byPic[p] = (byPic[p]||0)+1; });
-    const topPic = Object.entries(byPic).sort((a,b)=>b[1]-a[1])[0];
+    const byTeam = {};
+    stale.forEach(c => {
+      const team = firstIncompleteInductionTeam(c);
+      byTeam[team] = (byTeam[team]||0)+1;
+    });
+    const topTeam = Object.entries(byTeam).sort((a,b)=>b[1]-a[1])[0];
     const sev = active.length && (stale.length/active.length) >= 0.2 ? 'danger' : 'warn';
     insights.push({
       icon:'⏳', sev, title:'Kandidat nyangkut lama di In Progress',
-      text:`${stale.length} kandidat udah \u22655 hari dari jadwal induction tapi journey-nya belum kelar${topPic ? `, paling banyak di PIC <b>${escapeHtml(topPic[0])}</b> (${topPic[1]} kandidat)` : ''}.`
+      text:`${stale.length} kandidat udah \u22655 hari dari jadwal induction tapi journey-nya belum kelar${topTeam ? `, paling banyak nyangkut di modul tim <b>${escapeHtml(topTeam[0])}</b> (${topTeam[1]} kandidat)` : ''}.`
     });
-    recos.push(`Follow-up manual ${stale.length} kandidat yang nyangkut &gt;5 hari di In Progress${topPic ? ` \u2014 mulai dari PIC <b>${escapeHtml(topPic[0])}</b>` : ''}, sebelum makin lama dan berisiko jadi resign "tanpa berita".`);
+    recos.push(`Follow-up manual ${stale.length} kandidat yang nyangkut &gt;5 hari di In Progress${topTeam ? ` \u2014 mulai dari tim <b>${escapeHtml(topTeam[0])}</b>` : ''}, sebelum makin lama dan berisiko jadi resign "tanpa berita".`);
   }
 
-  // --- 2) PIC dengan completion rate paling rendah (minimal 3 kandidat biar valid) ---
-  const picGroups = {};
+  // --- 2) Tim induction dengan completion rate paling rendah (minimal 3 modul biar valid) ---
+  // Dihitung per grup modul (tim induction yang pegang modul itu), bukan per PIC Recruitment --
+  // completion journey induction memang tanggung jawab tim induction, bukan recruiter.
+  const teamGroups = {};
   active.forEach(c => {
-    const p = c.pic || '(Belum diisi)';
-    if(!picGroups[p]) picGroups[p] = { total:0, completed:0 };
-    picGroups[p].total++;
-    if(dummyOnboardingStatus(c) === 'Completed') picGroups[p].completed++;
+    getInductionModuleStatus(c).forEach(m => {
+      const team = m.group || '(Belum diisi)';
+      if(!teamGroups[team]) teamGroups[team] = { total:0, completed:0 };
+      teamGroups[team].total++;
+      if(m.done) teamGroups[team].completed++;
+    });
   });
-  const picEntries = Object.entries(picGroups).filter(([,v]) => v.total >= 3);
-  if(picEntries.length){
-    picEntries.sort((a,b) => (a[1].completed/a[1].total) - (b[1].completed/b[1].total));
-    const [worstPic, worstStat] = picEntries[0];
+  const teamEntries = Object.entries(teamGroups).filter(([,v]) => v.total >= 3);
+  if(teamEntries.length){
+    teamEntries.sort((a,b) => (a[1].completed/a[1].total) - (b[1].completed/b[1].total));
+    const [worstTeam, worstStat] = teamEntries[0];
     const worstPct = Math.round((worstStat.completed/worstStat.total)*100);
     if(worstPct < 50){
       insights.push({
-        icon:'👤', sev:'warn', title:'PIC dengan completion rate paling rendah',
-        text:`PIC <b>${escapeHtml(worstPic)}</b> baru ${worstStat.completed}/${worstStat.total} kandidat (${worstPct}%) yang Completed \u2014 paling rendah dibanding PIC lain bulan ini.`
+        icon:'👥', sev:'warn', title:'Tim induction dengan completion rate paling rendah',
+        text:`Modul dari tim <b>${escapeHtml(worstTeam)}</b> baru ${worstStat.completed}/${worstStat.total} (${worstPct}%) yang Completed di antara kandidat aktif bulan ini \u2014 paling rendah dibanding modul tim induction lain.`
       });
-      recos.push(`Cek beban kerja &amp; cara follow-up PIC <b>${escapeHtml(worstPic)}</b> \u2014 completion rate-nya paling ketinggalan dibanding PIC lain bulan ini.`);
+      recos.push(`Cek beban kerja &amp; kecepatan tindak lanjut tim <b>${escapeHtml(worstTeam)}</b> \u2014 completion rate modulnya paling ketinggalan dibanding tim induction lain bulan ini.`);
     }
   }
 
@@ -3264,6 +3293,84 @@ function computeInductionInsights(allCandidates){
 function renderInductionInsights(){
   const { insights, recos } = computeInductionInsights(candidates);
   renderInsightList('inductionInsightGrid', insights, recos, 'Belum ada kandidat bulan ini yang perlu disorot \u2014 aman.');
+}
+
+// ================= INSIGHT & REKOMENDASI RECRUITMENT (otomatis, scope: bulan terpilih global) =================
+// Sudut pandangnya beda dari insight induction di atas: kalau insight induction ngeliat
+// dari sisi TIM INDUCTION (siapa yang nahan journey training kandidat), yang ini ngeliat
+// dari sisi PIC RECRUITMENT / recruiter (siapa yang bawa kandidat, seberapa "nempel"
+// kandidat yang mereka closing, & seberapa rapi administrasi aktivasinya) -- makanya
+// ditaruh nempel di bawah card "statsRow" (Total Kandidat/PIC Aktif/Jadi Induction/
+// Aktivasi), bukan di dekat tabel detail kandidat kayak insight induction.
+// Scope kandidatnya sama kayak card statsRow: kandidat dengan Rencana Induction (tglOnboarding)
+// di bulan yang lagi difilter global.
+function computeRecruitmentInsights(allCandidates){
+  const insights = [];
+  const recos = [];
+  const candidatesThisMonth = allCandidates.filter(c => c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
+  if(!candidatesThisMonth.length) return { insights, recos };
+
+  const byPic = {};
+  candidatesThisMonth.forEach(c => {
+    const p = c.pic || '(Belum diisi)';
+    (byPic[p] = byPic[p] || []).push(c);
+  });
+  const picEntries = Object.entries(byPic);
+
+  // --- 1) Kandidat menumpuk di 1 PIC Recruitment (beban sourcing gak merata) ---
+  if(picEntries.length >= 2){
+    const byVolume = [...picEntries].sort((a,b) => b[1].length - a[1].length);
+    const [topPic, topList] = byVolume[0];
+    const pct = Math.round((topList.length/candidatesThisMonth.length)*100);
+    if(pct >= 40){
+      insights.push({
+        icon:'⚖️', sev: pct >= 60 ? 'warn' : 'blue', title:'Kandidat menumpuk di 1 PIC Recruitment',
+        text:`PIC <b>${escapeHtml(topPic)}</b> bawa ${topList.length} dari ${candidatesThisMonth.length} kandidat bulan ini (${pct}%) \u2014 beban recruitment belum merata antar PIC.`
+      });
+      recos.push(`Cek ulang pembagian beban sourcing antar PIC Recruitment \u2014 kalau <b>${escapeHtml(topPic)}</b> terus dominan tiap bulan, pertimbangkan bagi ulang portofolio departemen/wilayah.`);
+    }
+  }
+
+  // --- 2) PIC Recruitment dengan kandidat "Tidak Hadir" induction paling tinggi (min 3 kandidat) ---
+  const attendanceEntries = picEntries
+    .filter(([,list]) => list.length >= 3)
+    .map(([p, list]) => [p, list.filter(c => c.kehadiran === 'Tidak Hadir').length, list.length]);
+  if(attendanceEntries.length){
+    attendanceEntries.sort((a,b) => (b[1]/b[2]) - (a[1]/a[2]));
+    const [worstPic, tidakN, totalN] = attendanceEntries[0];
+    const pct = Math.round((tidakN/totalN)*100);
+    if(pct >= 30){
+      insights.push({
+        icon:'🚫', sev: pct >= 50 ? 'danger' : 'warn', title:'PIC dengan kandidat "Tidak Hadir" paling tinggi',
+        text:`${tidakN} dari ${totalN} kandidat (${pct}%) yang dibawa PIC <b>${escapeHtml(worstPic)}</b> tercatat "Tidak Hadir" saat jadwal induction \u2014 paling tinggi dibanding PIC lain bulan ini.`
+      });
+      recos.push(`Evaluasi proses screening &amp; komitmen kandidat dari PIC <b>${escapeHtml(worstPic)}</b> \u2014 tingkat "Tidak Hadir"-nya paling tinggi, kemungkinan kandidat belum benar-benar fix sebelum dijadwalkan induction.`);
+    }
+  }
+
+  // --- 3) PIC Recruitment dengan aktivasi sebelum induction paling rendah (min 3 kandidat) ---
+  const aktivasiEntries = picEntries
+    .filter(([,list]) => list.length >= 3)
+    .map(([p, list]) => [p, list.filter(c => getAktivasiTiming(c) === 'sebelum').length, list.length]);
+  if(aktivasiEntries.length){
+    aktivasiEntries.sort((a,b) => (a[1]/a[2]) - (b[1]/b[2]));
+    const [worstPic, sebelumN, totalN] = aktivasiEntries[0];
+    const pct = Math.round((sebelumN/totalN)*100);
+    if(pct < 40){
+      insights.push({
+        icon:'🔑', sev:'warn', title:'PIC dengan aktivasi sebelum induction paling rendah',
+        text:`Cuma ${sebelumN} dari ${totalN} kandidat (${pct}%) dari PIC <b>${escapeHtml(worstPic)}</b> yang aktivasinya kelar sebelum jadwal induction \u2014 paling rendah dibanding PIC lain bulan ini.`
+      });
+      recos.push(`Ingetin PIC <b>${escapeHtml(worstPic)}</b> buat submit &amp; lengkapin data aktivasi kandidatnya lebih awal, biar gak mepet/lewat jadwal induction.`);
+    }
+  }
+
+  return { insights, recos };
+}
+
+function renderRecruitmentInsights(){
+  const { insights, recos } = computeRecruitmentInsights(candidates);
+  renderInsightList('recruitmentInsightGrid', insights, recos, 'Belum ada sorotan khusus dari sisi PIC Recruitment bulan ini \u2014 aman.');
 }
 
 function kehadiranBadgeClass(k){
@@ -4139,6 +4246,27 @@ function onboardingProgress(c){
   const total = modules.length;
   const done = modules.filter(m => checklist[m.id] && checklist[m.id].done).length;
   return { done, total };
+}
+
+// Status per-modul (id, group/tim induction penanggung jawab, done) buat 1 kandidat --
+// dipakai insight induction supaya bisa nunjuk ke TIM INDUCTION (grup modul: PIC:
+// Training / PIC: OD / PIC: Compben, dst) yang jadi bottleneck, bukan ke PIC Recruitment
+// (c.pic) yang cuma perannya closing kandidat di awal, gak ikut proses induction-nya.
+function getInductionModuleStatus(c){
+  const checklist = c.onboardingChecklist || {};
+  return getOnboardingModules(c).map(m => ({
+    id: m.id,
+    group: m.group || '(Belum diisi)',
+    done: !!(checklist[m.id] && checklist[m.id].done)
+  }));
+}
+
+// Grup/tim induction dari modul PERTAMA yang belum dicentang buat 1 kandidat -- dipakai
+// buat nandain "tim mana yang lagi nahan" kandidat yang nyangkut lama di In Progress.
+function firstIncompleteInductionTeam(c){
+  const mods = getInductionModuleStatus(c);
+  const firstIncomplete = mods.find(m => !m.done);
+  return firstIncomplete ? firstIncomplete.group : '(Belum diisi)';
 }
 
 // Persentase modul yang udah selesai (dibulatkan), dipakai buat nampilin angka di
@@ -7645,6 +7773,12 @@ function setTheme(theme, persist){
   if(deptChart) renderDeptChart();
   if(sessionDeptChart) renderSessionDeptChart();
   if(totalBatchCharts.length) rerenderTotalBatchCharts();
+  // NOTE: chart-chart di tab Turnover (trend/rate/alasan/departemen/tenure) sebelumnya
+  // kelewatan gak ikut di-render ulang di sini -> makanya abis toggle tema, warna teks/
+  // axis-nya masih ikut tema lama (nyangkut warna lama) sampai kelihatan "nyaru" di
+  // background tema baru, dan baru bener lagi kalau di-refresh (soalnya chart dibikin
+  // ulang dari nol pas reload). Sekarang ikut di-render ulang juga kalau datanya ada.
+  if(currentTurnoverAgg) renderTurnoverAll(currentTurnoverAgg);
 }
 
 if(themeToggleBtnEl){
