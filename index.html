@@ -825,6 +825,36 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .reco-item b{color:var(--accent-2);}
   .insight-empty{font-size:9.5px;color:var(--text-dim);padding:6px 2px;grid-column:1/-1;}
 
+  /* ==== Insight AI (Gemini beneran, dipanggil on-demand lewat tombol) ====
+     Sengaja dikasih tampilan yang beda (ungu/gradient) dari insight rule-based di atas,
+     biar user langsung ngeh mana yang dihitung otomatis dari rumus tetap (deterministik,
+     selalu sama tiap kali direfresh) vs mana yang hasil analisis AI (bisa beda tiap
+     generate, sifatnya lebih ke "opini tambahan" bukan angka pasti). */
+  .ai-insight-btn{
+    background:linear-gradient(135deg,#8b5cf6,#4d6bff);
+    border:none;color:#fff;border-radius:999px;padding:6px 13px;
+    font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
+    display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+    transition:opacity .15s, transform .15s;
+  }
+  .ai-insight-btn:hover:not(:disabled){opacity:.88;transform:translateY(-1px);}
+  .ai-insight-btn:disabled{opacity:.6;cursor:default;transform:none;}
+  .ai-insight-trigger{margin-top:12px;display:flex;justify-content:center;}
+  .ai-insight-trigger .ai-insight-btn{padding:8px 18px;font-size:11px;}
+  .ai-insight-section{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);}
+  .ai-insight-section-title{font-size:9.5px;font-weight:800;color:#8b5cf6;text-transform:uppercase;letter-spacing:.4px;margin:0 0 10px;display:flex;align-items:center;gap:6px;}
+  .ai-insight-item{
+    background:var(--panel-2);border:1px solid var(--border);border-left:4px solid #8b5cf6;border-radius:12px;
+    padding:9px 12px;margin-bottom:8px;
+  }
+  .ai-insight-item:last-child{margin-bottom:0;}
+  .ai-insight-item-title{font-size:10.5px;font-weight:800;color:var(--text);margin:0 0 3px;display:flex;align-items:center;gap:5px;}
+  .ai-insight-item-text{font-size:9.5px;color:var(--text-dim);line-height:1.5;}
+  .ai-insight-item-reco{font-size:9.5px;color:var(--text-dim);line-height:1.5;margin-top:5px;}
+  .ai-insight-item-reco b{color:var(--accent-2);}
+  .ai-insight-loading{font-size:10px;color:var(--text-dim);padding:8px 2px;display:flex;align-items:center;gap:6px;}
+  .ai-insight-error{font-size:10px;color:var(--danger);padding:8px 2px;line-height:1.5;}
+
   .onboarding-filter{
     background:var(--panel-2);
     border:1px solid var(--border);
@@ -1778,6 +1808,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       <p class="insight-col-title">✅ Rekomendasi</p>
     </div>
     <div class="insight-pair-grid" id="recruitmentInsightGrid"></div>
+    <div class="ai-insight-trigger">
+      <button class="ai-insight-btn" id="recruitmentAIBtn" onclick="runAIInsight('recruitment')">✨ Klik di sini untuk dapat insight by AI</button>
+    </div>
+    <div class="ai-insight-section" id="recruitmentAISection" style="display:none;">
+      <p class="ai-insight-section-title">✨ Insight AI (Gemini)</p>
+      <div id="recruitmentAIGrid"></div>
+    </div>
   </div>
 
   <div class="notice">⚠️ List di bawah bersifat <b>bersama (shared)</b> — semua orang yang buka link ini bisa lihat dan menambah data yang sama. Data disimpan di Google Sheet.</div>
@@ -2077,6 +2114,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       <p class="insight-col-title">✅ Rekomendasi</p>
     </div>
     <div class="insight-pair-grid" id="turnoverInsightGrid"></div>
+    <div class="ai-insight-trigger">
+      <button class="ai-insight-btn" id="turnoverAIBtn" onclick="runAIInsight('turnover')">✨ Klik di sini untuk dapat insight by AI</button>
+    </div>
+    <div class="ai-insight-section" id="turnoverAISection" style="display:none;">
+      <p class="ai-insight-section-title">✨ Insight AI (Gemini)</p>
+      <div id="turnoverAIGrid"></div>
+    </div>
   </div>
   </div>
   <!-- /tab-page turnover -->
@@ -2102,6 +2146,13 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
       <p class="insight-col-title">✅ Rekomendasi</p>
     </div>
     <div class="insight-pair-grid" id="inductionInsightGrid"></div>
+    <div class="ai-insight-trigger">
+      <button class="ai-insight-btn" id="inductionAIBtn" onclick="runAIInsight('induction')">✨ Klik di sini untuk dapat insight by AI</button>
+    </div>
+    <div class="ai-insight-section" id="inductionAISection" style="display:none;">
+      <p class="ai-insight-section-title">✨ Insight AI (Gemini)</p>
+      <div id="inductionAIGrid"></div>
+    </div>
   </div>
 
   <!-- TABEL DETAIL KANDIDAT -->
@@ -2170,7 +2221,6 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   </div>
 </div>
 
-<!-- POPUP EDIT KANDIDAT -->
 <div class="modal-overlay" id="editModalOverlay">
   <div class="modal-panel edit-modal-panel">
     <div class="modal-header">
@@ -3333,6 +3383,139 @@ function computeInductionInsights(allCandidates){
 function renderInductionInsights(){
   const { insights, recos } = computeInductionInsights(candidates);
   renderInsightList('inductionInsightGrid', insights, recos, 'Belum ada kandidat bulan ini yang perlu disorot \u2014 aman.');
+}
+
+// ================= INSIGHT AI (Gemini beneran, on-demand lewat tombol "✨ Insight AI") =================
+// Beda total sama insight rule-based di atas (computeRecruitmentInsights/computeTurnoverInsights/
+// computeInductionInsights) yang aturannya FIXED & deterministik. Ini manggil Gemini API
+// (lewat proxy bawaan environment artifact -- gak perlu API key manual) buat nyari pola/korelasi
+// yang mungkin gak ke-cover sama aturan fixed di atas. Sengaja on-demand (baru jalan kalau
+// tombolnya diklik), bukan otomatis tiap render, biar gak boros call API tanpa perlu.
+// Ringkasan datanya (bukan raw semua kolom) yang dikirim ke API -- cukup buat AI nangkep pola,
+// tapi tetap diringkas biar hemat & fokus, bukan dump semua data mentah kandidat.
+
+function buildRecruitmentAIContext(){
+  const candidatesThisMonth = candidates.filter(c => c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
+  if(!candidatesThisMonth.length) return { empty:true };
+  const byPic = {};
+  candidatesThisMonth.forEach(c => {
+    const p = c.pic || '(Belum diisi)';
+    (byPic[p] = byPic[p] || []).push(c);
+  });
+  const perPIC = Object.entries(byPic).map(([pic, list]) => ({
+    pic,
+    totalKandidat: list.length,
+    hadirInduction: list.filter(c => c.kehadiran === 'Hadir').length,
+    tidakHadirInduction: list.filter(c => c.kehadiran === 'Tidak Hadir').length,
+    belumVerifKehadiran: list.filter(c => c.kehadiran !== 'Hadir' && c.kehadiran !== 'Tidak Hadir').length,
+    aktivasiSebelumInduction: list.filter(c => getAktivasiTiming(c) === 'sebelum').length,
+    aktivasiHariHInduction: list.filter(c => getAktivasiTiming(c) === 'hari-h').length,
+    aktivasiSetelahInduction: list.filter(c => getAktivasiTiming(c) === 'setelah').length
+  }));
+  return {
+    bulan: currentMonthLabel(),
+    totalKandidatBulanIni: candidatesThisMonth.length,
+    jumlahPICAktif: perPIC.length,
+    rincianPerPIC: perPIC
+  };
+}
+
+function buildTurnoverAIContext(){
+  const agg = currentTurnoverAgg;
+  if(!agg) return { empty:true };
+  const totalResign = agg.totalResign || (agg.resignMonthly||[]).reduce((a,b)=>a+b,0);
+  if(!totalResign) return { empty:true };
+  const monthLabels = agg.monthLabels || [];
+  return {
+    asOfDate: agg.asOfDate,
+    periodeBulan: monthLabels,
+    totalResignSepanjangPeriode: totalResign,
+    resignPerBulan: monthLabels.map((m,i) => ({ bulan:m, jumlahResign:(agg.resignMonthly||[])[i] ?? null })),
+    turnoverRatePerBulanPersen: monthLabels.map((m,i) => ({ bulan:m, ratePersen:(agg.turnoverRate||[])[i] ?? null })),
+    breakdownResignPerDepartemen: agg.deptResignBreakdown || [],
+    headcountAktifPerDepartemenTerakhir: agg.deptHeadcountLatest || [],
+    breakdownAlasanResign: agg.reasonBreakdown || [],
+    breakdownTenureSaatResign: agg.tenureBreakdown || {}
+  };
+}
+
+function buildInductionAIContext(){
+  const inMonth = candidates.filter(isInSelectedMonth);
+  const peserta = inMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
+  if(!peserta.length) return { empty:true };
+  const active = peserta.filter(c => getStatusKaryawan(c) !== 'Resign');
+  const inProgress = active.filter(c => dummyOnboardingStatus(c) === 'In Progress');
+  const resignList = peserta.filter(c => getStatusKaryawan(c) === 'Resign');
+  const stale = inProgress.filter(isStaleInProgress);
+  const tidakHadir = inMonth.filter(c => c.kehadiran === 'Tidak Hadir');
+  const teamGroups = {};
+  active.forEach(c => {
+    getInductionModuleStatus(c).forEach(m => {
+      const team = m.group || '(Belum diisi)';
+      if(!teamGroups[team]) teamGroups[team] = { total:0, completed:0 };
+      teamGroups[team].total++;
+      if(m.done) teamGroups[team].completed++;
+    });
+  });
+  return {
+    bulan: currentMonthLabel(),
+    totalPesertaHadirInduction: peserta.length,
+    kandidatAktif: active.length,
+    kandidatInProgress: inProgress.length,
+    kandidatNyangkutLebihDari5Hari: stale.length,
+    kandidatResign: resignList.length,
+    resignSebelumInductionSelesai: resignList.filter(c => dummyOnboardingStatus(c) !== 'Completed').length,
+    kandidatTidakHadirInduction: tidakHadir.length,
+    completionRatePerTimModul: Object.entries(teamGroups).map(([tim, v]) => ({ tim, totalModul:v.total, modulSelesai:v.completed }))
+  };
+}
+
+const AI_INSIGHT_CONFIG = {
+  recruitment: { btnId:'recruitmentAIBtn', sectionId:'recruitmentAISection', gridId:'recruitmentAIGrid', label:'Recruitment', buildContext: buildRecruitmentAIContext },
+  turnover:    { btnId:'turnoverAIBtn',    sectionId:'turnoverAISection',    gridId:'turnoverAIGrid',    label:'Turnover',    buildContext: buildTurnoverAIContext },
+  induction:   { btnId:'inductionAIBtn',   sectionId:'inductionAISection',   gridId:'inductionAIGrid',   label:'Induction',   buildContext: buildInductionAIContext }
+};
+
+async function runAIInsight(kind){
+  const cfg = AI_INSIGHT_CONFIG[kind];
+  if(!cfg) return;
+  const btn = document.getElementById(cfg.btnId);
+  const section = document.getElementById(cfg.sectionId);
+  const grid = document.getElementById(cfg.gridId);
+  if(!btn || !section || !grid) return;
+
+  const context = cfg.buildContext();
+  section.style.display = 'block';
+  if(!context || context.empty){
+    grid.innerHTML = `<div class="ai-insight-error">Belum ada data yang cukup di ${escapeHtml(cfg.label)} buat dianalisis AI bulan ini.</div>`;
+    return;
+  }
+
+  const originalLabel = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Menganalisis...';
+  grid.innerHTML = `<div class="ai-insight-loading">🤖 Gemini lagi menganalisis data ${escapeHtml(cfg.label.toLowerCase())}, tunggu sebentar (bisa nyoba ulang otomatis kalau kena timeout)...</div>`;
+
+  try{
+    const systemPrompt = `Kamu analis People Analytics/HR yang tajam & jujur, ngebantu tim HR baca data dashboard internal (bahasa Indonesia gaya santai-profesional, boleh singkat "PIC", "resign", dst). Kamu akan dikasih ringkasan data terstruktur JSON. Tugasmu: cari pola/korelasi/anomali yang BUTUH PENALARAN -- jangan cuma ngulang angka mentah yang udah keliatan jelas di data. Kalau sampelnya kekecilan buat disimpulkan jadi pola, JUJUR bilang gitu, jangan mengarang/hallucinate angka yang gak ada di data. Balas HANYA JSON array valid, TANPA markdown/backtick/teks lain di luar JSON. Format tiap elemen: {"icon":"<1 emoji relevan>","title":"<judul singkat maks 8 kata>","text":"<1-3 kalimat insight, boleh <b>bold</b> buat highlight angka/nama penting>","rekomendasi":"<1 kalimat aksi konkret>"}. WAJIB setiap field text/title/rekomendasi singkat & padat, JANGAN mengulang kata/frasa yang sama berkali-kali. Buat 2-4 insight (gak usah maksa 4 kalau datanya emang cuma cukup buat 2).`;
+
+    const items = await callGeminiInsight(systemPrompt, `Data ${cfg.label} (JSON):\n${JSON.stringify(context)}`);
+    if(!Array.isArray(items) || !items.length) throw new Error('AI gak ngasih insight yang valid');
+
+    grid.innerHTML = items.map(it => `
+      <div class="ai-insight-item">
+        <p class="ai-insight-item-title">${escapeHtml(it.icon || '✨')} ${escapeHtml(it.title || 'Insight AI')}</p>
+        <p class="ai-insight-item-text">${it.text || ''}</p>
+        ${it.rekomendasi ? `<p class="ai-insight-item-reco">✅ <b>Rekomendasi:</b> ${it.rekomendasi}</p>` : ''}
+      </div>
+    `).join('');
+  } catch(err){
+    console.error('AI insight error', kind, err);
+    grid.innerHTML = `<div class="ai-insight-error">⚠️ Gagal generate insight AI (${escapeHtml(err.message || 'error tidak diketahui')}). Coba klik lagi.</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalLabel;
+  }
 }
 
 // ================= INSIGHT & REKOMENDASI RECRUITMENT (otomatis, scope: bulan terpilih global) =================
@@ -5472,6 +5655,26 @@ document.getElementById('chartModalOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'chartModalOverlay') closeChartModal();
 });
 document.getElementById('chartRefreshBtn').addEventListener('click', loadCandidates);
+
+// ==== Insight AI (Gemini, lewat backend Apps Script) ====
+// Dipanggil oleh runAIInsight(). Ngirim systemPrompt + userContent ke Web App (action
+// 'aiInsight'), backend yang manggil Gemini API pakai GEMINI_API_KEY dari Script
+// Properties (key yang sama dipakai extractCandidate & verifyEvidenceChecklist) --
+// jadi gak perlu API key/model Claude/Anthropic sama sekali di sisi browser.
+async function callGeminiInsight(systemPrompt, userContent){
+  if(!API_URL){
+    throw new Error('API_URL belum diset di file HTML');
+  }
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'aiInsight', systemPrompt, userContent })
+  });
+  if(!res.ok) throw new Error(`API error ${res.status}`);
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || 'Gagal generate insight AI');
+  return json.data;
+}
+
 
 
 // ==== Chart Sesi Induction per Departemen ====
