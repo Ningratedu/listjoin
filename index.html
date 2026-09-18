@@ -3424,6 +3424,24 @@ function renderInductionInsights(){
 // Ringkasan datanya (bukan raw semua kolom) yang dikirim ke API -- cukup buat AI nangkep pola,
 // tapi tetap diringkas biar hemat & fokus, bukan dump semua data mentah kandidat.
 
+// Ringkes insight rule-based (yang UDAH ke-render otomatis ke user, dari
+// computeRecruitmentInsights/computeTurnoverInsights/computeInductionInsights) buat
+// dikirim bareng context ke Gemini -- biar AI TAU apa yang udah dibilang duluan dan
+// gak ngulang-ngulang sudut pandang yang sama (ini akar penyebab insight AI kerasa
+// "cetek"/nge-duplikat insight fixed yang udah ada di atasnya). Tag HTML (<b>, dst)
+// di text/reco dibuang biar konteksnya bersih buat prompt.
+function stripInsightHtml(str){
+  return String(str || '').replace(/<[^>]+>/g, '').trim();
+}
+function summarizeExistingInsights(computed){
+  const { insights = [], recos = [] } = computed || {};
+  return insights.map((ins, i) => ({
+    title: stripInsightHtml(ins.title),
+    text: stripInsightHtml(ins.text),
+    rekomendasi: recos[i] ? stripInsightHtml(recos[i]) : ''
+  }));
+}
+
 function buildRecruitmentAIContext(){
   const candidatesThisMonth = candidates.filter(c => c.tglOnboarding && isCurrentMonth(c.tglOnboarding));
   if(!candidatesThisMonth.length) return { empty:true };
@@ -3446,7 +3464,8 @@ function buildRecruitmentAIContext(){
     bulan: currentMonthLabel(),
     totalKandidatBulanIni: candidatesThisMonth.length,
     jumlahPICAktif: perPIC.length,
-    rincianPerPIC: perPIC
+    rincianPerPIC: perPIC,
+    insightRuleBasedYangSudahTampil: summarizeExistingInsights(computeRecruitmentInsights(candidates))
   };
 }
 
@@ -3465,7 +3484,8 @@ function buildTurnoverAIContext(){
     breakdownResignPerDepartemen: agg.deptResignBreakdown || [],
     headcountAktifPerDepartemenTerakhir: agg.deptHeadcountLatest || [],
     breakdownAlasanResign: agg.reasonBreakdown || [],
-    breakdownTenureSaatResign: agg.tenureBreakdown || {}
+    breakdownTenureSaatResign: agg.tenureBreakdown || {},
+    insightRuleBasedYangSudahTampil: summarizeExistingInsights(computeTurnoverInsights(agg))
   };
 }
 
@@ -3496,7 +3516,8 @@ function buildInductionAIContext(){
     kandidatResign: resignList.length,
     resignSebelumInductionSelesai: resignList.filter(c => dummyOnboardingStatus(c) !== 'Completed').length,
     kandidatTidakHadirInduction: tidakHadir.length,
-    completionRatePerTimModul: Object.entries(teamGroups).map(([tim, v]) => ({ tim, totalModul:v.total, modulSelesai:v.completed }))
+    completionRatePerTimModul: Object.entries(teamGroups).map(([tim, v]) => ({ tim, totalModul:v.total, modulSelesai:v.completed })),
+    insightRuleBasedYangSudahTampil: summarizeExistingInsights(computeInductionInsights(candidates))
   };
 }
 
@@ -3527,7 +3548,15 @@ async function runAIInsight(kind){
   grid.innerHTML = `<div class="ai-insight-loading">🤖 Gemini lagi menganalisis data ${escapeHtml(cfg.label.toLowerCase())}, tunggu sebentar (bisa nyoba ulang otomatis kalau kena timeout)...</div>`;
 
   try{
-    const systemPrompt = `Kamu analis People Analytics/HR yang tajam & jujur, ngebantu tim HR baca data dashboard internal (bahasa Indonesia gaya santai-profesional, boleh singkat "PIC", "resign", dst). Kamu akan dikasih ringkasan data terstruktur JSON. Tugasmu: cari pola/korelasi/anomali yang BUTUH PENALARAN -- jangan cuma ngulang angka mentah yang udah keliatan jelas di data. Kalau sampelnya kekecilan buat disimpulkan jadi pola, JUJUR bilang gitu, jangan mengarang/hallucinate angka yang gak ada di data. Balas HANYA JSON array valid, TANPA markdown/backtick/teks lain di luar JSON. Format tiap elemen: {"icon":"<1 emoji relevan>","title":"<judul singkat maks 8 kata>","text":"<1-3 kalimat insight, TEKS POLOS TANPA HTML/markdown/tag apapun (jangan pakai <b>, *, atau simbol formatting lain)>","rekomendasi":"<1 kalimat aksi konkret, teks polos juga tanpa tag/markdown>"}. WAJIB setiap field text/title/rekomendasi singkat & padat, JANGAN mengulang kata/frasa yang sama berkali-kali. Buat 2-4 insight (gak usah maksa 4 kalau datanya emang cuma cukup buat 2).`;
+    const systemPrompt = `Kamu analis People Analytics/HR senior yang tajam, objektif, dan jujur, ngebantu tim HR internal baca data dashboard (bahasa Indonesia gaya santai-profesional, boleh singkat "PIC", "resign", dst).
+
+KONTEKS PENTING: di data JSON yang kamu terima ada field "insightRuleBasedYangSudahTampil" -- itu daftar insight yang SUDAH otomatis tampil duluan ke user lewat sistem rule-based terpisah (deterministik, sebelum kamu dipanggil). User SUDAH BACA insight-insight itu. Tugas kamu BUKAN buat ngulang atau parafrase ulang insight yang sama (baca title & text-nya baik-baik biar tau persis apa yang udah kecover) -- tugas kamu nyari SUDUT PANDANG, KORELASI ANTAR-METRIK, atau ANOMALI TAMBAHAN yang belum kesebut di situ. Kalau ternyata setelah dianalisis semua pola menarik yang ada udah kecover sama rule-based (jarang terjadi kalau datanya cukup kaya), baru boleh 1 insight isinya "gak ada pola tambahan signifikan di luar yang udah kedeteksi sistem" -- JANGAN dipaksain bikin insight yang isinya cuma nulis ulang angka yang sama pakai kata-kata beda.
+
+CARA KERJA: telusuri SEMUA field yang ada di data (termasuk breakdown per-departemen/per-PIC/per-tim/per-bulan/tenure/dsb yang tersedia), cari korelasi ANTAR dimensi (misal: apakah dept dengan turnover tinggi juga yang volume rekrutmennya tinggi/rendah; apakah PIC/tim yang bermasalah di satu metrik juga konsisten bermasalah di metrik lain; apakah ada tren naik/turun antar-bulan; apakah ada dimensi yang keliatan "normal" di angka agregat tapi mencurigakan kalau dipecah lebih detail). Ini yang bikin insight kamu BEDA & lebih bernilai dibanding insight rule-based yang cuma ngecek 1 kondisi per aturan.
+
+BATASAN KETAT (jangan dilanggar): jangan mengarang/hallucinate angka atau fakta yang gak ada di data JSON yang dikasih -- kamu TIDAK punya akses internet/data eksternal, semua kesimpulan harus bisa ditelusuri balik ke angka di data ini. Kalau sampel suatu kelompok kekecilan buat disimpulkan jadi pola (misal cuma 1-2 kasus), JUJUR bilang gitu daripada nge-generalisir berlebihan.
+
+FORMAT JAWABAN: balas HANYA JSON array valid, TANPA markdown/backtick/teks lain di luar JSON. Setiap elemen: {"icon":"<1 emoji relevan>","title":"<judul singkat maks 8 kata>","text":"<2-4 kalimat insight yang menjelaskan APA polanya, KENAPA itu penting/mencurigakan, dan data konkret yang mendasarinya -- TEKS POLOS TANPA HTML/markdown/tag apapun, jangan pakai <b>, *, atau simbol formatting lain, dan jangan diakhiri karakter aneh seperti =/_/#>","rekomendasi":"<1-2 kalimat aksi konkret & spesifik, teks polos juga tanpa tag/markdown>"}. Setiap field WAJIB terisi penuh (gak boleh string kosong) dan JANGAN mengulang kata/frasa yang sama berkali-kali dalam 1 field. Buat 3-5 insight yang saling beda sudut pandang (gak usah maksa 5 kalau datanya emang cuma cukup buat 3) -- lebih baik sedikit tapi semuanya bernilai baru, daripada banyak tapi setengahnya basa-basi.`;
 
     const items = await callGeminiInsight(systemPrompt, `Data ${cfg.label} (JSON):\n${JSON.stringify(context)}`);
     if(!Array.isArray(items) || !items.length) throw new Error('AI gak ngasih insight yang valid');
