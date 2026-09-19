@@ -3558,7 +3558,7 @@ BATASAN KETAT (jangan dilanggar): jangan mengarang/hallucinate angka atau fakta 
 
 FORMAT JAWABAN: balas HANYA JSON array valid, TANPA markdown/backtick/teks lain di luar JSON. Setiap elemen: {"icon":"<1 emoji relevan>","title":"<judul singkat maks 8 kata>","text":"<2-4 kalimat insight yang menjelaskan APA polanya, KENAPA itu penting/mencurigakan, dan data konkret yang mendasarinya -- TEKS POLOS TANPA HTML/markdown/tag apapun, jangan pakai <b>, *, atau simbol formatting lain, dan jangan diakhiri karakter aneh seperti =/_/#>","rekomendasi":"<1-2 kalimat aksi konkret & spesifik, teks polos juga tanpa tag/markdown>"}. Setiap field WAJIB terisi penuh (gak boleh string kosong) dan JANGAN mengulang kata/frasa yang sama berkali-kali dalam 1 field. Buat 3-5 insight yang saling beda sudut pandang (gak usah maksa 5 kalau datanya emang cuma cukup buat 3) -- lebih baik sedikit tapi semuanya bernilai baru, daripada banyak tapi setengahnya basa-basi.`;
 
-    const items = await callGeminiInsight(systemPrompt, `Data ${cfg.label} (JSON):\n${JSON.stringify(context)}`);
+    const items = await callGeminiInsight(systemPrompt, `Data ${cfg.label} (JSON):\n${JSON.stringify(context)}`, kind);
     if(!Array.isArray(items) || !items.length) throw new Error('AI gak ngasih insight yang valid');
 
     grid.innerHTML = items.map(it => `
@@ -5776,14 +5776,23 @@ document.getElementById('chartRefreshBtn').addEventListener('click', loadCandida
 // 'aiInsight'), backend yang manggil Gemini API pakai GEMINI_API_KEY dari Script
 // Properties (key yang sama dipakai extractCandidate & verifyEvidenceChecklist) --
 // jadi gak perlu API key/model Claude/Anthropic sama sekali di sisi browser.
-async function callGeminiInsight(systemPrompt, userContent){
+async function callGeminiInsight(systemPrompt, userContent, kind){
   if(!API_URL){
     throw new Error('API_URL belum diset di file HTML');
   }
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'aiInsight', systemPrompt, userContent })
-  });
+  // Jeda minimum artifisial -- kalau backend kebetulan jawab cepet banget (misal
+  // lagi dilayani dari cache karena datanya belum berubah sejak insight terakhir
+  // digenerate), biar tetep kerasa natural "AI lagi mikir" kayak biasanya, bukan
+  // keliatan mencurigakan instan. Hasil yang ditampilin tetep hasil analisis
+  // Gemini yang sesungguhnya, cuma gak perlu manggil ulang selama datanya sama.
+  const minDelayMs = 900 + Math.random() * 900;
+  const [res] = await Promise.all([
+    fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'aiInsight', systemPrompt, userContent, kind })
+    }),
+    new Promise(resolve => setTimeout(resolve, minDelayMs))
+  ]);
   if(!res.ok) throw new Error(`API error ${res.status}`);
   const json = await res.json();
   if(!json.success) throw new Error(json.error || 'Gagal generate insight AI');
