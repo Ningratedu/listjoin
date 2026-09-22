@@ -805,6 +805,28 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
       linear-gradient(180deg, var(--bubble), var(--panel) 140px),
       var(--panel);
   }
+  /* Collapsible: default-nya ketutup (biar section-nya gak makan tempat & baru dibuka pas
+     dibutuhin), tinggal klik panah di bawah buat toggle. Pas ketutup, padding & jarak-jarak
+     di-kecilin biar box-nya gak keliatan gede kosong. */
+  .insight-panel.collapsed{padding-bottom:10px;}
+  .insight-panel.collapsed h2{margin-bottom:2px;}
+  .insight-panel-body{display:block;}
+  /* Panah dropdown di bawah box (bukan di header) -- nempel deket batas bawah panel,
+     posisinya di-center secara horizontal (tetap center di HP juga). Klik panahnya buat
+     buka/tutup. */
+  .insight-panel-togglebar{
+    display:flex;justify-content:center;align-items:center;
+    width:100%;
+    margin-top:6px;padding-top:4px;
+    cursor:pointer;user-select:none;
+  }
+  .insight-panel-togglebar svg{
+    width:20px;height:20px;color:var(--warn);
+    transition:transform .18s ease;
+  }
+  .insight-panel.collapsed .insight-panel-togglebar{margin-top:0;padding-top:0;}
+  .insight-panel:not(.collapsed) .insight-panel-togglebar svg{transform:rotate(180deg);}
+  .insight-panel.collapsed .insight-panel-body{display:none;}
   .insight-col-title{font-size:9.5px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:0;display:flex;align-items:center;gap:6px;}
   .insight-panel .chart-sub{font-size:9.5px;}
   .insight-pair-header{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px;}
@@ -1823,16 +1845,17 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
 
   <div class="stats-row" id="statsRow"></div>
 
-  <div class="list-panel chart-panel insight-panel" id="recruitmentInsightPanel">
+  <div class="list-panel chart-panel insight-panel collapsed" id="recruitmentInsightPanel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">💡</span>
         <div class="chart-heading-text">
           <span>Insight &amp; Rekomendasi Recruitment</span>
-          <span class="chart-sub">Dihitung otomatis dari kandidat bulan terpilih di atas — sudut pandang PIC Recruitment</span>
+          <span class="chart-sub">Klik panah di bawah untuk lihat insight & rekomendasinya</span>
         </div>
       </div>
     </h2>
+    <div class="insight-panel-body">
     <div class="insight-pair-header">
       <p class="insight-col-title">🔍 Insight</p>
       <p class="insight-col-title">✅ Rekomendasi</p>
@@ -1845,6 +1868,8 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
       <p class="ai-insight-section-title">✨ Insight AI (Gemini)</p>
       <div id="recruitmentAIGrid"></div>
     </div>
+    </div>
+    <div class="insight-panel-togglebar" onclick="toggleInsightPanel('recruitmentInsightPanel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 12 16 19 8"></polyline></svg></div>
   </div>
 
   <div class="notice">⚠️ List di bawah bersifat <b>bersama (shared)</b> — semua orang yang buka link ini bisa lihat dan menambah data yang sama. Data disimpan di Google Sheet.</div>
@@ -2129,16 +2154,17 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     </div>
   </div>
 
-  <div class="list-panel chart-panel insight-panel" id="turnoverInsightPanel">
+  <div class="list-panel chart-panel insight-panel collapsed" id="turnoverInsightPanel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">💡</span>
         <div class="chart-heading-text">
           <span>Insight &amp; Rekomendasi Turnover</span>
-          <span class="chart-sub">Dihitung otomatis dari data di atas — update sendiri tiap kali data di-refresh/upload ulang</span>
+          <span class="chart-sub">Klik panah di bawah untuk lihat insight & rekomendasinya</span>
         </div>
       </div>
     </h2>
+    <div class="insight-panel-body">
     <div class="insight-pair-header">
       <p class="insight-col-title">🔍 Insight</p>
       <p class="insight-col-title">✅ Rekomendasi</p>
@@ -2151,6 +2177,8 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
       <p class="ai-insight-section-title">✨ Insight AI (Gemini)</p>
       <div id="turnoverAIGrid"></div>
     </div>
+    </div>
+    <div class="insight-panel-togglebar" onclick="toggleInsightPanel('turnoverInsightPanel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 12 16 19 8"></polyline></svg></div>
   </div>
   </div>
   <!-- /tab-page turnover -->
@@ -2161,16 +2189,17 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
        dari panel tabel (tapi urutan tampilannya tetap sama kayak sebelumnya). -->
   <div class="stats-row" id="onboardingStatsRow"></div>
 
-  <div class="list-panel chart-panel insight-panel" id="inductionInsightPanel">
+  <div class="list-panel chart-panel insight-panel collapsed" id="inductionInsightPanel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">💡</span>
         <div class="chart-heading-text">
           <span>Insight &amp; Rekomendasi Induction</span>
-          <span class="chart-sub">Dihitung otomatis dari data kandidat bulan terpilih di atas</span>
+          <span class="chart-sub">Klik panah di bawah untuk lihat insight & rekomendasinya</span>
         </div>
       </div>
     </h2>
+    <div class="insight-panel-body">
     <div class="insight-pair-header">
       <p class="insight-col-title">🔍 Insight</p>
       <p class="insight-col-title">✅ Rekomendasi</p>
@@ -2183,6 +2212,8 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
       <p class="ai-insight-section-title">✨ Insight AI (Gemini)</p>
       <div id="inductionAIGrid"></div>
     </div>
+    </div>
+    <div class="insight-panel-togglebar" onclick="toggleInsightPanel('inductionInsightPanel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 12 16 19 8"></polyline></svg></div>
   </div>
 
   <!-- TABEL DETAIL KANDIDAT -->
@@ -4986,6 +5017,9 @@ const TABLE_COLUMNS = [
   { key:'departemen', label:'Departemen', sortable:true, filterable:true,
     sortValue: c => (c.departemen||'').toLowerCase(),
     filterValue: c => c.departemen || '', filterLabel: v => v || '(Kosong)' },
+  { key:'divisi', label:'Divisi', sortable:true, filterable:true,
+    sortValue: c => (getDivisiForDesignation(c.designation)||'').toLowerCase(),
+    filterValue: c => getDivisiForDesignation(c.designation) || '', filterLabel: v => v || '(Kosong)' },
   { key:'lokasi', label:'Lokasi', sortable:true, filterable:true,
     sortValue: c => (c.lokasi||'').toLowerCase(),
     filterValue: c => c.lokasi || '', filterLabel: v => v || '(Kosong)' },
@@ -5346,6 +5380,7 @@ function renderCandRow(c, rowNumber){
       <td class="wrap">${escapeHtml(c.atasan||'-')}</td>
       <td class="wrap">${escapeHtml(c.designation||'-')}</td>
       <td class="wrap">${escapeHtml(c.departemen||'-')}</td>
+      <td class="wrap">${escapeHtml(getDivisiForDesignation(c.designation)||'-')}</td>
       <td class="wrap" title="Lokasi otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.lokasi||'-')}</td>
       <td class="wrap" title="SPV otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.spv||'-')}</td>
       <td class="wrap" title="BM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.bm||'-')}</td>
@@ -9869,6 +9904,14 @@ function computeTurnoverInsights(agg){
   }
 
   return { insights, recos };
+}
+
+// Toggle buka/tutup panel Insight & Rekomendasi (default-nya ketutup, lihat class
+// "collapsed" di HTML) -- tinggal klik header panelnya (h2).
+function toggleInsightPanel(panelId){
+  const panel = document.getElementById(panelId);
+  if(!panel) return;
+  panel.classList.toggle('collapsed');
 }
 
 function renderInsightList(containerId, insights, recos, emptyText){
