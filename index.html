@@ -39,6 +39,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx2SUQr5jih5-Zd7-C9lrmW
 window.__earlyListFetch = fetch(API_URL + '?action=list')
   .then(res => res.json())
   .catch(err => ({ success:false, error:String(err) }));
+// Sama alasannya kayak __earlyListFetch di atas -- override Designation->Divisi (hasil
+// assign manual dari popup "Divisi Lainnya") ditembak paralel juga sedini mungkin,
+// biar gak nunggu round-trip terpisah nanti pas loadDesignationDivisiOverridesFromServer().
+window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList')
+  .then(res => res.json())
+  .catch(err => ({ success:false, error:String(err) }));
 </script>
 <!-- Perf: buka koneksi ke domain eksternal lebih awal, biar DNS/TLS gak nunggu pas resource-nya baru ke-discover -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1275,6 +1281,30 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
   .pic-summary-detail-open{animation:fadeInUp .25s ease;}
   @keyframes fadeInUp{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
 
+  /* Drilldown Divisi -> Departemen di popup "Total Kandidat" / "Total Peserta Induction":
+     tombol "kembali" buat balik dari chart Departemen ke summary Divisi. */
+  .stat-drilldown-back{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--panel);border:1px solid var(--border);border-radius:999px;
+    padding:6px 14px;font-size:12px;font-weight:700;color:var(--text);
+    font-family:inherit;cursor:pointer;margin-bottom:14px;transition:background .15s;
+  }
+  .stat-drilldown-back:hover{background:var(--panel-2);}
+
+  /* Assign designation -> Divisi di popup "Divisi Lainnya" */
+  .lainnya-assign-item{padding-bottom:2px;}
+  .lainnya-assign-actions{
+    display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+    padding:0 12px 11px 12px;
+  }
+  .lainnya-assign-label{font-size:11px;color:var(--text-dim);font-weight:600;margin-right:2px;}
+  .lainnya-assign-btn{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:999px;
+    padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--text);
+    font-family:inherit;cursor:pointer;transition:background .15s,border-color .15s;
+  }
+  .lainnya-assign-btn:hover{background:rgba(23,185,120,0.12);border-color:var(--accent);color:var(--accent);}
+
   /* chart panel */
   .chart-panel h2{align-items:flex-start;}
   .chart-heading{display:flex;align-items:flex-start;gap:10px;}
@@ -1957,38 +1987,38 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
     </div>
   </div>
 
-  <!-- CHART SEBARAN DEPARTEMEN -->
+  <!-- CHART SEBARAN DIVISI -->
   <div class="list-panel chart-panel">
     <h2>
       <div class="chart-heading">
-        <span class="h2-icon">🏢</span>
+        <span class="h2-icon">🏷️</span>
         <div class="chart-heading-text">
-          <span>Sebaran Departemen</span>
-          <span class="chart-sub" id="deptChartSub">Jumlah kandidat per departemen</span>
+          <span>Sebaran Divisi</span>
+          <span class="chart-sub" id="deptChartSub">Jumlah kandidat per divisi</span>
         </div>
       </div>
     </h2>
     <div id="deptChartEmptyState" class="empty-state" style="display:none;">Belum ada data buat statistik.</div>
-    <div class="chart-hint" id="deptChartHint" style="display:none;">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+    <div class="chart-hint" id="deptChartHint" style="display:none;">💡 Klik bar untuk lihat sebaran departemen di divisi tsb, klik lagi buat lihat daftar kandidatnya</div>
     <div style="position:relative;height:320px;">
       <canvas id="deptChart"></canvas>
     </div>
   </div>
 
 
-  <!-- CHART SESI INDUCTION PER DEPARTEMEN -->
+  <!-- CHART SESI INDUCTION PER DIVISI -->
   <div class="list-panel chart-panel">
     <h2>
       <div class="chart-heading">
         <span class="h2-icon">🗓️</span>
         <div class="chart-heading-text">
-          <span>Sebaran Departemen per Sesi Induction </span>
-          <span class="chart-sub" id="sessionChartSub">Jumlah sesi dan peserta per departemen</span>
+          <span>Sebaran Divisi per Sesi Induction </span>
+          <span class="chart-sub" id="sessionChartSub">Jumlah sesi dan peserta per divisi</span>
         </div>
       </div>
     </h2>
     <div id="sessionChartEmptyState" class="empty-state" style="display:none;">Belum ada data buat statistik.</div>
-    <div class="chart-hint" id="sessionChartHint" style="display:none;">💡 Setiap batang = 1 sesi induction · klik segmen departemen untuk melihat daftar karyawan</div>
+    <div class="chart-hint" id="sessionChartHint" style="display:none;">💡 Setiap batang = 1 sesi induction · klik segmen divisi untuk lihat sebaran departemennya, klik lagi buat lihat daftar kandidatnya</div>
     <div id="sessionChartLegend" class="session-chart-legend"></div>
     <div class="session-chart-wrap"><canvas id="sessionDeptChart"></canvas></div>
     <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> pada bulan yang dipilih.</div>
@@ -2342,6 +2372,171 @@ window.__earlyListFetch = fetch(API_URL + '?action=list')
 // menangani action ini (lihat contoh kode yang diberikan terpisah).
 
 let candidates = []; // {id, pic, nama, noHp, departemen, designation, atasan, tglJoin, tglOnboarding, posisi}
+
+// Peta Designation -> Divisi, sumbernya dari list_divisi.pdf (patokan resmi buat breakdown
+// "jumlah peserta per divisi" di preview chat). Key di-normalize (lowercase, trim, spasi
+// dirapetin) biar matching-nya gak kepeleset gara-gara beda kapitalisasi/spasi ganda pas
+// user ngetik designation manual di form.
+function normDesignationKey(s){
+  return String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+const DESIGNATION_DIVISI_MAP = (() => {
+  const rows = [
+    ['Pelaksana After Sales','Produksi'],['Purchasing Aftersales','Produksi'],['After Sales Manager','Produksi'],
+    ['Admin After Sales','Produksi'],['Estate Officer','Produksi'],['Estate Supervisor','Produksi'],
+    ['Facility Electrical & Water','Produksi'],['Facility Electrical & Water Supervisor','Produksi'],
+    ['Admin Estate','Produksi'],['Estate & FEW Manager','Produksi'],['Operasional Alat Berat Supervisor','Produksi'],
+    ['Driver','Produksi'],['Operator Alat Berat','Produksi'],['Plant Manager','Produksi'],['MEP Supervisor','Produksi'],
+    ['PPIC Supervisor','Produksi'],['QC & HSE','Produksi'],['Warehouse & Logistic','Produksi'],
+    ['Fabrikasi Operational Supervisor','Produksi'],['Fabrikasi Operational','Produksi'],['Surveyor Supervisor','Produksi'],
+    ['Drafter & Estimator','Produksi'],['Perencana Housing','Produksi'],['Surveyor','Produksi'],
+    ['Perencana Infrastruktur','Produksi'],['Perencana Supervisor','Produksi'],['Drafter Surveyor','Produksi'],
+    ['Perencana & Surveyor Manager','Produksi'],['PDCA Perencana','Produksi'],['Pricing','Produksi'],
+    ['Logistic & Improvement Supervisor','Produksi'],['Logistic & Swakelola','Produksi'],
+    ['Infrastruktur Material Supervisor','Produksi'],['Pricing & Improvement Supervisor','Produksi'],
+    ['Infrastruktur Material','Produksi'],['Pelaksana Project','Produksi'],['Project Manager','Produksi'],
+    ['Complaint Handling Project','Produksi'],['PDCA Production','Produksi'],['Production General Manager','Produksi'],
+    ['Pelaksana Project Operations','Produksi'],['Site Project Supervisor','Produksi'],['Production Manager','Produksi'],
+    ['Project Swakelola Manager','Produksi'],['PDCA Swakelola','Produksi'],['Pelaksana Project Swakelola','Produksi'],
+    ['Project Swakelola Supervisor','Produksi'],['Admin Swakelola','Produksi'],['Logistic','Produksi'],
+    ['Admin Purchasing','Produksi'],['PJS Purchasing Infrastruktur Supervisor','Produksi'],
+    ['Purchasing Infrastruktur Supervisor','Produksi'],['Purchasing Housing','Produksi'],['Purchasing','Produksi'],
+    ['Purchasing Infrastruktur','Produksi'],['Purchasing Operation Supervisor','Produksi'],['Quality Control','Produksi'],
+    ['Admin Quality Control','Produksi'],['Quality Control Manager','Produksi'],['Quality Control Supervisor','Produksi'],
+    ['Referral Program Specialist','Produksi'],['R&D Perencana Design','Produksi'],
+    ['R&D dan Perencana General Manager','Produksi'],['PDCA Perencana & R&D','Produksi'],['R&D Operasional','Produksi'],
+    ['R&D Operasional Manager','Produksi'],
+    ['Sales & Marketing Supervisor','Sales'],['Sales Counter','Sales'],['Regional Manager','Sales'],
+    ['Sales Supervisor','Sales'],['Sales','Sales'],['Branch Manager','Sales'],['PJS Sales Supervisor','Sales'],
+    ['Commercial Marketing','Sales'],['PJS Branch Manager','Sales'],['Commercial Marketing Supervisor','Sales'],
+    ['Audit Officer','Support'],['Business Control','Support'],['Bank Relation','Support'],['Data Collection','Support'],
+    ['Admin LPA','Support'],['Admin Pajak','Support'],['Business Opr & Adm Division Head','Support'],
+    ['Business Opr & Adm Manager','Support'],['DRBM Recovery','Support'],['LPA','Support'],['PDCA Internal','Support'],
+    ['Data Collection Supervisor','Support'],['Admin Data Collection','Support'],
+    ['Business Opr. & Relation Supervisor','Support'],['Directing and Editing & UGC','Support'],
+    ['Content Editor','Support'],['Social Media Specialist & Riset Content','Support'],
+    ['Personal Branding Manager','Support'],['Creative Director Strategic','Support'],['Talent Strategic','Support'],
+    ['Customer Relationship Management Manager','Support'],['Customer Relationship Management','Support'],
+    ['Desain Grafis','Support'],['PDCA Internal Digital Marketing','Support'],['Administrasi Online','Support'],
+    ['Content Creator','Support'],['Cinematographer','Support'],['Marketing Online & Meta Ads Supervisor','Support'],
+    ['Admin Digital Marketing','Support'],['Ads Specialist','Support'],['Host Live & Admin Leader','Support'],
+    ['Admin Affiliate','Support'],['Host Live','Support'],['Videographer','Support'],['Pengeluaran','Support'],
+    ['Admin Bank','Support'],['Finance','Support'],['Finance Supervisor','Support'],['Admin Hutang','Support'],
+    ['Accounting Supervisor','Support'],['Accounting','Support'],['Penerimaan','Support'],
+    ['Finance & Accounting Manager','Support'],['Talent Acquisition Manager','Support'],['Talent Acquisition','Support'],
+    ['HR Operasional Manager','Support'],['Data Analyst','Support'],['Training & Development Supervisor','Support'],
+    ['HRBP Supervisor','Support'],['Training & Development','Support'],
+    ['Organization Development (Production)','Support'],['Organization Development Supervisor','Support'],
+    ['Investor Relation Division Head','Support'],['Staff Investor Relation','Support'],
+    ['Account Receivable (AR) Bank','Support'],['Legal Permission Supervisor','Support'],['Legal Operation','Support'],
+    ['Legal Permission','Support'],['Land Acquisition','Support'],['Legal Certification','Support'],
+    ['Legal Surveyor','Support'],['Land Acquisition Manager','Support'],['Legal General Manager','Support'],
+    ['Legal Certification Manager','Support'],['Legal Certification Supervisor','Support'],['Admin Legal','Support'],
+    ['Social Media Specialist','Support'],['Graphic Desain','Support'],['Content Writer','Support'],
+    ['PDCA Marketing Communication','Support'],['Marketing Communication Assistant Manager','Support'],
+    ['Management Trainee','Support'],['Media External Manager','Support'],['IT Programmer Factory','Support'],
+    ['Finance & Accounting','Support'],['PDCA','Support'],['PDCA Manager','Support'],['IT Programmer PDCA','Support'],
+    ['Admin Sales','Support'],['PDCA Sales & Marketing','Support']
+  ];
+  const map = {};
+  rows.forEach(([designation, divisi]) => { map[normDesignationKey(designation)] = divisi; });
+  return map;
+})();
+
+// Urutan tampil divisi di breakdown preview -- ngikutin urutan besar di list_divisi.pdf
+// (Produksi -> Sales -> Support), baru "Lainnya" buat designation yang gak ketemu di peta.
+const DIVISI_DISPLAY_ORDER = ['Produksi', 'Sales', 'Support', 'Lainnya'];
+// Divisi yang bisa dipilih pas assign designation dari "Lainnya" -- "Lainnya" sendiri
+// sengaja gak masuk pilihan (gak ada gunanya assign ke dirinya sendiri).
+const ASSIGNABLE_DIVISI = ['Produksi', 'Sales', 'Support'];
+
+// Override designation->Divisi buat designation yang gak ketemu di DESIGNATION_DIVISI_MAP
+// (jatuh ke "Lainnya"). User assign manual lewat popup "Total Kandidat"/"Total Peserta
+// Induction" -> Divisi Lainnya -> tombol assign. Tersimpan PERMANEN di sheet "DivisiOverride"
+// di backend Apps Script (action 'divisiOverrideList' / 'divisiOverrideSet') -- jadi begitu
+// di-assign, kebaca SEMUA orang yang buka link ini, bukan cuma di 1 browser. localStorage di
+// sini cuma dipake sebagai CACHE lokal (biar begitu buka web-nya gak sempet keliatan "Lainnya"
+// sekejap sebelum fetch server-nya kelar) -- sumber kebenarannya tetap sheet-nya.
+const DESIGNATION_DIVISI_OVERRIDE_CACHE_KEY = 'induction_designation_divisi_overrides_cache_v1';
+function readDivisiOverrideCache(){
+  try{
+    const raw = localStorage.getItem(DESIGNATION_DIVISI_OVERRIDE_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  }catch(e){ return {}; }
+}
+function writeDivisiOverrideCache(){
+  try{ localStorage.setItem(DESIGNATION_DIVISI_OVERRIDE_CACHE_KEY, JSON.stringify(designationDivisiOverrides)); }
+  catch(e){ /* diem-diem aja, localStorage penuh/diblokir browser gak fatal buat fitur lain */ }
+}
+// Diisi instan dari cache lokal dulu (kalau ada) pas script ini di-parse, SEBELUM fetch
+// server manapun kelar -- lihat loadDesignationDivisiOverridesFromServer() buat sumber
+// kebenaran aslinya yang nyusul begitu request server-nya selesai.
+let designationDivisiOverrides = readDivisiOverrideCache();
+
+function getDivisiForDesignation(designation){
+  const key = normDesignationKey(designation);
+  if(designationDivisiOverrides[key]) return designationDivisiOverrides[key];
+  return DESIGNATION_DIVISI_MAP[key] || 'Lainnya';
+}
+
+// Timpa designationDivisiOverrides dari rows hasil server (array of {designation, divisi}).
+function applyDivisiOverrideRows(rows){
+  const map = {};
+  (rows || []).forEach(r => {
+    const key = normDesignationKey(r.designation);
+    if(key && r.divisi) map[key] = r.divisi;
+  });
+  designationDivisiOverrides = map;
+  writeDivisiOverrideCache();
+}
+
+// Ambil override terbaru dari backend (sekali di awal load, lewat __earlyDivisiOverrideFetch
+// yang udah ditembak sedini mungkin di <head>). Kalau datanya beda dari yang lagi kepake
+// (cache lokal/kosong) DAN candidates udah pernah di-render, render ulang biar preview chat,
+// breakdown Divisi, dsb langsung sinkron tanpa perlu refresh manual.
+async function loadDesignationDivisiOverridesFromServer(){
+  try{
+    let json;
+    if(window.__earlyDivisiOverrideFetch){
+      json = await window.__earlyDivisiOverrideFetch;
+      window.__earlyDivisiOverrideFetch = null;
+    }else{
+      const res = await fetch(API_URL + '?action=divisiOverrideList');
+      json = await res.json();
+    }
+    if(!json || !json.success) return; // gagal diem2 aja, cache lokal (kalau ada) tetep dipake
+    const before = JSON.stringify(designationDivisiOverrides);
+    applyDivisiOverrideRows(json.data);
+    if(JSON.stringify(designationDivisiOverrides) !== before && candidates.length){
+      applyCandidates(candidates);
+    }
+  }catch(e){
+    // offline / API_URL belum diset dsb -> diem2 aja, cache lokal (kalau ada) tetep dipake
+  }
+}
+
+// Assign 1 designation ke Divisi pilihan user -> simpen ke server (sheet DivisiOverride).
+// Return { success, error? }. State lokal (designationDivisiOverrides + cache) BARU diupdate
+// begitu server-nya konfirmasi sukses, biar gak "keliatan pindah" padahal gagal kesimpen.
+async function assignDesignationToDivisi(designation, divisi){
+  const key = normDesignationKey(designation);
+  if(!key || ASSIGNABLE_DIVISI.indexOf(divisi) === -1) return { success:false, error:'Data tidak valid' };
+  try{
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'divisiOverrideSet', designation, divisi })
+    });
+    const json = await res.json();
+    if(!json.success) throw new Error(json.error || 'unknown error');
+    designationDivisiOverrides[key] = divisi;
+    writeDivisiOverrideCache();
+    return { success:true };
+  }catch(err){
+    return { success:false, error: err.message };
+  }
+}
 
 const picNameEl = document.getElementById('picName');
 const namaEl = document.getElementById('nama');
@@ -4111,6 +4306,41 @@ document.getElementById('statModalOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'statModalOverlay') closeStatModal();
 });
 document.getElementById('statModalBody').addEventListener('click', (e) => {
+  const divisiRow = e.target.closest('.divisi-summary-row');
+  if(divisiRow){
+    renderDivisiDeptChartStep(divisiRow.dataset.divisi);
+    return;
+  }
+  const backBtn = e.target.closest('#divisiDrilldownBack');
+  if(backBtn){
+    document.getElementById('statModalBody').innerHTML = renderDivisiSummaryHtml(currentDivisiDrilldownList);
+    return;
+  }
+  const assignBtn = e.target.closest('.lainnya-assign-btn');
+  if(assignBtn){
+    if(assignBtn.disabled) return;
+    const designation = assignBtn.dataset.designation;
+    const divisi = assignBtn.dataset.divisi;
+    const actionsWrap = assignBtn.closest('.lainnya-assign-actions');
+    const siblingBtns = actionsWrap ? actionsWrap.querySelectorAll('.lainnya-assign-btn') : [assignBtn];
+    const originalText = assignBtn.textContent;
+    siblingBtns.forEach(b => b.disabled = true);
+    assignBtn.textContent = 'Menyimpan...';
+    assignDesignationToDivisi(designation, divisi).then(result => {
+      if(result.success){
+        showToast(`"${designation}" dimasukkan ke Divisi ${divisi}`);
+        // Refresh preview chat/stats/badge lain yang ikut mengandalkan Divisi, lalu
+        // render ulang step ini (designation yang baru di-assign otomatis hilang dari list).
+        if(candidates.length) applyCandidates(candidates);
+        renderLainnyaAssignStep();
+      }else{
+        showToast('Gagal menyimpan ke server: ' + (result.error || 'unknown error'), true);
+        siblingBtns.forEach(b => b.disabled = false);
+        assignBtn.textContent = originalText;
+      }
+    });
+    return;
+  }
   const toggleBtn = e.target.closest('.pic-summary-toggle');
   if(toggleBtn){
     const detailEl = document.getElementById(toggleBtn.dataset.target);
@@ -4151,6 +4381,39 @@ document.getElementById('chartModalBody').addEventListener('click', (e) => {
       if(waBtn.dataset.type === 'module') sendModuleReminder(c);
       else sendOnboardingReminder(c);
     }
+    return;
+  }
+  // Tombol assign designation -> Divisi, dipakai di step "Divisi Lainnya" pada chart
+  // "Sebaran Divisi" (chartModalLainnyaCtx.type === 'main') maupun "Sebaran Divisi per
+  // Sesi Induction" (type === 'session'). Sama polanya kayak assign di popup "Total
+  // Kandidat" (lihat listener #statModalBody), cuma target refresh-nya beda step.
+  const assignBtn = e.target.closest('.lainnya-assign-btn');
+  if(assignBtn){
+    if(assignBtn.disabled) return;
+    const designation = assignBtn.dataset.designation;
+    const divisi = assignBtn.dataset.divisi;
+    const actionsWrap = assignBtn.closest('.lainnya-assign-actions');
+    const siblingBtns = actionsWrap ? actionsWrap.querySelectorAll('.lainnya-assign-btn') : [assignBtn];
+    const originalText = assignBtn.textContent;
+    siblingBtns.forEach(b => b.disabled = true);
+    assignBtn.textContent = 'Menyimpan...';
+    assignDesignationToDivisi(designation, divisi).then(result => {
+      if(result.success){
+        showToast(`"${designation}" dimasukkan ke Divisi ${divisi}`);
+        // Refresh chart Sebaran Divisi & Sebaran Divisi per Sesi di halaman utama, lalu
+        // render ulang step Lainnya yang lagi kebuka (designation yang baru di-assign
+        // otomatis hilang dari list).
+        const ctx = chartModalLainnyaCtx;
+        if(candidates.length) applyCandidates(candidates);
+        if(ctx && ctx.type === 'main') renderDeptChartLainnyaStep();
+        else if(ctx && ctx.type === 'session') renderSessionLainnyaStep(ctx.date, ctx.wk);
+      }else{
+        showToast('Gagal menyimpan ke server: ' + (result.error || 'unknown error'), true);
+        siblingBtns.forEach(b => b.disabled = false);
+        assignBtn.textContent = originalText;
+      }
+    });
+    return;
   }
 });
 
@@ -4264,7 +4527,7 @@ function bindStatTileEvents(){
     el.addEventListener('click', () => {
       const type = el.dataset.stat;
       if(type === 'total'){
-        openStatModal(`Kandidat Join ${currentMonthLabel()} (${statDetailsCache.total.length})`, renderTotalKandidatByBatchHtml(statDetailsCache.total), {icon:'📋', accent:'total'});
+        openStatModal(`Kandidat Join ${currentMonthLabel()} (${statDetailsCache.total.length})`, renderDivisiSummaryHtml(statDetailsCache.total), {icon:'📋', accent:'total'});
       }else if(type === 'pic'){
         openStatModal(`PIC Aktif — ${currentMonthLabel()} (${statDetailsCache.picList.length})`, renderTotalPicSummaryHtml(statDetailsCache.picList), {icon:'👥', accent:'pic'});
       }else if(type === 'onboarding'){
@@ -4273,7 +4536,7 @@ function bindStatTileEvents(){
         openStatModal(`Aktivasi sebelum Induction per PIC — ${currentMonthLabel()}`, renderAktivasiBreakdownHtml(statDetailsCache.aktivasi), {icon:'🔑', accent:'aktivasi'});
       }else if(type === 'onbTotal'){
         const list = statDetailsCache.onboardingStatus.peserta;
-        openStatModal(`Total Peserta Induction — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'🎓', accent:'onboarding'});
+        openStatModal(`Total Peserta Induction — ${currentMonthLabel()} (${list.length})`, renderDivisiSummaryHtml(list), {icon:'🎓', accent:'onboarding'});
       }else if(type === 'onbCompleted'){
         const list = statDetailsCache.onboardingStatus.completed;
         openStatModal(`Induction Completed — ${currentMonthLabel()} (${list.length})`, renderOnboardingStatusBreakdownHtml(list), {icon:'✅', accent:'onboarding'});
@@ -5764,6 +6027,7 @@ function openChartModal(group, pic, date){
 
 function closeChartModal(){
   document.getElementById('chartModalOverlay').classList.remove('show');
+  chartModalLainnyaCtx = null;
 }
 document.getElementById('chartModalClose').addEventListener('click', closeChartModal);
 document.getElementById('chartModalOverlay').addEventListener('click', (e) => {
@@ -5833,15 +6097,19 @@ function renderSessionDeptChart(){
   }
   if(emptyEl) emptyEl.style.display='none'; if(hintEl) hintEl.style.display='block'; canvas.style.display='block';
   if(subEl) subEl.textContent=`${sessions.length} sesi · ${sessions.reduce((n,[,g])=>n+g.length,0)} peserta · ${currentMonthLabel()}`;
-  const deptSet=new Set(); sessions.forEach(([,g])=>g.forEach(c=>deptSet.add((c.departemen||'').trim()||'(Belum diisi)')));
-  const depts=Array.from(deptSet).sort((a,b)=>a.localeCompare(b,'id'));
+  // Stack per DIVISI (bukan per Departemen langsung) -- urutan tetap DIVISI_DISPLAY_ORDER
+  // (Produksi -> Sales -> Support -> Lainnya) biar warnanya konsisten antar render & sama
+  // kayak chart "Sebaran Divisi" utama. Klik segmen -> breakdown Departemen dulu (atau step
+  // assign kalau Lainnya), baru klik bar Departemen -> daftar kandidat (lihat openSessionDivisiSegmentClick()).
+  const divisiSet=new Set(); sessions.forEach(([,g])=>g.forEach(c=>divisiSet.add(getDivisiForDesignation(c.designation))));
+  const divisiList=DIVISI_DISPLAY_ORDER.filter(d=>divisiSet.has(d));
   const colors=DEPT_GRADIENTS.map(g=>g[0]);
   const labels=sessions.map(([d])=>fmtShortID(d));
-  const groupsByDept=depts.map(dept=>sessions.map(([,g])=>g.filter(c=>((c.departemen||'').trim()||'(Belum diisi)')===dept)));
-  if(legendEl) legendEl.innerHTML=depts.map((d,i)=>`<span class="session-chart-legend-item"><span class="session-chart-legend-dot" style="background:${colors[i%colors.length]}"></span>${escapeHtml(d)}</span>`).join('');
-  const datasets=depts.map((dept,di)=>({label:dept,data:groupsByDept[di].map(g=>g.length),backgroundColor:colors[di%colors.length],borderColor:cssVar('--panel'),borderWidth:1.5,borderRadius:5,borderSkipped:false,stack:'session',maxBarThickness:48,_groups:groupsByDept[di]}));
+  const groupsByDivisi=divisiList.map(divisi=>sessions.map(([,g])=>g.filter(c=>getDivisiForDesignation(c.designation)===divisi)));
+  if(legendEl) legendEl.innerHTML=divisiList.map((d,i)=>`<span class="session-chart-legend-item"><span class="session-chart-legend-dot" style="background:${colors[i%colors.length]}"></span>${escapeHtml(d)}</span>`).join('');
+  const datasets=divisiList.map((divisi,di)=>({label:divisi,data:groupsByDivisi[di].map(g=>g.length),backgroundColor:colors[di%colors.length],borderColor:cssVar('--panel'),borderWidth:1.5,borderRadius:5,borderSkipped:false,stack:'session',maxBarThickness:48,_groups:groupsByDivisi[di]}));
   const ctx=canvas.getContext('2d');
-  sessionDeptChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500,easing:'easeOutQuart'},interaction:{mode:'nearest',intersect:true},onClick:(evt,elements)=>{if(!elements.length)return;const el=elements[0],ds=sessionDeptChart.data.datasets[el.datasetIndex],group=ds._groups[el.index]||[];if(group.length)openBatchDeptModal(ds.label,sessions[el.index][0],onboardingWeekNumber(sessions[el.index][0]),group);},onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},plugins:{legend:{display:false},tooltip:{callbacks:{title:(items)=>{const i=items[0]?.dataIndex;return i==null?'':`Sesi ${i+1} · ${labels[i]}`;},label:(ctx)=>`${ctx.dataset.label}: ${ctx.raw} karyawan`,footer:(items)=>{const i=items[0]?.dataIndex;return i==null?'':`Total sesi: ${sessions[i][1].length} karyawan · klik segmen untuk detail`;}}}},scales:{x:{stacked:true,ticks:{color:cssVar('--text'),font:{size:10.5,weight:'700'}},grid:{display:false},title:{display:true,text:'Sesi induction',color:cssVar('--text-dim'),font:{size:10,weight:'600'}}},y:{stacked:true,beginAtZero:true,
+  sessionDeptChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500,easing:'easeOutQuart'},interaction:{mode:'nearest',intersect:true},onClick:(evt,elements)=>{if(!elements.length)return;const el=elements[0],ds=sessionDeptChart.data.datasets[el.datasetIndex],group=ds._groups[el.index]||[];if(group.length)openSessionDivisiSegmentClick(ds.label,group,sessions[el.index][0],onboardingWeekNumber(sessions[el.index][0]));},onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},plugins:{legend:{display:false},tooltip:{callbacks:{title:(items)=>{const i=items[0]?.dataIndex;return i==null?'':`Sesi ${i+1} · ${labels[i]}`;},label:(ctx)=>`${ctx.dataset.label}: ${ctx.raw} karyawan`,footer:(items)=>{const i=items[0]?.dataIndex;return i==null?'':`Total sesi: ${sessions[i][1].length} karyawan · klik segmen untuk breakdown departemen`;}}}},scales:{x:{stacked:true,ticks:{color:cssVar('--text'),font:{size:10.5,weight:'700'}},grid:{display:false},title:{display:true,text:'Sesi induction',color:cssVar('--text-dim'),font:{size:10,weight:'600'}}},y:{stacked:true,beginAtZero:true,
     // Nambah 1 garis/tick ekstra di atas nilai tertinggi yang dihitung chart.js secara
     // otomatis (bukan padding manual) -- biar label total angka di atas batang tertinggi
     // selalu punya ruang napas yang proporsional sama skalanya, tanpa bikin jarak kosong
@@ -5856,6 +6124,111 @@ function renderSessionDeptChart(){
       }
     },
     ticks:{color:cssVar('--text-dim'),font:{size:10},precision:0},grid:{color:cssVar('--border')},title:{display:true,text:'Jumlah karyawan',color:cssVar('--text-dim'),font:{size:10,weight:'600'}}}}},plugins:[{id:'sessionTotalLabels',afterDatasetsDraw(chart){const {ctx,chartArea}=chart;chart.data.labels.forEach((_,idx)=>{let total=0,topBar=null;chart.data.datasets.forEach((ds,di)=>{total+=Number(ds.data[idx]||0);const meta=chart.getDatasetMeta(di);if(!meta.hidden&&Number(ds.data[idx]||0)>0)topBar=meta.data[idx];});if(!topBar||!total)return;const pos=topBar.getProps(['x','y'],true);const labelY=Math.max(pos.y-5,(chartArea?.top??0)+11);ctx.save();ctx.fillStyle=cssVar('--text');ctx.font='800 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(total),pos.x,labelY);ctx.restore();});}}]});
+}
+
+// Klik 1 segmen Divisi di 1 sesi -> breakdown Departemen khusus (divisi, sesi) itu (atau
+// step assign kalau "Lainnya"), baru klik bar Departemen -> daftar kandidat (lewat
+// openBatchDeptModal, sama kayak alur batch onboarding yang udah ada).
+function openSessionDivisiSegmentClick(divisi, group, date, wk){
+  if(divisi === 'Lainnya'){
+    renderSessionLainnyaStep(date, wk);
+  }else{
+    renderSessionDivisiDeptStep(divisi, group, date, wk);
+  }
+  document.getElementById('chartModalOverlay').classList.add('show');
+}
+
+function renderSessionDivisiDeptStep(divisi, group, date, wk){
+  chartModalLainnyaCtx = null;
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
+  const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl induction belum diisi';
+  modalTitleEl.textContent = `🏷️ Divisi ${divisi}`;
+  destroyTotalBatchCharts();
+  const key = 'batchDeptChart-sessionDivisi';
+  modalBodyEl.innerHTML = `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">🏷️ ${escapeHtml(divisi)}</span>
+        <span class="week-date">${escapeHtml(batchLabel)}</span>
+        <span class="week-count">${group.length} kandidat</span>
+      </div>
+      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+      <div style="position:relative;">
+        <canvas id="${key}"></canvas>
+      </div>
+    </div>`;
+  // labelOverride dikosongin (null) -- pas bar departemen-nya diklik, openBatchDeptModal
+  // bakal nampilin "Minggu ke-X · tgl" sebagai label batch, sama kayak alur lama.
+  lastTotalBatches = [{ key, date, wk, group, labelOverride: null }];
+  setTimeout(() => {
+    const canvas = document.getElementById(key);
+    if(!canvas) return;
+    const chart = buildBatchDeptChart(canvas, group, wk, date, null);
+    if(chart) totalBatchCharts.push(chart);
+  }, 0);
+}
+
+// Step "Divisi Lainnya" versi per-sesi -- group-nya diambil ulang dari getSessionDeptData()
+// tiap dipanggil (dicocokkan ke sesi lewat `date`), biar refresh abis assign gak pakai data basi.
+function renderSessionLainnyaStep(date, wk){
+  chartModalLainnyaCtx = { type: 'session', date, wk };
+  const sessions = getSessionDeptData();
+  const session = sessions.find(([d]) => d === date);
+  const group = session ? session[1].filter(c => getDivisiForDesignation(c.designation) === 'Lainnya') : [];
+
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
+  const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl induction belum diisi';
+  modalTitleEl.textContent = `🏷️ Divisi Lainnya`;
+  destroyTotalBatchCharts();
+  lastTotalBatches = [];
+
+  if(group.length === 0){
+    modalBodyEl.innerHTML = `<div class="empty-state">✅ Semua designation di sesi ini udah ke-assign ke Divisi.</div>`;
+    return;
+  }
+
+  const desigMap = {};
+  group.forEach(c => {
+    const raw = (c.designation || '').trim();
+    const label = raw || '(Designation belum diisi)';
+    if(!desigMap[label]) desigMap[label] = { raw, list: [] };
+    desigMap[label].list.push(c);
+  });
+  const entries = Object.entries(desigMap).sort((a, b) => b[1].list.length - a[1].list.length);
+
+  modalBodyEl.innerHTML = `
+    <div class="chart-hint">💡 Designation di bawah belum kepetakan ke Divisi manapun. Pilih Divisi yang sesuai per designation -- tersimpan otomatis buat semua orang.</div>
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">🏷️ Divisi Lainnya</span>
+        <span class="week-date">${escapeHtml(batchLabel)}</span>
+        <span class="week-count">${group.length} kandidat · ${entries.length} designation</span>
+      </div>
+      ${entries.map(([label, {raw, list}]) => `
+        <div class="pic-summary-item lainnya-assign-item">
+          <div class="pic-summary-row" style="cursor:default;">
+            <span class="pic-summary-avatar">🏷️</span>
+            <span class="pic-summary-main">
+              <span class="pic-summary-name">${escapeHtml(label)}</span>
+            </span>
+            <span class="pic-summary-count-badge">${list.length}</span>
+          </div>
+          ${raw ? `
+          <div class="lainnya-assign-actions">
+            <span class="lainnya-assign-label">Masukkan ke:</span>
+            ${ASSIGNABLE_DIVISI.map(d => `<button type="button" class="lainnya-assign-btn" data-designation="${escapeAttr(raw)}" data-divisi="${escapeAttr(d)}">${d}</button>`).join('')}
+          </div>` : `
+          <div class="lainnya-assign-actions">
+            <span class="lainnya-assign-label">Isi dulu field Designation kandidatnya buat bisa di-assign.</span>
+          </div>`}
+        </div>`).join('')}
+    </div>`;
 }
 
 // ==== Chart Sebaran Departemen ====
@@ -5954,17 +6327,14 @@ function renderDeptChart(){
   const hintEl = document.getElementById('deptChartHint');
   const subEl = document.getElementById('deptChartSub');
 
-  const deptMap = {}; // departemen -> [kandidat]
+  // Group by DIVISI (bukan Departemen langsung) -- urutan tetap DIVISI_DISPLAY_ORDER
+  // (Produksi -> Sales -> Support -> Lainnya) biar warna bar-nya konsisten antar render.
+  // Klik bar -> breakdown Departemen di divisi itu (atau step assign kalau "Lainnya"),
+  // lihat openDivisiChartSegmentClick().
   const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
-  candidatesInSelectedMonth.forEach(c => {
-    const d = (c.departemen || '').trim() || '(Belum diisi)';
-    if(!deptMap[d]) deptMap[d] = [];
-    deptMap[d].push(c);
-  });
+  const divisiGroups = computeDivisiGroups(candidatesInSelectedMonth); // [{divisi, list}], urut DIVISI_DISPLAY_ORDER
 
-  const entries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
-
-  if(entries.length === 0){
+  if(divisiGroups.length === 0){
     emptyEl.textContent = `Belum ada data buat statistik di bulan ${currentMonthLabel()}.`;
     emptyEl.style.display = 'block';
     hintEl.style.display = 'none';
@@ -5978,12 +6348,12 @@ function renderDeptChart(){
   canvas.style.display = 'block';
 
   const total = candidatesInSelectedMonth.length;
-  const topDept = entries[0][0];
-  subEl.textContent = `${currentMonthLabel()} · ${total} kandidat total · terbanyak: ${topDept} (${entries[0][1].length})`;
+  const topEntry = divisiGroups.reduce((a, b) => (b.list.length > a.list.length ? b : a), divisiGroups[0]);
+  subEl.textContent = `${currentMonthLabel()} · ${total} kandidat total · divisi terbanyak: ${topEntry.divisi} (${topEntry.list.length})`;
 
-  const labels = entries.map(e => e[0]);
-  const data = entries.map(e => e[1].length);
-  const groups = entries.map(e => e[1]);
+  const labels = divisiGroups.map(g => g.divisi);
+  const data = divisiGroups.map(g => g.list.length);
+  const groups = divisiGroups.map(g => g.list);
 
   const ctx2d = canvas.getContext('2d');
   const barColors = labels.map((_, idx) => {
@@ -6043,7 +6413,7 @@ function renderDeptChart(){
       onClick: (evt, elements) => {
         if(!elements.length) return;
         const idx = elements[0].index;
-        openDeptModal(labels[idx], groups[idx]);
+        openDivisiChartSegmentClick(labels[idx], groups[idx]);
       },
       onHover: (evt, elements) => {
         evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
@@ -6052,7 +6422,7 @@ function renderDeptChart(){
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.raw} kandidat · klik untuk detail`
+            label: (ctx) => `${ctx.raw} kandidat · klik untuk breakdown departemen`
           }
         }
       },
@@ -6083,38 +6453,110 @@ function renderDeptChart(){
   deptChart.$countFontSize = countFontSize;
 }
 
-function openDeptModal(dept, group){
+// ==== Chart "Sebaran Divisi" utama: klik bar Divisi -> breakdown Departemen (atau step
+// assign kalau "Lainnya") -> klik bar Departemen -> daftar kandidat. Dipakai lewat
+// chartModalOverlay/chartModalBody (bukan statModalOverlay kayak popup "Total Kandidat"),
+// karena chart ini nempel di halaman, bukan dipicu dari dalam popup lain -- jadi gak perlu
+// tombol "Kembali", nutup modal-nya aja balik ke chart yang emang udah nampilin per-Divisi.
+// chartModalLainnyaCtx nyimpen konteks step "Lainnya" yang lagi kebuka (dari chart utama
+// atau dari chart per-sesi) biar tombol assign di listener #chartModalBody tau harus
+// nge-refresh & render ulang step yang mana.
+let chartModalLainnyaCtx = null; // null | {type:'main'} | {type:'session', date, wk}
+
+function openDivisiChartSegmentClick(divisi, group){
+  if(divisi === 'Lainnya'){
+    renderDeptChartLainnyaStep();
+  }else{
+    renderDeptChartDeptStep(divisi, group);
+  }
+  document.getElementById('chartModalOverlay').classList.add('show');
+}
+
+function renderDeptChartDeptStep(divisi, group){
+  chartModalLainnyaCtx = null;
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
   const modalSubtitleEl = document.getElementById('chartModalSubtitle');
   if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
-  modalTitleEl.textContent = `🏢 ${dept}`;
-
-  let html = `<div class="week-group">
-    <div class="week-header">
-      <span class="week-pill">🏢 ${escapeHtml(dept)}</span>
-      <span class="week-count">${group.length} kandidat</span>
+  modalTitleEl.textContent = `🏷️ Divisi ${divisi}`;
+  destroyTotalBatchCharts();
+  const key = 'batchDeptChart-mainDivisi';
+  const labelOverride = `🏷️ Divisi ${divisi}`;
+  modalBodyEl.innerHTML = `
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">🏷️ ${escapeHtml(divisi)}</span>
+        <span class="week-count">${group.length} kandidat</span>
+      </div>
+      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+      <div style="position:relative;">
+        <canvas id="${key}"></canvas>
+      </div>
     </div>`;
-  group.forEach(c => {
-    html += `
-      <div class="cand-card dept-mini-card">
-        <div class="dept-mini-name-row">
-          <div class="dept-mini-name">${escapeHtml(c.nama||'(nama belum diisi)')}</div>
-          ${renderWaButton(c)}
-        </div>
-        <div class="dept-mini-role">${renderRoleLine(c)}</div>
-        <div class="dept-mini-row">
-          <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
-          <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>
-          <span class="meta-item">🧑‍💼 <b>Atasan</b> ${escapeHtml(c.atasan || '-')}</span> <span class="meta-item">📍 <b>Lokasi</b> ${escapeHtml(c.lokasi || '-')}</span>
-        </div>
-        <div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}${renderOnboardingStatusBadge(c)}</div>
-      </div>`;
-  });
-  html += `</div>`;
-  modalBodyEl.innerHTML = html;
+  lastTotalBatches = [{ key, date: null, wk: null, group, labelOverride }];
+  setTimeout(() => {
+    const canvas = document.getElementById(key);
+    if(!canvas) return;
+    const chart = buildBatchDeptChart(canvas, group, null, null, labelOverride);
+    if(chart) totalBatchCharts.push(chart);
+  }, 0);
+}
 
-  document.getElementById('chartModalOverlay').classList.add('show');
+// Step "Divisi Lainnya" versi chart utama -- data-nya diambil ulang dari `candidates`
+// tiap kali dipanggil (bukan dari group hasil klik yang udah basi), biar begitu ada
+// designation yang baru di-assign, listnya otomatis update tanpa perlu tutup-buka modal.
+function renderDeptChartLainnyaStep(){
+  chartModalLainnyaCtx = { type: 'main' };
+  const monthList = candidates.filter(isInSelectedMonth);
+  const group = monthList.filter(c => getDivisiForDesignation(c.designation) === 'Lainnya');
+  const modalTitleEl = document.getElementById('chartModalTitle');
+  const modalBodyEl = document.getElementById('chartModalBody');
+  const modalSubtitleEl = document.getElementById('chartModalSubtitle');
+  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
+  modalTitleEl.textContent = `🏷️ Divisi Lainnya`;
+  destroyTotalBatchCharts();
+  lastTotalBatches = [];
+
+  if(group.length === 0){
+    modalBodyEl.innerHTML = `<div class="empty-state">✅ Semua designation di bulan ini udah ke-assign ke Divisi.</div>`;
+    return;
+  }
+
+  const desigMap = {};
+  group.forEach(c => {
+    const raw = (c.designation || '').trim();
+    const label = raw || '(Designation belum diisi)';
+    if(!desigMap[label]) desigMap[label] = { raw, list: [] };
+    desigMap[label].list.push(c);
+  });
+  const entries = Object.entries(desigMap).sort((a, b) => b[1].list.length - a[1].list.length);
+
+  modalBodyEl.innerHTML = `
+    <div class="chart-hint">💡 Designation di bawah belum kepetakan ke Divisi manapun. Pilih Divisi yang sesuai per designation -- tersimpan otomatis buat semua orang.</div>
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">🏷️ Divisi Lainnya</span>
+        <span class="week-count">${group.length} kandidat · ${entries.length} designation</span>
+      </div>
+      ${entries.map(([label, {raw, list}]) => `
+        <div class="pic-summary-item lainnya-assign-item">
+          <div class="pic-summary-row" style="cursor:default;">
+            <span class="pic-summary-avatar">🏷️</span>
+            <span class="pic-summary-main">
+              <span class="pic-summary-name">${escapeHtml(label)}</span>
+            </span>
+            <span class="pic-summary-count-badge">${list.length}</span>
+          </div>
+          ${raw ? `
+          <div class="lainnya-assign-actions">
+            <span class="lainnya-assign-label">Masukkan ke:</span>
+            ${ASSIGNABLE_DIVISI.map(d => `<button type="button" class="lainnya-assign-btn" data-designation="${escapeAttr(raw)}" data-divisi="${escapeAttr(d)}">${d}</button>`).join('')}
+          </div>` : `
+          <div class="lainnya-assign-actions">
+            <span class="lainnya-assign-label">Isi dulu field Designation kandidatnya buat bisa di-assign.</span>
+          </div>`}
+        </div>`).join('')}
+    </div>`;
 }
 
 // ==== Popup "Total Kandidat" -> Sebaran Departemen PER BATCH ONBOARDING ====
@@ -6138,13 +6580,15 @@ function rerenderTotalBatchCharts(){
   lastTotalBatches.forEach(b => {
     const canvas = document.getElementById(b.key);
     if(!canvas) return;
-    const chart = buildBatchDeptChart(canvas, b.group, b.wk, b.date);
+    const chart = buildBatchDeptChart(canvas, b.group, b.wk, b.date, b.labelOverride);
     if(chart) totalBatchCharts.push(chart);
   });
 }
 
-// bangun 1 chart dept-distribution buat 1 batch (dipakai berulang per jadwal onboarding)
-function buildBatchDeptChart(canvas, group, wk, date){
+// bangun 1 chart dept-distribution buat 1 batch (dipakai berulang per jadwal onboarding,
+// atau per Divisi -- lihat renderDivisiDeptChartStep). `labelOverride` opsional: kalau diisi,
+// dipakai sebagai label batch di popup detail (openBatchDeptModal) gantiin "Minggu ke-X · tgl".
+function buildBatchDeptChart(canvas, group, wk, date, labelOverride){
   const deptMap = {};
   group.forEach(c => {
     const d = (c.departemen || '').trim() || '(Belum diisi)';
@@ -6208,7 +6652,7 @@ function buildBatchDeptChart(canvas, group, wk, date){
       onClick: (evt, elements) => {
         if(!elements.length) return;
         const idx = elements[0].index;
-        openBatchDeptModal(labels[idx], date, wk, groups[idx]);
+        openBatchDeptModal(labels[idx], date, wk, groups[idx], labelOverride);
       },
       onHover: (evt, elements) => {
         evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
@@ -6237,6 +6681,151 @@ function buildBatchDeptChart(canvas, group, wk, date){
   });
   chart.$countFontSize = countFontSize;
   return chart;
+}
+
+// ==== Drilldown "Total Kandidat" & "Total Peserta Induction": Summary per Divisi dulu,
+// baru klik Divisi -> bar chart per Departemen (khusus divisi itu), klik bar -> list
+// kandidat (pakai openBatchDeptModal yang udah ada). currentDivisiDrilldownList nyimpen
+// list kandidat "sumber" yang lagi aktif di popup ini, dipakai ulang pas user klik salah
+// satu Divisi buat nyaring grupnya.
+let currentDivisiDrilldownList = [];
+
+function computeDivisiGroups(list){
+  const map = {};
+  (list || []).forEach(c => {
+    const d = getDivisiForDesignation(c.designation);
+    if(!map[d]) map[d] = [];
+    map[d].push(c);
+  });
+  return DIVISI_DISPLAY_ORDER.filter(d => map[d] && map[d].length).map(d => ({ divisi: d, list: map[d] }));
+}
+
+function renderDivisiSummaryHtml(list){
+  currentDivisiDrilldownList = list || [];
+  destroyTotalBatchCharts();
+  lastTotalBatches = [];
+  if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
+  const groups = computeDivisiGroups(list);
+  const maxCount = Math.max(1, ...groups.map(g => g.list.length));
+  return `
+    <div class="pic-summary-section">
+      <div class="pic-summary-total-row">
+        <span class="pic-summary-total-icon">🗂️</span>
+        <div class="pic-summary-total-text">
+          <span class="pic-summary-total-label">Total Keseluruhan</span>
+          <span class="pic-summary-total-count">${list.length} kandidat</span>
+        </div>
+      </div>
+      <div class="pic-summary-heading">Summary per Divisi</div>
+      ${groups.map(({divisi, list: g}) => {
+        const barPct = Math.round((g.length / maxCount) * 100);
+        return `
+        <div class="pic-summary-item">
+          <button type="button" class="pic-summary-row divisi-summary-row" data-divisi="${escapeAttr(divisi)}">
+            <span class="pic-summary-avatar">🏷️</span>
+            <span class="pic-summary-main">
+              <span class="pic-summary-name">${escapeHtml(divisi)}</span>
+              <span class="pic-summary-bar-wrap"><span class="pic-summary-bar" style="width:${barPct}%"></span></span>
+            </span>
+            <span class="pic-summary-count-badge">${g.length}<span class="toggle-arrow">▸</span></span>
+          </button>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// Step 2: bar chart per Departemen khusus buat 1 Divisi (dipanggil pas salah satu row
+// Divisi di-klik). Chart-nya numpang canvas baru di #statModalBody, gantiin summary Divisi
+// -- ada tombol "Kembali" buat balik ke summary. Klik bar-nya buka list kandidat lewat
+// openBatchDeptModal yang sama kayak alur lama (popup layer chartModalOverlay).
+function renderDivisiDeptChartStep(divisi){
+  // Divisi "Lainnya" gak dikasih bar chart per Departemen -- di situ tujuannya justru
+  // buat BENERIN datanya (assign designation-nya ke Divisi yang bener), bukan sekadar
+  // dilihat breakdown-nya. Lihat renderLainnyaAssignStep().
+  if(divisi === 'Lainnya'){
+    renderLainnyaAssignStep();
+    return;
+  }
+  const group = currentDivisiDrilldownList.filter(c => getDivisiForDesignation(c.designation) === divisi);
+  const modalBodyEl = document.getElementById('statModalBody');
+  destroyTotalBatchCharts();
+  const key = 'divisiDeptChart';
+  const labelOverride = `🏷️ Divisi ${divisi}`;
+  modalBodyEl.innerHTML = `
+    <button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">🏷️ Divisi ${escapeHtml(divisi)}</span>
+        <span class="week-count">${group.length} kandidat</span>
+      </div>
+      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
+      <div style="position:relative;">
+        <canvas id="${key}"></canvas>
+      </div>
+    </div>`;
+  lastTotalBatches = [{ key, date: null, wk: null, group, labelOverride }];
+  setTimeout(() => {
+    const canvas = document.getElementById(key);
+    if(!canvas) return;
+    const chart = buildBatchDeptChart(canvas, group, null, null, labelOverride);
+    if(chart) totalBatchCharts.push(chart);
+  }, 0);
+}
+
+// Popup "Divisi Lainnya": nampilin tiap Designation unik yang belum kepetakan (bukan per
+// Departemen kayak divisi lain), tiap baris dikasih tombol assign ke Produksi/Sales/Support.
+// Assign langsung tersimpen ke localStorage (assignDesignationToDivisi) dan step ini
+// otomatis di-render ulang, jadi designation yang baru di-assign langsung hilang dari list
+// -- kelihatan progressnya kalau assign banyak designation sekaligus dalam 1 sesi.
+function renderLainnyaAssignStep(){
+  const group = currentDivisiDrilldownList.filter(c => getDivisiForDesignation(c.designation) === 'Lainnya');
+  const modalBodyEl = document.getElementById('statModalBody');
+  destroyTotalBatchCharts();
+  lastTotalBatches = [];
+
+  if(group.length === 0){
+    modalBodyEl.innerHTML = `
+      <button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>
+      <div class="empty-state">✅ Semua designation di grup ini udah ke-assign ke Divisi.</div>`;
+    return;
+  }
+
+  const desigMap = {};
+  group.forEach(c => {
+    const raw = (c.designation || '').trim();
+    const label = raw || '(Designation belum diisi)';
+    if(!desigMap[label]) desigMap[label] = { raw, list: [] };
+    desigMap[label].list.push(c);
+  });
+  const entries = Object.entries(desigMap).sort((a, b) => b[1].list.length - a[1].list.length);
+
+  modalBodyEl.innerHTML = `
+    <button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>
+    <div class="chart-hint">💡 Designation di bawah belum kepetakan ke Divisi manapun. Pilih Divisi yang sesuai per designation -- tersimpan otomatis di browser ini.</div>
+    <div class="week-group">
+      <div class="week-header">
+        <span class="week-pill">🏷️ Divisi Lainnya</span>
+        <span class="week-count">${group.length} kandidat · ${entries.length} designation</span>
+      </div>
+      ${entries.map(([label, {raw, list}]) => `
+        <div class="pic-summary-item lainnya-assign-item">
+          <div class="pic-summary-row" style="cursor:default;">
+            <span class="pic-summary-avatar">🏷️</span>
+            <span class="pic-summary-main">
+              <span class="pic-summary-name">${escapeHtml(label)}</span>
+            </span>
+            <span class="pic-summary-count-badge">${list.length}</span>
+          </div>
+          ${raw ? `
+          <div class="lainnya-assign-actions">
+            <span class="lainnya-assign-label">Masukkan ke:</span>
+            ${ASSIGNABLE_DIVISI.map(d => `<button type="button" class="lainnya-assign-btn" data-designation="${escapeAttr(raw)}" data-divisi="${escapeAttr(d)}">${d}</button>`).join('')}
+          </div>` : `
+          <div class="lainnya-assign-actions">
+            <span class="lainnya-assign-label">Isi dulu field Designation kandidatnya buat bisa di-assign.</span>
+          </div>`}
+        </div>`).join('')}
+    </div>`;
 }
 
 // susun markup per batch (jadwal onboarding) + placeholder canvas, chart-nya baru
@@ -7843,12 +8432,12 @@ async function handleLmsImportUpload(e){
   }
 }
 
-function openBatchDeptModal(dept, date, wk, group){
+function openBatchDeptModal(dept, date, wk, group, labelOverride){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
   const modalSubtitleEl = document.getElementById('chartModalSubtitle');
   if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
-  const batchLabel = date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl induction belum diisi';
+  const batchLabel = labelOverride || (date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl induction belum diisi');
   modalTitleEl.textContent = `🏢 ${dept}`;
 
   let html = `<div class="week-group">
@@ -7936,13 +8525,34 @@ function buildText(){
     }
   }
 
-  const hadirCount = filtered.filter(c => (c.kehadiran||'') === 'Hadir').length;
+  // Kehadiran cuma valid dihitung begitu tanggal induction-nya udah lewat/hari-H
+  // (H atau H+) -- sebelum itu (H-) kandidat emang belum bisa "hadir" karena
+  // sesinya belum jalan, jadi jangan ikut kehitung/keklaim di angka Actual.
+  const isAttendanceCountable = c => {
+    const days = daysSinceOnboarding(c);
+    return days !== null && days >= 0;
+  };
+  const anyCountable = filtered.some(isAttendanceCountable);
+  const hadirCount = filtered.filter(c => isAttendanceCountable(c) && (c.kehadiran||'') === 'Hadir').length;
+
+  // Breakdown jumlah peserta per Divisi, patokannya dari peta Designation->Divisi
+  // (DESIGNATION_DIVISI_MAP, sumber: list_divisi.pdf). Cuma nampilin divisi yang
+  // beneran ada pesertanya di batch ini, urutannya ngikutin DIVISI_DISPLAY_ORDER.
+  const divisiCounts = {};
+  filtered.forEach(c => {
+    const divisi = getDivisiForDesignation(c.designation);
+    divisiCounts[divisi] = (divisiCounts[divisi] || 0) + 1;
+  });
+  const divisiLines = DIVISI_DISPLAY_ORDER
+    .filter(d => divisiCounts[d])
+    .map(d => `Div ${d} : ${divisiCounts[d]} Orang`);
 
   let lines = ['📝 *Info Karyawan Baru Join & Induction* 📢', ''];
   lines.push(`*Jadwal induction : ${jadwalOnboarding}*`);
   lines.push('');
   lines.push(`Total Plan Peserta : ${filtered.length} Orang`);
-  lines.push(`Actual Peserta Hadir : ${hadirCount} Orang`);
+  divisiLines.forEach(l => lines.push(l));
+  lines.push(`Actual Peserta Hadir : ${anyCountable ? hadirCount + ' Orang' : '- Orang'}`);
   lines.push('');
   lines.push('Info Detail : https://ningratedu.github.io/listjoin');
   lines.push('');
@@ -7959,7 +8569,11 @@ function buildText(){
       if(c.tglJoin) lines.push(`* Tgl Join: ${fmtID(c.tglJoin)}`);
       if(c.statusAktivasi) lines.push(`* Status Aktivasi: *${c.statusAktivasi}*`);
       if(c.noHp) lines.push(`* No HP: ${c.noHp}`);
-      lines.push(`* Kehadiran: ${kehadiranEmoji(c.kehadiran||'')} *${c.kehadiran || 'Belum diverifikasi'}*`);
+      if(isAttendanceCountable(c)){
+        lines.push(`* Kehadiran: ${kehadiranEmoji(c.kehadiran||'')} *${c.kehadiran || 'Belum diverifikasi'}*`);
+      }else{
+        lines.push(`* Kehadiran: - *(Belum Induction)*`);
+      }
       lines.push('');
     });
   });
@@ -9416,6 +10030,7 @@ initDateOverlays();
 setDefaultOnboarding();
 lastOnboardingPic = picNameEl.value.trim();
 loadCandidates();
+loadDesignationDivisiOverridesFromServer();
 initCultureQuiz();
 
 // Balikin ke tab terakhir yang dipilih user di browser ini (default: Info Join & Onboarding).
