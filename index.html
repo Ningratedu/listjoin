@@ -4182,7 +4182,7 @@ function renderGroupedByWeekHtml(list, picLabelFn, weekExtraFn, context){
   return html;
 }
 
-function renderPicWeeklyDetailHtml(list){
+function renderPicWeeklyDetailHtml(list, context){
   if(!list || list.length === 0) return '<div class="empty-state">🗂️ Tidak ada data.</div>';
   const withDate = list.filter(c => c.tglOnboarding);
   const withoutDate = list.filter(c => !c.tglOnboarding);
@@ -4199,7 +4199,7 @@ function renderPicWeeklyDetailHtml(list){
         <span class="week-date">${escapeHtml(fmtShortID(date))}</span>
         <span class="week-count">${dayCandidates.length} kandidat</span>
       </div>
-      ${renderSimpleCandList(dayCandidates, 'pic')}
+      ${renderSimpleCandList(dayCandidates, context || 'pic')}
     </div>`;
   });
 
@@ -4211,7 +4211,7 @@ function renderPicWeeklyDetailHtml(list){
         <span class="week-date">Tgl induction belum diisi</span>
         <span class="week-count">${withoutDate.length} kandidat</span>
       </div>
-      ${renderSimpleCandList(withoutDate, 'pic')}
+      ${renderSimpleCandList(withoutDate, context || 'pic')}
     </div>`;
   }
 
@@ -6817,8 +6817,13 @@ function renderDivisiDeptChartStep(divisi){
 
 // Popup "Divisi Lainnya": nampilin tiap Designation unik yang belum kepetakan (bukan per
 // Departemen kayak divisi lain), tiap baris dikasih tombol assign ke Produksi/Sales/Support.
-// Assign langsung tersimpen ke localStorage (assignDesignationToDivisi) dan step ini
-// otomatis di-render ulang, jadi designation yang baru di-assign langsung hilang dari list
+// Di bawah tiap designation juga ditampilin list kandidatnya (nama, role, meta, badge --
+// pakai renderSimpleCandList, sama kayak popup list lainnya) biar keliatan siapa aja yang
+// mau di-assign, bukan cuma nama designation + jumlahnya doang.
+// Assign langsung tersimpen PERMANEN ke backend (assignDesignationToDivisi -> sheet
+// DivisiOverride, lihat komentar di deklarasi designationDivisiOverrides), kebaca semua
+// orang yang buka link ini -- localStorage cuma cache lokal. Step ini otomatis di-render
+// ulang abis assign sukses, jadi designation yang baru di-assign langsung hilang dari list
 // -- kelihatan progressnya kalau assign banyak designation sekaligus dalam 1 sesi.
 function renderLainnyaAssignStep(){
   const group = currentDivisiDrilldownList.filter(c => getDivisiForDesignation(c.designation) === 'Lainnya');
@@ -6844,7 +6849,7 @@ function renderLainnyaAssignStep(){
 
   modalBodyEl.innerHTML = `
     <button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>
-    <div class="chart-hint">💡 Designation di bawah belum kepetakan ke Divisi manapun. Pilih Divisi yang sesuai per designation -- tersimpan otomatis di browser ini.</div>
+    <div class="chart-hint">💡 Designation di bawah belum kepetakan ke Divisi manapun. Pilih Divisi yang sesuai per designation -- tersimpan otomatis buat semua orang.</div>
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">🏷️ Divisi Lainnya</span>
@@ -6859,6 +6864,7 @@ function renderLainnyaAssignStep(){
             </span>
             <span class="pic-summary-count-badge">${list.length}</span>
           </div>
+          ${renderSimpleCandList(list, currentDivisiDrilldownContext)}
           ${raw ? `
           <div class="lainnya-assign-actions">
             <span class="lainnya-assign-label">Masukkan ke:</span>
@@ -8479,7 +8485,6 @@ function openBatchDeptModal(dept, date, wk, group, labelOverride, context){
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
   const modalSubtitleEl = document.getElementById('chartModalSubtitle');
-  if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
   const batchLabel = labelOverride || (date ? `Minggu ke-${wk} · ${fmtShortID(date)}` : 'Tgl induction belum diisi');
   modalTitleEl.textContent = `🏢 ${dept}`;
 
@@ -8487,15 +8492,32 @@ function openBatchDeptModal(dept, date, wk, group, labelOverride, context){
   // biar popup akhir dari drilldown "Induction Completed/In Progress/Peserta Resign"
   // tetap nampilin info yang relevan (mis. highlight stale >=5 hari buat In Progress,
   // tanggal & alasan resign buat Peserta Resign), bukan cuma meta default "onboarding".
-  let html = `<div class="week-group">
-    <div class="week-header">
-      <span class="week-pill">🏢 ${escapeHtml(dept)}</span>
-      <span class="week-date">${escapeHtml(batchLabel)}</span>
-      <span class="week-count">${group.length} kandidat</span>
-    </div>
-    ${renderSimpleCandList(group, context || 'onboarding')}
-  </div>`;
-  modalBodyEl.innerHTML = html;
+  //
+  // Kalau `date`/`wk` gak diisi (kejadian pas nyampe dari drilldown per-Divisi, dept-nya
+  // bisa aja ngumpulin kandidat dari beberapa jadwal induction sekaligus), listnya
+  // di-subgroup dulu per "Minggu ke-X · tanggal" (renderPicWeeklyDetailHtml) biar info
+  // minggu-nya tetep keliatan, dan label Divisi-nya dipindah jadi subtitle di header.
+  // Kalau date/wk udah spesifik (1 batch/1 minggu aja, dari chart per-jadwal onboarding),
+  // langsung tampilin listnya flat aja kayak sebelumnya.
+  let bodyHtml;
+  if(!date && !wk){
+    if(modalSubtitleEl){
+      modalSubtitleEl.textContent = batchLabel;
+      modalSubtitleEl.style.display = 'block';
+    }
+    bodyHtml = renderPicWeeklyDetailHtml(group, context || 'onboarding');
+  }else{
+    if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
+    bodyHtml = `<div class="week-group">
+        <div class="week-header">
+          <span class="week-pill">🏢 ${escapeHtml(dept)}</span>
+          <span class="week-date">${escapeHtml(batchLabel)}</span>
+          <span class="week-count">${group.length} kandidat</span>
+        </div>
+        ${renderSimpleCandList(group, context || 'onboarding')}
+      </div>`;
+  }
+  modalBodyEl.innerHTML = bodyHtml;
 
   // Fitur baru chart sesi: status induction tetap memakai komponen/button yang sama
   // seperti popup/tabel existing, tanpa mengubah event handler global.
