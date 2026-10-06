@@ -2311,6 +2311,10 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
         </div>
         <div class="field"><label>Atasan Langsung</label><input type="text" id="efAtasan"></div>
       </div>
+      <div class="field">
+        <label>Lokasi</label>
+        <input type="text" id="efLokasi" list="lokasiOptions" placeholder="Cari atau ketik lokasi" autocomplete="off">
+      </div>
       <div class="row2">
         <div class="field"><label>Status Aktivasi</label>
           <select id="efStatusAktivasi">
@@ -4462,6 +4466,7 @@ const efPicEl = document.getElementById('efPic');
 const efDepartemenEl = document.getElementById('efDepartemen');
 const efDesignationEl = document.getElementById('efDesignation');
 const efAtasanEl = document.getElementById('efAtasan');
+const efLokasiEl = document.getElementById('efLokasi');
 const efStatusAktivasiEl = document.getElementById('efStatusAktivasi');
 const efTglJoinEl = document.getElementById('efTglJoin');
 const efTglOnboardingEl = document.getElementById('efTglOnboarding');
@@ -4477,6 +4482,7 @@ function openEditModal(c){
   efDepartemenEl.value = c.departemen || '';
   efDesignationEl.value = c.designation || '';
   efAtasanEl.value = c.atasan || '';
+  efLokasiEl.value = c.lokasi || '';
   efStatusAktivasiEl.value = c.statusAktivasi || '';
   setDateInputValue(efTglJoinEl, String(c.tglJoin || '').slice(0,10));
   setDateInputValue(efTglOnboardingEl, String(c.tglOnboarding || '').slice(0,10));
@@ -4506,6 +4512,7 @@ editModalSaveBtn.addEventListener('click', async () => {
     departemen: efDepartemenEl.value.trim(),
     designation: efDesignationEl.value.trim(),
     atasan: efAtasanEl.value.trim(),
+    lokasi: efLokasiEl.value.trim(),
     tglJoin: efTglJoinEl.value,
     tglOnboarding: efTglOnboardingEl.value,
     statusAktivasi: efStatusAktivasiEl.value,
