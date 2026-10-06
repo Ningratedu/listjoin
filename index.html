@@ -3016,7 +3016,7 @@ function renderExtractList(){
   }
   applyExtractListCollapseState();
   extractListEl.innerHTML = extractedItems.map((it, idx) => {
-    const subParts = [it.departemen, it.designation, it.noHp].filter(Boolean);
+    const subParts = [it.departemen, it.designation, it.lokasi, it.noHp].filter(Boolean);
     const sub = subParts.length ? subParts.join(' · ') : 'Detail tidak lengkap';
     const isSubmitted = extractSubmittedIndexes.has(idx);
     const isSelected = idx === extractSelectedIndex;
@@ -3081,6 +3081,7 @@ function fillFormFromExtracted(data, resetOnboardingFlag){
   if(data.departemen) departemenEl.value = data.departemen;
   if(data.designation) designationEl.value = data.designation;
   if(data.atasan) atasanEl.value = data.atasan;
+  if(data.lokasi) lokasiEl.value = data.lokasi;
   if(data.tglJoin){
     setDateInputValue(tglJoinEl, data.tglJoin);
   }
