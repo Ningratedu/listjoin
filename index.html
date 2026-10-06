@@ -1953,7 +1953,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
         </div>
       </div>
       <div class="field">
-        <label>Lokasi</label>
+        <label>Lokasi<span class="required-star">*</span></label>
         <input type="text" id="lokasi" list="lokasiOptions" placeholder="Cari atau ketik lokasi" autocomplete="off">
       </div>
       <div class="row2">
@@ -8675,7 +8675,7 @@ function cleanAiText(str){
 // Semua field wajib diisi sebelum submit
 const requiredFormFields = [
   picNameEl, namaEl, noHpEl, departemenEl, designationEl,
-  atasanEl, tglJoinEl, tglOnboardingEl, statusAktivasiEl
+  atasanEl, lokasiEl, tglJoinEl, tglOnboardingEl, statusAktivasiEl
 ];
 function clearFieldError(el){
   el.classList.remove('field-error');
