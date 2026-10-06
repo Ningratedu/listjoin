@@ -7658,6 +7658,11 @@ function levenshteinDistance(a, b){
   return prev[bl];
 }
 
+// Kandidat dianggap sudah resign kalau punya tanggal resign ATAU statusnya sudah "Resign".
+function isCandidateResigned(c){
+  return !!String(c.tglResign || '').trim() || c.statusKaryawan === 'Resign';
+}
+
 // Cari kandidat berdasarkan nama dari file LMS/E-Training.
 // 1) Exact match (setelah normalisasi) selalu jadi prioritas & gak pernah dilaporkan --
 //    ini jalur normal buat mayoritas baris.
@@ -7676,8 +7681,23 @@ function resolveCandidateByLmsName(namaLms, reportLog){
   const inputNorm = normalizeLmsText(namaLms);
   if(!inputNorm) return null;
 
-  const exact = candidates.find(c => normalizeLmsText(c.nama) === inputNorm);
-  if(exact) return exact;
+  // Exact match (setelah normalisasi). Kalau ada >=2 kandidat dengan nama yang sama persis
+  // (biasanya karyawan yang resign lalu join lagi -> 2 record), JANGAN asal ambil yang
+  // pertama: yang boleh kesentuh cuma yang BELUM punya tanggal resign. Record yang sudah
+  // punya tanggal resign gak boleh diubah sama sekali oleh import ini.
+  //  - cuma 1 yang namanya cocok -> perilaku lama (langsung dipakai).
+  //  - >=2 cocok, ada yang belum resign -> pakai yang belum resign (kalau yang belum
+  //    resign-nya juga >1, ambil yang Tgl Join-nya paling baru).
+  //  - >=2 cocok & semuanya sudah resign -> return null (gak ada yang diupdate).
+  const exactMatches = candidates.filter(c => normalizeLmsText(c.nama) === inputNorm);
+  if(exactMatches.length === 1) return exactMatches[0];
+  if(exactMatches.length > 1){
+    const notResigned = exactMatches.filter(c => !isCandidateResigned(c));
+    if(!notResigned.length) return null;
+    if(notResigned.length === 1) return notResigned[0];
+    return notResigned.slice().sort((a, b) =>
+      String(b.tglJoin || '').slice(0, 10).localeCompare(String(a.tglJoin || '').slice(0, 10)))[0];
+  }
 
   let best = null, bestDist = Infinity, secondBestDist = Infinity;
   const nearMatches = []; // kandidat yang "cukup mirip" buat dicatat di laporan
