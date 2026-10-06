@@ -1952,6 +1952,10 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
           </select>
         </div>
       </div>
+      <div class="field">
+        <label>Lokasi</label>
+        <input type="text" id="lokasi" list="lokasiOptions" placeholder="Cari atau ketik lokasi" autocomplete="off">
+      </div>
       <div class="row2">
         <div class="field">
           <label>Tgl Join<span class="required-star">*</span></label>
@@ -2575,6 +2579,7 @@ const noHpEl = document.getElementById('noHp');
 const departemenEl = document.getElementById('departemen');
 const designationEl = document.getElementById('designation');
 const atasanEl = document.getElementById('atasan');
+const lokasiEl = document.getElementById('lokasi');
 const tglJoinEl = document.getElementById('tglJoin');
 const tglOnboardingEl = document.getElementById('tglOnboarding');
 const statusAktivasiEl = document.getElementById('statusAktivasi');
@@ -5381,7 +5386,7 @@ function renderCandRow(c, rowNumber){
       <td class="wrap">${escapeHtml(c.designation||'-')}</td>
       <td class="wrap">${escapeHtml(c.departemen||'-')}</td>
       <td class="wrap">${escapeHtml(getDivisiForDesignation(c.designation)||'-')}</td>
-      <td class="wrap" title="Lokasi otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.lokasi||'-')}</td>
+      <td class="wrap" title="Lokasi dari form input kandidat atau upload data e-training">${escapeHtml(c.lokasi||'-')}</td>
       <td class="wrap" title="SPV otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.spv||'-')}</td>
       <td class="wrap" title="BM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.bm||'-')}</td>
       <td class="wrap" title="RM otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.rm||'-')}</td>
@@ -8620,6 +8625,7 @@ function buildText(){
       if(c.departemen) lines.push(`* Departemen: ${c.departemen}`);
       if(c.designation) lines.push(`* Designation: ${c.designation}`);
       if(c.atasan) lines.push(`* Atasan Langsung: ${c.atasan}`);
+      if(c.lokasi) lines.push(`* Lokasi: ${c.lokasi}`);
       if(c.tglJoin) lines.push(`* Tgl Join: ${fmtID(c.tglJoin)}`);
       if(c.statusAktivasi) lines.push(`* Status Aktivasi: *${c.statusAktivasi}*`);
       if(c.noHp) lines.push(`* No HP: ${c.noHp}`);
@@ -8718,6 +8724,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     departemen: departemenEl.value.trim(),
     designation: designationEl.value.trim(),
     atasan: atasanEl.value.trim(),
+    lokasi: lokasiEl.value.trim(),
     tglJoin: tglJoinEl.value,
     tglOnboarding: tglOnboardingEl.value,
     statusAktivasi: statusAktivasiEl.value
@@ -8751,6 +8758,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       departemenEl.value = '';
       designationEl.value = '';
       atasanEl.value = '';
+      lokasiEl.value = '';
       setDateInputValue(tglJoinEl, '');
       statusAktivasiEl.value = '';
       maybeSetDefaultOnboarding();
@@ -8767,6 +8775,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       departemenEl.value = '';
       designationEl.value = '';
       atasanEl.value = '';
+      lokasiEl.value = '';
       setDateInputValue(tglJoinEl, '');
       statusAktivasiEl.value = '';
       maybeSetDefaultOnboarding();
@@ -10104,6 +10113,16 @@ initCultureQuiz();
   switchMainTab(savedTab, false);
 })();
 </script>
+<datalist id="lokasiOptions">
+  <option value="Cirebon"></option>
+  <option value="Indramayu"></option>
+  <option value="Majalengka"></option>
+  <option value="Bekasi"></option>
+  <option value="Cikampek"></option>
+  <option value="Subang"></option>
+  <option value="Kuningan"></option>
+  <option value="Kendal"></option>
+</datalist>
 <datalist id="picOptions">
   <option value="Ade"></option>
   <option value="Arul"></option>
