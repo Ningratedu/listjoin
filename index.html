@@ -1786,6 +1786,44 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     .page-tab-btn{font-size:11px;padding:9px 4px 11px;white-space:nowrap;}
   }
 
+  /* Tab Hadir / Belum Hadir di section preview pesan */
+  .preview-tabs{
+    display:flex;
+    gap:12px;
+    padding:0 16px;
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .preview-tab-btn{
+    appearance:none;
+    border:none;
+    background:transparent;
+    color:var(--tab-inactive);
+    font-family:inherit;
+    font-size:10.5px;
+    font-weight:700;
+    padding:8px 2px 9px;
+    margin-bottom:-1px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    white-space:nowrap;
+    transition:color .15s, border-color .15s;
+  }
+  .preview-tab-btn:hover{color:var(--text);}
+  .preview-tab-btn.active{color:var(--tab-active-text);border-bottom-color:var(--accent);}
+  .preview-tab-count{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:0 6px;
+    font-size:9px;
+    font-weight:700;
+    line-height:15px;
+  }
+
 </style>
 </head>
 <body>
@@ -1986,6 +2024,11 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
           <select id="onboardingFilter" class="onboarding-filter field-special"></select>
           <button class="refresh-btn" id="chartRefreshBtn">↻ Refresh</button>
         </div>
+      </div>
+      <div class="preview-tabs" id="previewTabs" role="tablist">
+        <button type="button" class="preview-tab-btn active" id="previewTabSemua" data-tab="semua" role="tab">📋 Semua <span class="preview-tab-count" id="previewTabSemuaCount">0</span></button>
+        <button type="button" class="preview-tab-btn" id="previewTabHadir" data-tab="hadir" role="tab">✅ Hadir <span class="preview-tab-count" id="previewTabHadirCount">0</span></button>
+        <button type="button" class="preview-tab-btn" id="previewTabBelum" data-tab="belum" role="tab">⏳ Belum Hadir <span class="preview-tab-count" id="previewTabBelumCount">0</span></button>
       </div>
       <div class="chart-hint" id="previewFilterHint" style="align-self:flex-start;margin:10px 16px 14px;">💡 Filter di atas untuk memilih jadwal induction (tanggal) yang ditampilkan di preview pesan</div>
       <div class="chat-body">
@@ -2589,6 +2632,7 @@ const tglOnboardingEl = document.getElementById('tglOnboarding');
 const statusAktivasiEl = document.getElementById('statusAktivasi');
 const onbHintEl = document.getElementById('onbHint');
 const previewEl = document.getElementById('preview');
+let previewAttendanceTab = 'semua'; // tab aktif di preview pesan: 'semua' | 'hadir' | 'belum' (belum = semua selain Hadir)
 const onboardingFilterEl = document.getElementById('onboardingFilter');
 const globalMonthFilterEl = document.getElementById('globalMonthFilter');
 const screenshotInputEl = document.getElementById('screenshotInput');
@@ -8560,9 +8604,14 @@ function numToKeycap(n){
 function buildText(){
   const filtered = getFilteredCandidates();
   if(filtered.length === 0) return '';
+  // Tab preview (Semua / Hadir / Belum Hadir) cuma nyaring DAFTAR kandidat di bawah. Ringkasan
+  // header (Total Plan, per Divisi, Actual Hadir) tetap dihitung dari SEMUA kandidat
+  // jadwal ini biar angkanya konsisten antar tab.
+  const listed = filtered.filter(isInPreviewTab);
+  if(listed.length === 0) return '';
   const groups = {};
   const order = [];
-  filtered.forEach(c => {
+  listed.forEach(c => {
     const key = c.pic || '(Belum diisi)';
     if(!groups[key]){ groups[key] = []; order.push(key); }
     groups[key].push(c);
@@ -8649,10 +8698,47 @@ function buildText(){
   return lines.join('\n').trim();
 }
 
+function isInPreviewTab(c){
+  if(previewAttendanceTab === 'semua') return true;
+  const hadir = (c.kehadiran || '') === 'Hadir';
+  return previewAttendanceTab === 'hadir' ? hadir : !hadir;
+}
+
+function updatePreviewTabs(){
+  const all = getFilteredCandidates();
+  const hadirCount = all.filter(c => (c.kehadiran || '') === 'Hadir').length;
+  const semuaTabEl = document.getElementById('previewTabSemua');
+  const hadirTabEl = document.getElementById('previewTabHadir');
+  const belumTabEl = document.getElementById('previewTabBelum');
+  if(!semuaTabEl || !hadirTabEl || !belumTabEl) return;
+  document.getElementById('previewTabSemuaCount').textContent = all.length;
+  document.getElementById('previewTabHadirCount').textContent = hadirCount;
+  document.getElementById('previewTabBelumCount').textContent = all.length - hadirCount;
+  semuaTabEl.classList.toggle('active', previewAttendanceTab === 'semua');
+  hadirTabEl.classList.toggle('active', previewAttendanceTab === 'hadir');
+  belumTabEl.classList.toggle('active', previewAttendanceTab === 'belum');
+  semuaTabEl.setAttribute('aria-selected', previewAttendanceTab === 'semua');
+  hadirTabEl.setAttribute('aria-selected', previewAttendanceTab === 'hadir');
+  belumTabEl.setAttribute('aria-selected', previewAttendanceTab === 'belum');
+}
+
+document.querySelectorAll('#previewTabs .preview-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    previewAttendanceTab = (btn.dataset.tab === 'belum' || btn.dataset.tab === 'hadir') ? btn.dataset.tab : 'semua';
+    renderPreview();
+    const body = previewEl.closest('.chat-body');
+    if(body) body.scrollTop = 0;
+  });
+});
+
 function renderPreview(){
+  updatePreviewTabs();
   const text = buildText();
   if(!text){
-    previewEl.innerHTML = '<span class="empty">Belum ada data...</span>';
+    const hasAny = getFilteredCandidates().length > 0;
+    previewEl.innerHTML = hasAny
+      ? `<span class="empty">${previewAttendanceTab === 'hadir' ? 'Belum ada kandidat yang Hadir di jadwal ini...' : 'Semua kandidat di jadwal ini sudah Hadir 🎉'}</span>`
+      : '<span class="empty">Belum ada data...</span>';
     return;
   }
   const escaped = escapeHtml(text);
