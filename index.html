@@ -5461,8 +5461,76 @@ function formatWaPhone(noHp){
   return digits;
 }
 
+// Template journey Induction Training yang ikut dikirim di pesan WA reminder jadwal,
+// satu template per golongan designation (sama kayak getOnboardingModules): Sales & Sales
+// Counter, Sales Supervisor, dan sisanya (Non Sales). Isi (link e-training, Welcoming Kit,
+// jadwal per hari) disalin persis dari template resmi HR Training -- kalau ada link yang
+// berubah, ubah di sini.
+const WA_JOURNEY_NON_SALES = [
+  "*INDUCTION TRAINING KARYAWAN BARU NON SALES*",
+  "*_Hari ke 1_* :",
+  "Welcoming Kit Karyawan Baru :",
+  "- Basic Induction : https://docs.google.com/presentation/d/1iLpsoU-SZNlJfqH0bRBTzSDJd9FcYW3Z/edit?usp=sharing&ouid=102629867368160418245&rtpof=true&sd=true",
+  "- Sistem Kekaryawanan : https://docs.google.com/presentation/d/1BnbltB6nXmrED9JOp5mm_XsINpNJ5dCL/edit?usp=sharing&ouid=102629867368160418245&rtpof=true&sd=true",
+  "",
+  "E-training :",
+  "1. Be A Great Employee RSP (Budaya Kerja) : https://trusmicorp.com/e-training/question/exam/363/1/W240725003",
+  "2. Company Profile RSP : https://trusmicorp.com/e-training/question/exam/274/1/W240725001",
+  "3. Peraturan Perusahaan RSP : https://trusmicorp.com/e-training/question/exam/208/1/W240725002",
+  "4. Product Knowledge Non Sales RSP : https://trusmicorp.com/e-training/question/exam/M25070701/1",
+  "5. IT Awareness : https://trusmicorp.com/e-training/question/exam/M25080901/1",
+  "6. Flow Business RSP : https://trusmicorp.com/e-training/question/exam/405/1"
+];
+const WA_JOURNEY_SALES = [
+  "*TRAINING SALES & SALES COUNTER BARU*",
+  "*_Hari ke 1_* :",
+  "1. Be A Great Employee RSP (Budaya Kerja) : https://trusmicorp.com/e-training/question/exam/363/1/W240725003",
+  "2. Company Profile RSP : https://trusmicorp.com/e-training/question/exam/274/1/W240725001",
+  "3. Peraturan Perusahaan RSP : https://trusmicorp.com/e-training/question/exam/208/1/W240725002",
+  "4. Marketing Rumah Ningrat : https://trusmicorp.com/e-training/question/exam/342/1",
+  "",
+  "*_Hari ke 2_* :",
+  "5. Product Knowledge RSP : https://trusmicorp.com/e-training/question/exam/13/1",
+  "6. Marketing Application System : https://trusmicorp.com/e-training/question/exam/17/1",
+  "7. Teknik Penawaran Online & Offline : https://trusmicorp.com/e-training/question/exam/M25010601/1",
+  "",
+  "*_Hari ke 3_* : Training Praktek langsung di lapangan (Pengetahuan Produk dan aktivitas Harian sales)",
+  "",
+  "*_Hari ke 4_* :",
+  "8. Teknik Follow Up : https://trusmicorp.com/e-training/question/exam/M25010803/1",
+  "9. Teknik Closing : https://trusmicorp.com/e-training/question/exam/M25010804/1",
+  "10. Wake The Giant : https://trusmicorp.com/e-training/question/exam/265/1"
+];
+const WA_JOURNEY_SPV_SALES = [
+  "*INDUCTION TRAINING KARYAWAN BARU SPV SALES*",
+  "*_Hari ke 1_* :",
+  "Welcoming Kit Karyawan Baru :",
+  "- Basic Induction : https://docs.google.com/presentation/d/1iLpsoU-SZNlJfqH0bRBTzSDJd9FcYW3Z/edit?usp=sharing&ouid=102629867368160418245&rtpof=true&sd=true",
+  "- Sistem Kekaryawanan : https://docs.google.com/presentation/d/1BnbltB6nXmrED9JOp5mm_XsINpNJ5dCL/edit?usp=sharing&ouid=102629867368160418245&rtpof=true&sd=true",
+  "",
+  "E-training :",
+  "1. Be A Great Employee RSP (Budaya Kerja) : https://trusmicorp.com/e-training/question/exam/363/1/W240725003",
+  "2. Company Profile RSP : https://trusmicorp.com/e-training/question/exam/274/1/W240725001",
+  "3. Peraturan Perusahaan RSP : https://trusmicorp.com/e-training/question/exam/208/1/W240725002",
+  "4. Product Knowledge RSP : https://trusmicorp.com/e-training/question/exam/13/1",
+  "5. IT Awareness : https://trusmicorp.com/e-training/question/exam/M25080901/1",
+  "6. Flow Business RSP : https://trusmicorp.com/e-training/question/exam/405/1",
+  "7. Sales Supervisor Mastery - Sesi 1 : Planning, Monitoring & Reporting : https://trusmicorp.com/e-training/question/exam/M25121201/1",
+  "8. Sales Supervisor Mastery - Sesi 2 : Decision Making & Developing : https://trusmicorp.com/e-training/question/exam/M26040801/1"
+];
+const WA_JOURNEY_TUTORIAL = [
+  "Tutorial penyelesaian e-training :",
+  "https://youtu.be/jeFTPj72VcQ?si=nNcux5Wn0oVpiajK"
+];
+
+function getWaJourneyLines(c){
+  if(isSalesSupervisorDesignation(c)) return WA_JOURNEY_SPV_SALES;
+  if(isSalesDesignation(c)) return WA_JOURNEY_SALES;
+  return WA_JOURNEY_NON_SALES;
+}
+
 function buildOnboardingReminderText(c){
-  const nama = c.nama || 'Kandidat';
+  const nama = String(c.nama || '').trim() || 'Kandidat';
   const tglOnb = c.tglOnboarding ? fmtID(c.tglOnboarding) : '(belum ditentukan)';
   const lines = [
     `Halo *${nama}* 👋`,
@@ -5475,6 +5543,14 @@ function buildOnboardingReminderText(c){
   if(c.departemen) lines.push(`🏢 Departemen: ${c.departemen}`);
   if(c.designation) lines.push(`💼 Posisi: ${c.designation}`);
   lines.push('');
+
+  // Journey Induction Training sesuai designation kandidat (template di WA_JOURNEY_*),
+  // lengkap sama link e-training + tutorial penyelesaiannya.
+  lines.push(...getWaJourneyLines(c));
+  lines.push('');
+  lines.push(...WA_JOURNEY_TUTORIAL);
+  lines.push('');
+
   lines.push('Mohon hadir tepat waktu ya. Kalau ada kendala atau pertanyaan, silakan hubungi kami di nomor ini.');
   lines.push('');
   lines.push('Terimakasih 🙏😊');
@@ -6572,25 +6648,57 @@ function renderDeptChartDeptStep(divisi, group){
   if(modalSubtitleEl) modalSubtitleEl.style.display = 'none';
   modalTitleEl.textContent = `🏷️ Divisi ${divisi}`;
   destroyTotalBatchCharts();
-  const key = 'batchDeptChart-mainDivisi';
-  const labelOverride = `🏷️ Divisi ${divisi}`;
+
+  // Pecah per SESI induction (tglOnboarding): satu chart Departemen per sesi, bukan gabungan
+  // sebulan. Urut tanggal; yang tgl induction-nya kosong ditaruh paling bawah.
+  const sessionMap = new Map();
+  group.forEach(c => {
+    const date = c.tglOnboarding ? String(c.tglOnboarding).slice(0, 10) : '';
+    if(!sessionMap.has(date)) sessionMap.set(date, []);
+    sessionMap.get(date).push(c);
+  });
+  const sessions = Array.from(sessionMap.entries()).sort((a, b) => {
+    if(!a[0]) return 1;
+    if(!b[0]) return -1;
+    return a[0].localeCompare(b[0]);
+  });
+  const batches = sessions.map(([date, g], i) => ({
+    key: `batchDeptChart-mainDivisi-${i}`,
+    date: date || null,
+    wk: date ? onboardingWeekNumber(date) : null,
+    group: g,
+    labelOverride: date ? null : 'Tgl induction belum diisi'
+  }));
+
   modalBodyEl.innerHTML = `
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">🏷️ ${escapeHtml(divisi)}</span>
-        <span class="week-count">${group.length} kandidat</span>
+        <span class="week-count">${group.length} kandidat · ${sessions.length} sesi</span>
       </div>
-      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
-      <div style="position:relative;">
-        <canvas id="${key}"></canvas>
-      </div>
-    </div>`;
-  lastTotalBatches = [{ key, date: null, wk: null, group, labelOverride }];
+      <div class="chart-hint">💡 Satu chart per sesi induction · klik bar untuk lihat detail kandidat per departemen</div>
+    </div>
+    ${batches.map(b => {
+      const label = b.date ? `Sesi ${fmtShortID(b.date)} · Minggu ke-${b.wk}` : 'Tgl induction belum diisi';
+      return `
+      <div class="week-group">
+        <div class="week-header">
+          <span class="week-pill">📅 ${escapeHtml(label)}</span>
+          <span class="week-count">${b.group.length} kandidat</span>
+        </div>
+        <div style="position:relative;">
+          <canvas id="${b.key}"></canvas>
+        </div>
+      </div>`;
+    }).join('')}`;
+  lastTotalBatches = batches;
   setTimeout(() => {
-    const canvas = document.getElementById(key);
-    if(!canvas) return;
-    const chart = buildBatchDeptChart(canvas, group, null, null, labelOverride);
-    if(chart) totalBatchCharts.push(chart);
+    batches.forEach(b => {
+      const canvas = document.getElementById(b.key);
+      if(!canvas) return;
+      const chart = buildBatchDeptChart(canvas, b.group, b.wk, b.date, b.labelOverride);
+      if(chart) totalBatchCharts.push(chart);
+    });
   }, 0);
 }
 
@@ -6849,26 +6957,61 @@ function renderDivisiDeptChartStep(divisi){
   const group = currentDivisiDrilldownList.filter(c => getDivisiForDesignation(c.designation) === divisi);
   const modalBodyEl = document.getElementById('statModalBody');
   destroyTotalBatchCharts();
-  const key = 'divisiDeptChart';
-  const labelOverride = `🏷️ Divisi ${divisi}`;
+
+  // Pecah kandidat divisi ini per SESI induction (Tanggal Induction / tglOnboarding),
+  // satu chart Departemen per sesi -- bukan gabungan sebulan. Urut tanggal; kandidat
+  // yang tgl induction-nya belum diisi ditaruh paling bawah.
+  const sessionMap = new Map();
+  group.forEach(c => {
+    const date = c.tglOnboarding ? String(c.tglOnboarding).slice(0, 10) : '';
+    if(!sessionMap.has(date)) sessionMap.set(date, []);
+    sessionMap.get(date).push(c);
+  });
+  const sessions = Array.from(sessionMap.entries()).sort((a, b) => {
+    if(!a[0]) return 1;
+    if(!b[0]) return -1;
+    return a[0].localeCompare(b[0]);
+  });
+
+  const batches = sessions.map(([date, g], i) => ({
+    key: `divisiDeptChart-${i}`,
+    date: date || null,
+    wk: date ? onboardingWeekNumber(date) : null,
+    group: g,
+    labelOverride: date ? null : 'Tgl induction belum diisi',
+    context: currentDivisiDrilldownContext
+  }));
+
   modalBodyEl.innerHTML = `
     <button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">🏷️ Divisi ${escapeHtml(divisi)}</span>
-        <span class="week-count">${group.length} kandidat</span>
+        <span class="week-count">${group.length} kandidat · ${sessions.length} sesi</span>
       </div>
-      <div class="chart-hint">💡 Klik bar untuk lihat detail kandidat per departemen</div>
-      <div style="position:relative;">
-        <canvas id="${key}"></canvas>
-      </div>
-    </div>`;
-  lastTotalBatches = [{ key, date: null, wk: null, group, labelOverride, context: currentDivisiDrilldownContext }];
+      <div class="chart-hint">💡 Satu chart per sesi induction · klik bar untuk lihat detail kandidat per departemen</div>
+    </div>
+    ${batches.map(b => {
+      const label = b.date ? `Sesi ${fmtShortID(b.date)} · Minggu ke-${b.wk}` : 'Tgl induction belum diisi';
+      return `
+      <div class="week-group">
+        <div class="week-header">
+          <span class="week-pill">📅 ${escapeHtml(label)}</span>
+          <span class="week-count">${b.group.length} kandidat</span>
+        </div>
+        <div style="position:relative;">
+          <canvas id="${b.key}"></canvas>
+        </div>
+      </div>`;
+    }).join('')}`;
+  lastTotalBatches = batches;
   setTimeout(() => {
-    const canvas = document.getElementById(key);
-    if(!canvas) return;
-    const chart = buildBatchDeptChart(canvas, group, null, null, labelOverride, currentDivisiDrilldownContext);
-    if(chart) totalBatchCharts.push(chart);
+    batches.forEach(b => {
+      const canvas = document.getElementById(b.key);
+      if(!canvas) return;
+      const chart = buildBatchDeptChart(canvas, b.group, b.wk, b.date, b.labelOverride, b.context);
+      if(chart) totalBatchCharts.push(chart);
+    });
   }, 0);
 }
 
