@@ -1065,6 +1065,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .status-tidak-hadir{background:rgba(224,90,78,0.15);color:var(--danger);}
   .status-belum-verif{background:rgba(107,124,133,0.15);color:var(--text-dim);}
   .status-progress{background:rgba(201,134,28,0.15);color:var(--warn);}
+  .status-gagal{background:var(--danger-bg);color:var(--danger-text);box-shadow:inset 0 0 0 1px rgba(224,90,78,0.45);}
   .status-karyawan-resign{cursor:pointer;}
   /* Tooltip custom buat badge "Resign" -- ditempel & posisinya dihitung relatif ke
      badge-nya sendiri (position:fixed berdasarkan getBoundingClientRect), bukan
@@ -2444,7 +2445,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <!-- Buat baca file export LMS (.xlsx) pas import ceklis otomatis Sales/Sales Counter -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
 // API_URL udah didefinisiin sedini mungkin di <head> (biar fetch-nya bisa mulai duluan,
 // lihat komentar "Perf: definisiin API_URL & langsung tembak fetch..." di atas).
@@ -4057,13 +4058,39 @@ function renderKehadiranBadge(c){
   return `<span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>`;
 }
 
+// Daftar modul auto E-Training yang nilai post test-nya di bawah batas lulus (80) buat
+// 1 kandidat -> [{ label, nilai }]. Dipakai buat ngewarnain badge status induction jadi
+// merah + nampilin tooltip modul mana yang gak lulus.
+const NILAI_MIN_LULUS = 80;
+function getFailedPostTests(c){
+  const checklist = c.onboardingChecklist || {};
+  return getOnboardingModules(c).reduce((acc, m) => {
+    if(!(m.lmsAliases && m.lmsAliases.length)) return acc;
+    const e = checklist[m.id];
+    if(!e || !e.done || e.nilai === undefined || e.nilai === null || e.nilai === '') return acc;
+    const n = Number(e.nilai);
+    if(!isNaN(n) && n < NILAI_MIN_LULUS) acc.push({ label: m.label, nilai: n });
+    return acc;
+  }, []);
+}
+
+// Teks tooltip "ada yang tidak lulus" (kosong kalau semua lulus / belum ada nilai).
+function failedPostTestTooltip(c){
+  const fails = getFailedPostTests(c);
+  if(!fails.length) return '';
+  return `Ada ${fails.length} E-Training yang tidak lulus (nilai < ${NILAI_MIN_LULUS}): ` +
+    fails.map(f => `${f.label} (${f.nilai})`).join('; ');
+}
+
 // Badge status onboarding (Not Started/In Progress/Completed), diturunin dari
 // checklist 14 modul Orientasi Awal HR -> sama persis kayak yang di kolom
 // "Status Onboarding" pada tabel utama.
 function renderOnboardingStatusBadge(c){
   const status = dummyOnboardingStatus(c);
-  if(status === 'Completed') return `<span class="status-badge status-sudah">✅ Induction: Completed</span>`;
-  if(status === 'In Progress') return `<span class="status-badge status-progress">🔄 Induction: In Progress (${onboardingProgressPct(c)}%)</span>`;
+  const failTip = failedPostTestTooltip(c);
+  const failAttr = failTip ? ` title="${escapeAttr(failTip)}"` : '';
+  if(status === 'Completed') return `<span class="status-badge ${failTip ? 'status-gagal' : 'status-sudah'}"${failAttr}>✅ Induction: Completed${failTip ? ' ⚠️' : ''}</span>`;
+  if(status === 'In Progress') return `<span class="status-badge ${failTip ? 'status-gagal' : 'status-progress'}"${failAttr}>🔄 Induction: In Progress (${onboardingProgressPct(c)}%)${failTip ? ' ⚠️' : ''}</span>`;
   return `<span class="status-badge status-belum-verif">⏳ Induction: Not Started</span>`;
 }
 
@@ -4131,7 +4158,7 @@ function renderCandMiniCard(c, context){
   // dengan card "aktivasi" (dua badge, gak pernah kosong). Badge status onboarding-nya
   // dibungkus tombol (sama kayak kolom "Status Induction" di tabel utama) biar bisa
   // diklik buat buka popup journey induction kandidat itu.
-  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}<button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">${renderOnboardingStatusBadge(c)}</button></div>`;
+  badgeHtml = `<div class="dept-mini-badges">${renderAktivasiBadge(c)}${renderKehadiranBadge(c)}<button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="${failedPostTestTooltip(c) ? escapeAttr(failedPostTestTooltip(c)) : 'Lihat journey induction'}">${renderOnboardingStatusBadge(c)}</button></div>`;
 
   // Khusus popup "Induction In Progress" (context 'onboarding-inprogress'): kandidat yang
   // udah >=5 hari dari tanggal Rencana Induction tapi journey-nya belum kelar dikasih
@@ -5399,6 +5426,8 @@ function renderCandRow(c, rowNumber){
   const kehadiran = effectiveKehadiran(c);
   const isDirty = pendingKehadiran[c._id] !== undefined;
   const onbStatus = dummyOnboardingStatus(c);
+  const failTip = failedPostTestTooltip(c);
+  const failAttr = failTip ? ` title="${escapeAttr(failTip)}"` : '';
   return `
     <tr>
       <td class="row-number">${rowNumber}</td>
@@ -5432,11 +5461,11 @@ function renderCandRow(c, rowNumber){
         </div>
       </td>
       <td>
-        <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="Lihat journey induction">
+        <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="${failTip ? escapeAttr(failTip) : 'Lihat journey induction'}">
           ${onbStatus==='Completed'
-            ? `<span class="status-badge status-sudah">✅ Completed</span>`
+            ? `<span class="status-badge ${failTip ? 'status-gagal' : 'status-sudah'}"${failAttr}>✅ Completed${failTip ? ' ⚠️' : ''}</span>`
             : onbStatus==='In Progress'
-            ? `<span class="status-badge status-progress">🔄 In Progress (${onboardingProgressPct(c)}%)</span>`
+            ? `<span class="status-badge ${failTip ? 'status-gagal' : 'status-progress'}"${failAttr}>🔄 In Progress (${onboardingProgressPct(c)}%)${failTip ? ' ⚠️' : ''}</span>`
             : `<span class="status-badge status-belum-verif">⏳ Not Started</span>`}
         </button>
       </td>
@@ -5763,6 +5792,30 @@ function buildExcelGolonganSheet(list, track){
   return rows;
 }
 
+// Sel status modul E-Training yang nilai post test-nya di bawah 80 (teks "Post Test - 75")
+// diwarnain merah (font merah tebal + latar merah muda) biar gampang kelihatan pas dibuka
+// di Excel. Butuh library xlsx-js-style (SheetJS biasa gak bisa nulis styling).
+const EXCEL_NILAI_MIN_LULUS = 80;
+function highlightLowPostTestCells(ws){
+  if(!ws || !ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let r = range.s.r; r <= range.e.r; r++){
+    for(let c = range.s.c; c <= range.e.c; c++){
+      const cell = ws[XLSX.utils.encode_cell({r, c})];
+      if(!cell || typeof cell.v !== 'string') continue;
+      const m = cell.v.match(/^Post Test - (\d+(?:[.,]\d+)?)$/);
+      if(!m) continue;
+      const nilai = Number(m[1].replace(',', '.'));
+      if(nilai < EXCEL_NILAI_MIN_LULUS){
+        cell.s = {
+          font: { bold:true, color:{ rgb:'9C0006' } },
+          fill: { patternType:'solid', fgColor:{ rgb:'FFC7CE' } }
+        };
+      }
+    }
+  }
+}
+
 function autoSizeExcelSheet(ws){
   if(!ws || !ws['!ref']) return;
   const range = XLSX.utils.decode_range(ws['!ref']);
@@ -5807,6 +5860,7 @@ function downloadTableExcel(){
     EXCEL_ONBOARDING_TRACKS.forEach(track => {
       const golWs = XLSX.utils.aoa_to_sheet(buildExcelGolonganSheet(monthList, track));
       autoSizeExcelSheet(golWs);
+      highlightLowPostTestCells(golWs);
       if(golWs['!ref']){
         const golRange = XLSX.utils.decode_range(golWs['!ref']);
         golWs['!autofilter'] = {
@@ -7250,7 +7304,7 @@ function renderJourneyChecklistHtml(c){
       // import LMS (kolom "Nilai"/"Skor"/"Score" di file export) -> hijau kalau >=80, merah kalau <80.
       const hasNilai = isLmsAuto && entry.nilai !== undefined && entry.nilai !== null && entry.nilai !== '';
       const nilaiBadge = hasNilai
-        ? ` <span class="journey-lms-score ${Number(entry.nilai) >= 80 ? 'journey-lms-score-pass' : 'journey-lms-score-fail'}">📝 ${entry.nilai}</span>`
+        ? ` <span class="journey-lms-score ${Number(entry.nilai) >= 80 ? 'journey-lms-score-pass' : 'journey-lms-score-fail'}"${Number(entry.nilai) < 80 ? ' title="Tidak lulus (nilai di bawah 80)"' : ''}>📝 ${entry.nilai}</span>`
         : '';
       html += `
         <div class="journey-item ${entry.done ? 'done' : ''}">
