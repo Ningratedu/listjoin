@@ -4756,7 +4756,7 @@ const SALES_ONBOARDING_MODULES = [
   { id:'s11', label:'Wake The Giant', group:'Hari ke 4', lmsAliases:['Wake The Giant'], examUrl:'https://trusmicorp.com/e-training/question/exam/265/1' }
 ];
 
-// Journey onboarding KHUSUS designation Sales Supervisor (beda dari Sales/Sales Counter
+// Journey onboarding KHUSUS designation Sales Supervisor, PJS Sales Supervisor & Commercial Marketing Supervisor (beda dari Sales/Sales Counter
 // biasa) -- delapan modul E-Training RSP (auto keceklis dari import LMS) + Comben +
 // modul-modul OD/Orientasi Lingkungan Kerja yang SAMA kayak designation lain di
 // ONBOARDING_MODULES (tetap dicentang manual oleh PIC OD masing-masing, karena bukan
@@ -4791,12 +4791,18 @@ function isSalesDesignation(c){
   return d === 'sales' || d === 'sales counter';
 }
 
-// Kandidat dengan designation PERSIS "Sales Supervisor" (exact match, gak case sensitive)
-// pakai journey SALES_SUPERVISOR_ONBOARDING_MODULES sendiri -- dipisah dari
+// Kandidat dengan designation PERSIS "Sales Supervisor", "PJS Sales Supervisor", atau
+// "Commercial Marketing Supervisor" (exact match, gak case sensitive, trim whitespace)
+// pakai journey SALES_SUPERVISOR_ONBOARDING_MODULES yang sama -- dipisah dari
 // isSalesDesignation() supaya gak ketuker sama journey Sales/Sales Counter biasa.
+const SALES_SUPERVISOR_DESIGNATIONS = [
+  'sales supervisor',
+  'pjs sales supervisor',
+  'commercial marketing supervisor'
+];
 function isSalesSupervisorDesignation(c){
-  const d = (c.designation || '').trim().toLowerCase();
-  return d === 'sales supervisor';
+  const d = (c.designation || '').trim().replace(/\s+/g,' ').toLowerCase();
+  return SALES_SUPERVISOR_DESIGNATIONS.includes(d);
 }
 
 // Cari modul "auto e-training" (modul yang punya lmsAliases -- artinya bisa keupdate
