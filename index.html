@@ -1115,6 +1115,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .journey-progress-label{display:flex;justify-content:space-between;align-items:baseline;
     font-size:11.5px;color:var(--text);margin-bottom:6px;}
   .journey-progress-label span{font-size:10px;color:var(--text-dim);font-weight:600;}
+  .journey-progress-label .journey-skip-note{margin-right:auto;margin-left:8px;}
   .journey-progress-bar{height:8px;border-radius:999px;background:rgba(107,124,133,0.18);overflow:hidden;}
   .journey-progress-fill{height:100%;border-radius:999px;background:var(--accent);transition:width .25s;}
   /* Baris tombol WA "ingetin modul belum selesai", cuma dirender kalau status kandidat
@@ -1766,6 +1767,19 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .session-chart-note{font-size:10.5px;color:var(--text-dim);margin-top:8px;}
   @media(max-width:640px){.session-chart-wrap{height:240px;}.session-chart-legend{gap:4px 8px;font-size:8px;}}
 
+  /* ==== Chart status induction per divisi per sesi ==== */
+  .indstat-section{margin-bottom:18px;}
+  .indstat-section:last-child{margin-bottom:0;}
+  .indstat-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .indstat-title{font-size:11.5px;font-weight:800;color:var(--text);}
+  .indstat-count{font-size:10px;font-weight:600;color:var(--text-dim);}
+  .indstat-empty{font-size:10.5px;color:var(--text-dim);padding:14px 4px;}
+  .indstat-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin:0 0 10px;font-size:9.5px;color:var(--text-dim);}
+  .indstat-legend span{display:inline-flex;align-items:center;gap:4px;}
+  .indstat-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .indstat-wrap{position:relative;height:230px;}
+  @media(max-width:640px){.indstat-wrap{height:210px;}}
+
   /* ==== Tab utama: Info Join & Onboarding vs Statistik Turnover HR ==== */
   .page-tabs{
     display:flex;
@@ -2070,25 +2084,6 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     </div>
   </div>
 
-  <!-- CHART SEBARAN DIVISI -->
-  <div class="list-panel chart-panel">
-    <h2>
-      <div class="chart-heading">
-        <span class="h2-icon">🏷️</span>
-        <div class="chart-heading-text">
-          <span>Sebaran Divisi</span>
-          <span class="chart-sub" id="deptChartSub">Jumlah kandidat per divisi</span>
-        </div>
-      </div>
-    </h2>
-    <div id="deptChartEmptyState" class="empty-state" style="display:none;">Belum ada data buat statistik.</div>
-    <div class="chart-hint" id="deptChartHint" style="display:none;">💡 Klik bar untuk lihat sebaran departemen di divisi tsb, klik lagi buat lihat daftar kandidatnya</div>
-    <div style="position:relative;height:320px;">
-      <canvas id="deptChart"></canvas>
-    </div>
-  </div>
-
-
   <!-- CHART SESI INDUCTION PER DIVISI -->
   <div class="list-panel chart-panel">
     <h2>
@@ -2272,6 +2267,31 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     </div>
     </div>
     <div class="insight-panel-togglebar" onclick="toggleInsightPanel('inductionInsightPanel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 12 16 19 8"></polyline></svg></div>
+  </div>
+
+  <!-- CHART STATUS INDUCTION PER DIVISI PER SESI -- di atas tabel detail kandidat -->
+  <div class="list-panel chart-panel" id="inductionStatusPanel">
+    <h2>
+      <div class="chart-heading">
+        <span class="h2-icon">📈</span>
+        <div class="chart-heading-text">
+          <span>Status Induction per Divisi per Sesi</span>
+          <span class="chart-sub" id="indStatSub">Divisi Sales, Support &amp; Produksi · Completed / In Progress / Not Started tiap sesi induction</span>
+        </div>
+      </div>
+    </h2>
+    <div id="indStatEmptyState" class="empty-state" style="display:none;">Belum ada peserta induction di bulan ini.</div>
+    <div id="indStatBody">
+      <div class="chart-hint">💡 Setiap batang = 1 sesi induction · klik segmen status untuk lihat daftar pesertanya</div>
+      <div class="indstat-legend">
+        <span><i style="background:#17b978"></i>Completed</span>
+        <span><i style="background:#e05a4e"></i>Completed (ada nilai &lt; 80)</span>
+        <span><i style="background:#f6a04d"></i>In Progress</span>
+        <span><i style="background:#9aa5ab"></i>Not Started</span>
+      </div>
+      <div id="indStatGrid"></div>
+      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih · hanya peserta berstatus Hadir &amp; masih Active (sama seperti card Completed/In Progress).</div>
+    </div>
   </div>
 
   <!-- TABEL DETAIL KANDIDAT -->
@@ -3260,6 +3280,7 @@ function applyCandidates(items){
   renderChart();
   renderDeptChart();
   renderSessionDeptChart();
+  renderInductionStatusSessionChart();
 }
 
 function readCandidatesCache(){
@@ -3451,6 +3472,7 @@ function renderStats(){
   renderRecruitmentInsights();
 
   renderOnboardingStats();
+  if(typeof renderInductionStatusSessionChart === 'function') renderInductionStatusSessionChart();
   renderInductionInsights();
   bindStatTileEvents();
 }
@@ -5018,12 +5040,20 @@ function parseOnboardingChecklist(raw){
   }
 }
 
+// Modul PIC: OD yang BELUM dicentang tapi udah diisi Notes (dokumen modul belum ada) ->
+// dianggap DILEWATI: gak ikut dihitung di total progres, gak ikut jadi bottleneck, &
+// gak masuk reminder WA. Kalau modulnya udah dicentang, tetap dihitung selesai biasa.
+function isModuleSkippedByNote(entry, m){
+  return !!(m && m.group === 'PIC: OD' && entry && !entry.done && String(entry.catatan || '').trim());
+}
+
 function onboardingProgress(c){
   const checklist = c.onboardingChecklist || {};
   const modules = getOnboardingModules(c);
-  const total = modules.length;
+  const skipped = modules.filter(m => isModuleSkippedByNote(checklist[m.id], m)).length;
+  const total = modules.length - skipped;
   const done = modules.filter(m => checklist[m.id] && checklist[m.id].done).length;
-  return { done, total };
+  return { done, total, skipped };
 }
 
 // Status per-modul (id, group/tim induction penanggung jawab, done) buat 1 kandidat --
@@ -5032,7 +5062,7 @@ function onboardingProgress(c){
 // (c.pic) yang cuma perannya closing kandidat di awal, gak ikut proses induction-nya.
 function getInductionModuleStatus(c){
   const checklist = c.onboardingChecklist || {};
-  return getOnboardingModules(c).map(m => ({
+  return getOnboardingModules(c).filter(m => !isModuleSkippedByNote(checklist[m.id], m)).map(m => ({
     id: m.id,
     group: m.group || '(Belum diisi)',
     done: !!(checklist[m.id] && checklist[m.id].done)
@@ -5618,7 +5648,7 @@ function sendOnboardingReminder(c){
 function getIncompleteOnboardingModules(c){
   const checklist = c.onboardingChecklist || {};
   const modules = getOnboardingModules(c);
-  return modules.filter(m => !(checklist[m.id] && checklist[m.id].done));
+  return modules.filter(m => !(checklist[m.id] && checklist[m.id].done) && !isModuleSkippedByNote(checklist[m.id], m));
 }
 
 // Teks reminder WA khusus buat ngingetin MODUL onboarding yang belum diselesaikan,
@@ -5787,6 +5817,7 @@ function buildExcelGolonganSheet(list, track){
       progressLabel,
       ...track.modules.map(m => {
         const entry = checklist[m.id];
+        if(isModuleSkippedByNote(entry, m)) return `Dilewati - ${String(entry.catatan).trim()}`;
         if(!(entry && entry.done)) return 'Belum';
         // Modul auto E-Training (punya lmsAliases, keceklis otomatis dari import LMS) ->
         // tampilin nilai post test-nya kalau ada, bukan cuma teks "Selesai".
@@ -6362,6 +6393,167 @@ function renderSessionDeptChart(){
       }
     },
     ticks:{color:cssVar('--text-dim'),font:{size:10},precision:0},grid:{color:cssVar('--border')},title:{display:true,text:'Jumlah karyawan',color:cssVar('--text-dim'),font:{size:10,weight:'600'}}}}},plugins:[{id:'sessionTotalLabels',afterDatasetsDraw(chart){const {ctx,chartArea}=chart;chart.data.labels.forEach((_,idx)=>{let total=0,topBar=null;chart.data.datasets.forEach((ds,di)=>{total+=Number(ds.data[idx]||0);const meta=chart.getDatasetMeta(di);if(!meta.hidden&&Number(ds.data[idx]||0)>0)topBar=meta.data[idx];});if(!topBar||!total)return;const pos=topBar.getProps(['x','y'],true);const labelY=Math.max(pos.y-5,(chartArea?.top??0)+11);ctx.save();ctx.fillStyle=cssVar('--text');ctx.font='800 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(total),pos.x,labelY);ctx.restore();});}}]});
+}
+
+// ==== Chart Status Induction per Divisi per Sesi ====
+// 3 chart terpisah (Sales, Support, Produksi). Di tiap chart: 1 batang = 1 sesi induction
+// (tglOnboarding) bulan terpilih; stack = status induction peserta (Completed / In Progress /
+// Not Started) dari dummyOnboardingStatus(). Basis peserta SAMA dengan card Completed/In Progress:
+// kehadiran 'Hadir' & masih Active (belum resign). Divisi 'Lainnya' sengaja gak ditampilkan.
+let indStatCharts = [];
+const INDSTAT_DIVISI = ['Sales', 'Support', 'Produksi'];
+// Completed dipecah 2: yang semua nilai post test-nya lulus (>=80) vs yang ada nilai kurang
+// (<80, sama dengan aturan badge merah di status induction -> getFailedPostTests()).
+const INDSTAT_STATUSES = [
+  { key:'Completed',                label:'Completed',                 color:'#17b978',
+    match: c => dummyOnboardingStatus(c) === 'Completed' && getFailedPostTests(c).length === 0 },
+  { key:'Completed (nilai < 80)',   label:'Completed (ada nilai < 80)', color:'#e05a4e',
+    match: c => dummyOnboardingStatus(c) === 'Completed' && getFailedPostTests(c).length > 0 },
+  { key:'In Progress',              label:'In Progress',               color:'#f6a04d',
+    match: c => dummyOnboardingStatus(c) === 'In Progress' },
+  { key:'Not Started',              label:'Not Started',               color:'#9aa5ab',
+    match: c => dummyOnboardingStatus(c) === 'Not Started' }
+];
+
+function getInductionStatusPeserta(){
+  return candidates.filter(c => isInSelectedMonth(c) && !isInductionAfterSelectedMonth(c) &&
+    c.kehadiran === 'Hadir' && getStatusKaryawan(c) !== 'Resign');
+}
+
+function destroyIndStatCharts(){
+  indStatCharts.forEach(ch => { try{ ch.destroy(); }catch(e){} });
+  indStatCharts = [];
+}
+
+function buildIndStatChart(canvas, sessions, divisi){
+  const labels = sessions.map(([d]) => fmtShortID(d));
+  const datasets = INDSTAT_STATUSES.map(st => {
+    const groups = sessions.map(([, g]) => g.filter(st.match));
+    return { label: st.label, data: groups.map(g => g.length), backgroundColor: st.color,
+      borderColor: cssVar('--panel'), borderWidth: 1.5, borderRadius: 5, borderSkipped: false,
+      stack: 'status', maxBarThickness: 48, _groups: groups };
+  });
+  const chart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 500, easing: 'easeOutQuart' },
+      interaction: { mode: 'nearest', intersect: true },
+      onClick: (evt, elements) => {
+        if(!elements.length) return;
+        const el = elements[0];
+        const ds = chart.data.datasets[el.datasetIndex];
+        const group = ds._groups[el.index] || [];
+        if(!group.length) return;
+        const context = ds.label === 'In Progress' ? 'onboarding-inprogress' : 'onboarding';
+        openStatModal(`${ds.label} · ${divisi} — Sesi ${labels[el.index]} (${group.length})`,
+          renderDivisiSummaryHtml(group, context),
+          { icon: ds.label === 'Completed' ? '✅' : (ds.label.startsWith('Completed') ? '⚠️' : (ds.label === 'In Progress' ? '🔄' : '⏳')), accent: 'onboarding' });
+      },
+      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: items => { const i = items[0] && items[0].dataIndex; return i == null ? '' : `Sesi ${i+1} · ${labels[i]}`; },
+          label: ctx => `${ctx.dataset.label}: ${ctx.raw} peserta`,
+          footer: items => { const i = items[0] && items[0].dataIndex; return i == null ? '' : `Total sesi: ${sessions[i][1].length} peserta · klik segmen untuk daftar peserta`; }
+        } }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false },
+          ticks: { color: cssVar('--text'), font: { size: 10.5, weight: '700' } },
+          title: { display: true, text: 'Sesi induction', color: cssVar('--text-dim'), font: { size: 10, weight: '600' } } },
+        y: { stacked: true, beginAtZero: true, grid: { color: cssVar('--border') },
+          afterBuildTicks: (axis) => {
+            const ticks = axis.ticks;
+            if(ticks.length >= 2){
+              const step = ticks[ticks.length-1].value - ticks[ticks.length-2].value;
+              const nextValue = ticks[ticks.length-1].value + step;
+              axis.ticks.push({ value: nextValue });
+              axis.max = nextValue;
+            }
+          },
+          ticks: { color: cssVar('--text-dim'), font: { size: 10 }, precision: 0 },
+          title: { display: true, text: 'Jumlah peserta', color: cssVar('--text-dim'), font: { size: 10, weight: '600' } } }
+      }
+    },
+    plugins: [{
+      id: 'indStatTotalLabels',
+      afterDatasetsDraw(ch){
+        const { ctx } = ch;
+        ctx.save();
+        ctx.font = '700 10px sans-serif';
+        ctx.fillStyle = cssVar('--text');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        labels.forEach((_, i) => {
+          let top = null, total = 0, x = null;
+          ch.data.datasets.forEach((ds, di) => {
+            const v = ds.data[i] || 0;
+            if(!v) return;
+            total += v;
+            const bar = ch.getDatasetMeta(di).data[i];
+            if(bar){ x = bar.x; if(top === null || bar.y < top) top = bar.y; }
+          });
+          if(total && top !== null) ctx.fillText(String(total), x, top - 3);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+  return chart;
+}
+
+function renderInductionStatusSessionChart(){
+  const gridEl = document.getElementById('indStatGrid');
+  const bodyEl = document.getElementById('indStatBody');
+  const emptyEl = document.getElementById('indStatEmptyState');
+  const subEl = document.getElementById('indStatSub');
+  if(!gridEl || !window.Chart) return;
+  destroyIndStatCharts();
+
+  const peserta = getInductionStatusPeserta().filter(c => INDSTAT_DIVISI.includes(getDivisiForDesignation(c.designation)));
+  if(!peserta.length){
+    if(bodyEl) bodyEl.style.display = 'none';
+    if(emptyEl) emptyEl.style.display = 'block';
+    if(subEl) subEl.textContent = `Tidak ada peserta induction divisi Sales/Support/Produksi pada ${currentMonthLabel()}`;
+    return;
+  }
+  if(bodyEl) bodyEl.style.display = '';
+  if(emptyEl) emptyEl.style.display = 'none';
+
+  const sessionSet = new Set(peserta.map(c => String(c.tglOnboarding).slice(0,10)));
+  if(subEl) subEl.textContent = `Sales · Support · Produksi · ${sessionSet.size} sesi · ${peserta.length} peserta · ${currentMonthLabel()}`;
+
+  gridEl.innerHTML = INDSTAT_DIVISI.map((divisi, i) => {
+    const list = peserta.filter(c => getDivisiForDesignation(c.designation) === divisi);
+    const emoji = divisi === 'Sales' ? '💼' : (divisi === 'Support' ? '🧩' : '🏭');
+    return `
+      <div class="indstat-section">
+        <div class="indstat-head">
+          <span class="indstat-title">${emoji} Divisi ${escapeHtml(divisi)}</span>
+          <span class="indstat-count">${list.length} peserta</span>
+        </div>
+        ${list.length
+          ? `<div class="indstat-wrap"><canvas id="indStatChart-${i}"></canvas></div>`
+          : `<div class="indstat-empty">Belum ada peserta induction divisi ${escapeHtml(divisi)} bulan ini.</div>`}
+      </div>`;
+  }).join('');
+
+  INDSTAT_DIVISI.forEach((divisi, i) => {
+    const list = peserta.filter(c => getDivisiForDesignation(c.designation) === divisi);
+    if(!list.length) return;
+    const sessionMap = new Map();
+    list.forEach(c => {
+      const date = String(c.tglOnboarding).slice(0,10);
+      if(!sessionMap.has(date)) sessionMap.set(date, []);
+      sessionMap.get(date).push(c);
+    });
+    const sessions = Array.from(sessionMap.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+    const canvas = document.getElementById(`indStatChart-${i}`);
+    if(canvas) indStatCharts.push(buildIndStatChart(canvas, sessions, divisi));
+  });
 }
 
 // Klik 1 segmen Divisi di 1 sesi -> breakdown Departemen khusus (divisi, sesi) itu (atau
@@ -7266,8 +7458,9 @@ function openOnboardingJourneyModal(c){
 function renderJourneyChecklistHtml(c){
   const checklist = c.onboardingChecklist || {};
   const modules = getOnboardingModules(c);
-  const { done, total } = onboardingProgress(c);
+  const { done, total, skipped } = onboardingProgress(c);
   const pct = total ? Math.round(done/total*100) : 0;
+  const skippedNote = skipped ? ` <span class="journey-skip-note" title="Modul PIC: OD yang belum dicentang tapi sudah diisi Notes tidak dihitung">(${skipped} dilewati, ada Notes)</span>` : '';
 
   const groups = {};
   const groupOrder = [];
@@ -7300,7 +7493,7 @@ function renderJourneyChecklistHtml(c){
   let html = `
     <div class="journey-progress">
       ${staleBannerHtml}
-      <div class="journey-progress-label"><b>${done}/${total} modul selesai</b><span>${pct}%</span></div>
+      <div class="journey-progress-label"><b>${done}/${total} modul selesai</b>${skippedNote}<span>${pct}%</span></div>
       <div class="journey-progress-bar"><div class="journey-progress-fill" style="width:${pct}%"></div></div>
       ${waHtml ? `<div class="journey-wa-row">${waHtml}<span class="journey-wa-label">${waLabel}</span></div>` : ''}
     </div>`;
@@ -7449,10 +7642,22 @@ async function saveOnboardingChecklist(c, checklist){
   if(modalBodyEl && document.getElementById('chartModalOverlay').classList.contains('show')){
     const progressEl = modalBodyEl.querySelector('.journey-progress');
     if(progressEl){
-      const { done, total } = onboardingProgress(c);
+      const { done, total, skipped } = onboardingProgress(c);
       const pct = total ? Math.round(done/total*100) : 0;
       progressEl.querySelector('.journey-progress-label b').textContent = `${done}/${total} modul selesai`;
-      progressEl.querySelector('.journey-progress-label span').textContent = `${pct}%`;
+      let skipEl = progressEl.querySelector('.journey-skip-note');
+      if(skipped){
+        if(!skipEl){
+          skipEl = document.createElement('span');
+          skipEl.className = 'journey-skip-note';
+          skipEl.title = 'Modul PIC: OD yang belum dicentang tapi sudah diisi Notes tidak dihitung';
+          progressEl.querySelector('.journey-progress-label b').insertAdjacentElement('afterend', skipEl);
+        }
+        skipEl.textContent = `(${skipped} dilewati, ada Notes)`;
+      } else if(skipEl){
+        skipEl.remove();
+      }
+      progressEl.querySelector('.journey-progress-label span:not(.journey-skip-note)').textContent = `${pct}%`;
       progressEl.querySelector('.journey-progress-fill').style.width = pct + '%';
       // Banner "sudah X hari, masih In Progress" juga disinkronin: ilang begitu
       // modulnya kelar semua (jadi Completed) atau belum ada progress sama sekali.
@@ -9202,6 +9407,7 @@ window.addEventListener('resize', () => {
   deptChartResizeTimer = setTimeout(() => {
     if(deptChart) renderDeptChart();
     if(sessionDeptChart) renderSessionDeptChart();
+    if(indStatCharts.length) renderInductionStatusSessionChart();
   }, 200);
 });
 if(window.ResizeObserver){
@@ -9241,6 +9447,7 @@ function setTheme(theme, persist){
   if(onboardingChart) renderChart();
   if(deptChart) renderDeptChart();
   if(sessionDeptChart) renderSessionDeptChart();
+  if(indStatCharts.length) renderInductionStatusSessionChart();
   if(totalBatchCharts.length) rerenderTotalBatchCharts();
   // NOTE: chart-chart di tab Turnover (trend/rate/alasan/departemen/tenure) sebelumnya
   // kelewatan gak ikut di-render ulang di sini -> makanya abis toggle tema, warna teks/
