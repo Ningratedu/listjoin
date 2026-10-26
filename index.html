@@ -2388,9 +2388,25 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
           </div>
         </div>
       </div>
-      <div class="row2">
-        <div class="field"><label>Alasan Resign</label>
-          <input type="text" id="efAlasanResign" placeholder="Diisi otomatis dari sinkronisasi Data Non-Aktif, atau isi manual bila perlu">
+      <div class="field">
+        <label>Status Karyawan <span style="font-weight:500;color:var(--text-dim);">· konfirmasi Tim Induction Training</span></label>
+        <select id="efStatusKaryawan">
+          <option value="Active">🟢 Active</option>
+          <option value="Resign">🔴 Resign</option>
+        </select>
+      </div>
+      <div id="efResignBlock" style="display:none;">
+        <div class="notice" style="margin:0 0 10px;">⚠️ Pakai ini kalau peserta resign saat induction tapi <b>belum diinput resignation di sistem HR utama</b> (jadi belum ke-update otomatis). Set ke Resign setelah ada konfirmasi Tim Induction Training. Peserta Resign tidak lagi dihitung di Completed / In Progress.</div>
+        <div class="row2">
+          <div class="field"><label>Tgl Resign</label>
+            <div class="date-input-wrap">
+              <input type="date" id="efTglResign">
+              <span class="date-overlay is-empty" id="efTglResignOverlay"></span>
+            </div>
+          </div>
+          <div class="field"><label>Alasan Resign</label>
+            <input type="text" id="efAlasanResign" placeholder="Diisi otomatis dari sinkronisasi Data Non-Aktif, atau isi manual bila perlu">
+          </div>
         </div>
       </div>
       <div class="edit-modal-actions">
@@ -2735,7 +2751,7 @@ function setDateInputValue(inputEl, value){
 }
 
 function initDateOverlays(){
-  ['tglJoin', 'tglOnboarding', 'efTglJoin', 'efTglOnboarding'].forEach(id => {
+  ['tglJoin', 'tglOnboarding', 'efTglJoin', 'efTglOnboarding', 'efTglResign'].forEach(id => {
     const el = document.getElementById(id);
     if(!el) return;
     refreshDateOverlay(el);
@@ -4547,6 +4563,19 @@ const efStatusAktivasiEl = document.getElementById('efStatusAktivasi');
 const efTglJoinEl = document.getElementById('efTglJoin');
 const efTglOnboardingEl = document.getElementById('efTglOnboarding');
 const efAlasanResignEl = document.getElementById('efAlasanResign');
+const efStatusKaryawanEl = document.getElementById('efStatusKaryawan');
+const efTglResignEl = document.getElementById('efTglResign');
+const efResignBlockEl = document.getElementById('efResignBlock');
+
+// Blok Tgl Resign + Alasan Resign cuma relevan kalau Status Karyawan = Resign.
+function syncResignBlock(){
+  efResignBlockEl.style.display = efStatusKaryawanEl.value === 'Resign' ? 'block' : 'none';
+}
+efStatusKaryawanEl.addEventListener('change', () => {
+  syncResignBlock();
+  // Baru dipilih Resign & tgl-nya masih kosong -> isi default hari ini (bisa diganti).
+  if(efStatusKaryawanEl.value === 'Resign' && !efTglResignEl.value) setDateInputValue(efTglResignEl, todayISO());
+});
 const editModalSaveBtn = document.getElementById('editModalSave');
 
 function openEditModal(c){
@@ -4563,6 +4592,9 @@ function openEditModal(c){
   setDateInputValue(efTglJoinEl, String(c.tglJoin || '').slice(0,10));
   setDateInputValue(efTglOnboardingEl, String(c.tglOnboarding || '').slice(0,10));
   efAlasanResignEl.value = c.alasanResign || '';
+  efStatusKaryawanEl.value = getStatusKaryawan(c);
+  setDateInputValue(efTglResignEl, String(c.tglResign || '').slice(0,10));
+  syncResignBlock();
   editModalSaveBtn.disabled = false;
   editModalSaveBtn.textContent = '💾 Simpan';
   editModalOverlayEl.classList.add('show');
@@ -4591,12 +4623,35 @@ editModalSaveBtn.addEventListener('click', async () => {
     lokasi: efLokasiEl.value.trim(),
     tglJoin: efTglJoinEl.value,
     tglOnboarding: efTglOnboardingEl.value,
-    statusAktivasi: efStatusAktivasiEl.value,
-    alasanResign: efAlasanResignEl.value.trim()
+    statusAktivasi: efStatusAktivasiEl.value
   };
   if(!fields.nama || !fields.noHp){
     showToast('Nama & Nomor HP wajib diisi', true);
     return;
+  }
+
+  // Status Karyawan (dikonfirmasi Tim Induction Training). Resign -> wajib ada Tgl Resign;
+  // Active -> tgl & alasan resign dikosongin biar gak nyangkut data lama.
+  const origStatus = editingCandOriginal ? getStatusKaryawan(editingCandOriginal) : 'Active';
+  const newStatus = efStatusKaryawanEl.value === 'Resign' ? 'Resign' : 'Active';
+  const origTglResign = editingCandOriginal ? String(editingCandOriginal.tglResign || '').slice(0, 10) : '';
+  const statusTouched = newStatus !== origStatus || efTglResignEl.value !== origTglResign;
+  if(newStatus === 'Resign'){
+    if(!efTglResignEl.value){
+      showToast('Tgl Resign wajib diisi kalau status Resign', true);
+      return;
+    }
+    if(fields.tglJoin && efTglResignEl.value < fields.tglJoin){
+      showToast('Tgl Resign tidak boleh sebelum Tgl Join', true);
+      return;
+    }
+    fields.statusKaryawan = 'Resign';
+    fields.tglResign = efTglResignEl.value;
+    fields.alasanResign = efAlasanResignEl.value.trim();
+  }else{
+    fields.statusKaryawan = '';
+    fields.tglResign = '';
+    fields.alasanResign = '';
   }
 
   // Kalau PIC baru saja set status jadi "Sudah" (sebelumnya belum "Sudah"), catat
@@ -4619,8 +4674,11 @@ editModalSaveBtn.addEventListener('click', async () => {
   // gak ada catatannya), otomatis di-reset balik jadi Active + tgl Resign-nya dikosongin,
   // biar kandidat ini kehitung lagi sebagai peserta induction yang aktif (bukan ketutup
   // status Resign lama selamanya -- lihat getStatusKaryawan()).
+  // Auto-reset ini cuma jalan kalau Status/Tgl Resign gak disentuh di form ini (pilihan
+  // eksplisit Tim Induction Training menang) DAN Tgl Join-nya memang diubah di save ini.
   const wasResign = editingCandOriginal && getStatusKaryawan(editingCandOriginal) === 'Resign';
-  const isRejoining = wasResign && fields.tglJoin
+  const joinChanged = fields.tglJoin !== String(editingCandOriginal.tglJoin || '').slice(0, 10);
+  const isRejoining = wasResign && !statusTouched && joinChanged && fields.tglJoin
     && (!editingCandOriginal.tglResign || fields.tglJoin > String(editingCandOriginal.tglResign).slice(0, 10));
   if(isRejoining){
     fields.statusKaryawan = '';
@@ -5465,10 +5523,10 @@ function renderCandRow(c, rowNumber){
             : `<button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" data-type="schedule" title="Kirim reminder induction via WhatsApp">
             <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
           </button>`)}
-          ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="edit" data-id="${escapeAttr(c._id)}" title="Edit">
+          <button class="edit" data-id="${escapeAttr(c._id)}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="del" data-id="${escapeAttr(c._id)}" title="Hapus">
+          ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="del" data-id="${escapeAttr(c._id)}" title="Hapus">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7h10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>`}
         </div>
@@ -6238,10 +6296,10 @@ function openChartModal(group, pic, date){
             ${renderOnboardingStatusBadge(c)}
           </div>
         </div>
-        ${getStatusKaryawan(c) === 'Resign' ? '' : `<div class="cand-card-actions-row">
+        <div class="cand-card-actions-row">
           <button class="edit" data-id="${escapeAttr(c._id)}">✏️ Edit</button>
-          <button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>
-        </div>`}
+          ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>`}
+        </div>
       </div>`;
   });
   html += `</div>`;
