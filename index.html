@@ -1772,6 +1772,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .indstat-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--border);}
   .indstat-title{font-size:12px;font-weight:800;color:var(--ind-accent);}
   .indstat-count{font-size:10px;font-weight:700;color:var(--ind-accent);background:color-mix(in srgb,var(--ind-accent) 14%,transparent);padding:2px 8px;border-radius:999px;}
+  .indstat-count-sesi{background:transparent;border:1px solid color-mix(in srgb,var(--ind-accent) 45%,transparent);padding:1px 8px;}
   .indstat-empty{font-size:10.5px;color:var(--text-dim);padding:14px 4px;}
   .indstat-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin:0 0 10px;font-size:9.5px;color:var(--text-dim);}
   .indstat-legend span{display:inline-flex;align-items:center;gap:4px;}
@@ -2264,12 +2265,6 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     <div id="indStatEmptyState" class="empty-state" style="display:none;">Belum ada peserta induction di bulan ini.</div>
     <div id="indStatBody">
       <div class="chart-hint">💡 Setiap batang = 1 sesi induction · klik segmen status untuk lihat daftar pesertanya</div>
-      <div class="indstat-legend">
-        <span><i style="background:#17b978"></i>Completed</span>
-        <span><i style="background:#e05a4e"></i>Completed (ada nilai &lt; 80)</span>
-        <span><i style="background:#f6a04d"></i>In Progress</span>
-        <span><i style="background:#9aa5ab"></i>Not Started</span>
-      </div>
       <div id="indStatGrid"></div>
       <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih · hanya peserta berstatus Hadir &amp; masih Active (sama seperti card Completed/In Progress).</div>
     </div>
@@ -6514,9 +6509,11 @@ function renderInductionStatusSessionChart(){
         <div class="indstat-head">
           <span class="indstat-title">${emoji} Divisi ${escapeHtml(divisi)}</span>
           <span class="indstat-count">${list.length} peserta</span>
+          ${list.length ? `<span class="indstat-count indstat-count-sesi">🗓️ ${new Set(list.map(c => String(c.tglOnboarding).slice(0,10))).size} sesi</span>` : ''}
         </div>
         ${list.length
-          ? `<div class="indstat-wrap"><canvas id="indStatChart-${i}"></canvas></div>`
+          ? `<div class="indstat-legend">${INDSTAT_STATUSES.map(st => `<span><i style="background:${st.color}"></i>${escapeHtml(st.label)}</span>`).join('')}</div>
+          <div class="indstat-wrap"><canvas id="indStatChart-${i}"></canvas></div>`
           : `<div class="indstat-empty">Belum ada peserta induction divisi ${escapeHtml(divisi)} bulan ini.</div>`}
       </div>`;
   }).join('');
