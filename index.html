@@ -1762,11 +1762,16 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .session-chart-note{font-size:10.5px;color:var(--text-dim);margin-top:8px;}
 
   /* ==== Chart status induction per divisi per sesi ==== */
-  .indstat-section{margin-bottom:18px;}
+  /* Tiap divisi = 1 kartu sendiri (border + garis aksen warna di kiri + garis putus di bawah judul)
+     biar jelas batas antar Sales / Support / Produksi. */
+  .indstat-section{--ind-accent:#4d6bff;margin-bottom:16px;padding:12px 14px 10px;border:1px solid var(--border);border-left:4px solid var(--ind-accent);border-radius:12px;background:var(--panel-2);}
+  .indstat-section[data-divisi="Sales"]{--ind-accent:#3b82f6;}
+  .indstat-section[data-divisi="Support"]{--ind-accent:#a855f7;}
+  .indstat-section[data-divisi="Produksi"]{--ind-accent:#0891b2;}
   .indstat-section:last-child{margin-bottom:0;}
-  .indstat-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
-  .indstat-title{font-size:11.5px;font-weight:800;color:var(--text);}
-  .indstat-count{font-size:10px;font-weight:600;color:var(--text-dim);}
+  .indstat-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--border);}
+  .indstat-title{font-size:12px;font-weight:800;color:var(--ind-accent);}
+  .indstat-count{font-size:10px;font-weight:700;color:var(--ind-accent);background:color-mix(in srgb,var(--ind-accent) 14%,transparent);padding:2px 8px;border-radius:999px;}
   .indstat-empty{font-size:10.5px;color:var(--text-dim);padding:14px 4px;}
   .indstat-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin:0 0 10px;font-size:9.5px;color:var(--text-dim);}
   .indstat-legend span{display:inline-flex;align-items:center;gap:4px;}
@@ -6417,9 +6422,14 @@ function buildIndStatChart(canvas, sessions, divisi){
         const group = ds._groups[el.index] || [];
         if(!group.length) return;
         const context = ds.label === 'In Progress' ? 'onboarding-inprogress' : 'onboarding';
+        // Chart ini udah dipisah per divisi, jadi layer "Summary per Divisi" di-skip:
+        // langsung tampil chart Departemen untuk divisi + sesi yang diklik.
         openStatModal(`${ds.label} · ${divisi} — Sesi ${labels[el.index]} (${group.length})`,
-          renderDivisiSummaryHtml(group, context),
+          '',
           { icon: ds.label === 'Completed' ? '✅' : (ds.label.startsWith('Completed') ? '⚠️' : (ds.label === 'In Progress' ? '🔄' : '⏳')), accent: 'onboarding' });
+        currentDivisiDrilldownList = group;
+        currentDivisiDrilldownContext = context;
+        renderDivisiDeptChartStep(divisi, { noBack: true });
       },
       onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins: {
@@ -6500,7 +6510,7 @@ function renderInductionStatusSessionChart(){
     const list = peserta.filter(c => getDivisiForDesignation(c.designation) === divisi);
     const emoji = divisi === 'Sales' ? '💼' : (divisi === 'Support' ? '🧩' : '🏭');
     return `
-      <div class="indstat-section">
+      <div class="indstat-section" data-divisi="${escapeAttr(divisi)}">
         <div class="indstat-head">
           <span class="indstat-title">${emoji} Divisi ${escapeHtml(divisi)}</span>
           <span class="indstat-count">${list.length} peserta</span>
@@ -7073,7 +7083,9 @@ function renderDivisiSummaryHtml(list, context){
 // Divisi di-klik). Chart-nya numpang canvas baru di #statModalBody, gantiin summary Divisi
 // -- ada tombol "Kembali" buat balik ke summary. Klik bar-nya buka list kandidat lewat
 // openBatchDeptModal yang sama kayak alur lama (popup layer chartModalOverlay).
-function renderDivisiDeptChartStep(divisi){
+// opts.noBack = true: dibuka langsung dari chart Status Induction (yang udah per-divisi),
+// jadi layer "Summary per Divisi" di-skip & tombol Kembali-nya gak ditampilin.
+function renderDivisiDeptChartStep(divisi, opts){
   // Divisi "Lainnya" gak dikasih bar chart per Departemen -- di situ tujuannya justru
   // buat BENERIN datanya (assign designation-nya ke Divisi yang bener), bukan sekadar
   // dilihat breakdown-nya. Lihat renderLainnyaAssignStep().
@@ -7110,7 +7122,7 @@ function renderDivisiDeptChartStep(divisi){
   }));
 
   modalBodyEl.innerHTML = `
-    <button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>
+    ${opts && opts.noBack ? '' : '<button type="button" class="stat-drilldown-back" id="divisiDrilldownBack">⬅️ Kembali ke Summary Divisi</button>'}
     <div class="week-group">
       <div class="week-header">
         <span class="week-pill">🏷️ Divisi ${escapeHtml(divisi)}</span>
