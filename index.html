@@ -1067,6 +1067,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .status-progress{background:rgba(201,134,28,0.15);color:var(--warn);}
   .status-gagal{background:var(--danger-bg);color:var(--danger-text);box-shadow:inset 0 0 0 1px rgba(224,90,78,0.45);}
   .status-karyawan-resign{cursor:pointer;}
+  .status-karyawan-tjj{background:rgba(154,165,171,.18);color:var(--text-dim);border:1px solid rgba(154,165,171,.45);}
   /* Tooltip custom buat badge "Resign" -- ditempel & posisinya dihitung relatif ke
      badge-nya sendiri (position:fixed berdasarkan getBoundingClientRect), bukan
      tooltip bawaan browser (attribute `title`). Alasannya: tooltip bawaan browser
@@ -2393,18 +2394,20 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
         <select id="efStatusKaryawan">
           <option value="Active">🟢 Active</option>
           <option value="Resign">🔴 Resign</option>
+          <option value="Tidak Jadi Join">⚪ Tidak Jadi Join</option>
         </select>
       </div>
       <div id="efResignBlock" style="display:none;">
-        <div class="notice" style="margin:0 0 10px;">⚠️ Pakai ini kalau peserta resign saat induction tapi <b>belum diinput resignation di sistem HR utama</b> (jadi belum ke-update otomatis). Set ke Resign setelah ada konfirmasi Tim Induction Training. Peserta Resign tidak lagi dihitung di Completed / In Progress.</div>
+        <div class="notice" id="efTjjNotice" style="margin:0 0 10px;display:none;">⚪ Pakai ini kalau kandidat <b>batal bergabung</b> (tidak jadi join). Tidak dihitung sebagai peserta induction maupun resign, dan tidak dapat reminder WhatsApp.</div>
+        <div class="notice" id="efResignNotice" style="margin:0 0 10px;">⚠️ Pakai ini kalau peserta resign saat induction tapi <b>belum diinput resignation di sistem HR utama</b> (jadi belum ke-update otomatis). Set ke Resign setelah ada konfirmasi Tim Induction Training. Peserta Resign tidak lagi dihitung di Completed / In Progress.</div>
         <div class="row2">
-          <div class="field"><label>Tgl Resign</label>
+          <div class="field" id="efTglResignField"><label>Tgl Resign</label>
             <div class="date-input-wrap">
               <input type="date" id="efTglResign">
               <span class="date-overlay is-empty" id="efTglResignOverlay"></span>
             </div>
           </div>
-          <div class="field"><label>Alasan Resign</label>
+          <div class="field" id="efAlasanField"><label id="efAlasanLabel">Alasan Resign</label>
             <input type="text" id="efAlasanResign" placeholder="Diisi otomatis dari sinkronisasi Data Non-Aktif, atau isi manual bila perlu">
           </div>
         </div>
@@ -3504,7 +3507,7 @@ function renderOnboardingStats(){
   const total = pesertaList.length;
   // Peserta aktif = subset dari pesertaList yang masih Active (belum resign), dipakai
   // khusus buat itung Completed/In Progress karena journey-nya masih relevan ditracking.
-  const activeList = pesertaList.filter(c => getStatusKaryawan(c) !== 'Resign');
+  const activeList = pesertaList.filter(c => getStatusKaryawan(c) === 'Active');
   const totalActive = activeList.length;
   const completedList = activeList.filter(c => dummyOnboardingStatus(c) === 'Completed');
   const inProgressList = activeList.filter(c => dummyOnboardingStatus(c) === 'In Progress');
@@ -3583,7 +3586,7 @@ function computeInductionInsights(allCandidates){
   const peserta = inMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
   if(!peserta.length) return { insights, recos };
 
-  const active = peserta.filter(c => getStatusKaryawan(c) !== 'Resign');
+  const active = peserta.filter(c => getStatusKaryawan(c) === 'Active');
   const inProgress = active.filter(c => dummyOnboardingStatus(c) === 'In Progress');
   const resignList = peserta.filter(c => getStatusKaryawan(c) === 'Resign');
 
@@ -3797,7 +3800,7 @@ function buildInductionAIContext(){
   const inMonth = candidates.filter(isInSelectedMonth);
   const peserta = inMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
   if(!peserta.length) return { empty:true };
-  const active = peserta.filter(c => getStatusKaryawan(c) !== 'Resign');
+  const active = peserta.filter(c => getStatusKaryawan(c) === 'Active');
   const inProgress = active.filter(c => dummyOnboardingStatus(c) === 'In Progress');
   const resignList = peserta.filter(c => getStatusKaryawan(c) === 'Resign');
   const stale = inProgress.filter(isStaleInProgress);
@@ -4128,7 +4131,7 @@ function renderOnboardingStatusBadge(c){
 // - "Not Started" -> diingetin JADWAL induction-nya (data-type="schedule")
 // - "In Progress" -> diingetin MODUL yang belum selesai (data-type="module")
 function renderWaButton(c){
-  if(getStatusKaryawan(c) === 'Resign') return renderResignBadge(c);
+  if(isKaryawanNonActive(c)) return renderResignBadge(c);
   const status = dummyOnboardingStatus(c);
   if(status === 'Completed') return '';
   const isModule = status === 'In Progress';
@@ -4569,7 +4572,14 @@ const efResignBlockEl = document.getElementById('efResignBlock');
 
 // Blok Tgl Resign + Alasan Resign cuma relevan kalau Status Karyawan = Resign.
 function syncResignBlock(){
-  efResignBlockEl.style.display = efStatusKaryawanEl.value === 'Resign' ? 'block' : 'none';
+  const v = efStatusKaryawanEl.value;
+  efResignBlockEl.style.display = v === 'Active' ? 'none' : 'block';
+  document.getElementById('efResignNotice').style.display = v === 'Resign' ? 'block' : 'none';
+  document.getElementById('efTjjNotice').style.display = v === 'Tidak Jadi Join' ? 'block' : 'none';
+  // Tidak Jadi Join gak butuh tanggal -> field Alasan dibikin selebar baris.
+  document.getElementById('efTglResignField').style.display = v === 'Resign' ? '' : 'none';
+  document.getElementById('efAlasanField').style.gridColumn = v === 'Tidak Jadi Join' ? '1 / -1' : '';
+  document.getElementById('efAlasanLabel').textContent = v === 'Tidak Jadi Join' ? 'Alasan Tidak Jadi Join' : 'Alasan Resign';
 }
 efStatusKaryawanEl.addEventListener('change', () => {
   syncResignBlock();
@@ -4633,7 +4643,7 @@ editModalSaveBtn.addEventListener('click', async () => {
   // Status Karyawan (dikonfirmasi Tim Induction Training). Resign -> wajib ada Tgl Resign;
   // Active -> tgl & alasan resign dikosongin biar gak nyangkut data lama.
   const origStatus = editingCandOriginal ? getStatusKaryawan(editingCandOriginal) : 'Active';
-  const newStatus = efStatusKaryawanEl.value === 'Resign' ? 'Resign' : 'Active';
+  const newStatus = ['Resign', 'Tidak Jadi Join'].includes(efStatusKaryawanEl.value) ? efStatusKaryawanEl.value : 'Active';
   const origTglResign = editingCandOriginal ? String(editingCandOriginal.tglResign || '').slice(0, 10) : '';
   const statusTouched = newStatus !== origStatus || efTglResignEl.value !== origTglResign;
   if(newStatus === 'Resign'){
@@ -4647,6 +4657,12 @@ editModalSaveBtn.addEventListener('click', async () => {
     }
     fields.statusKaryawan = 'Resign';
     fields.tglResign = efTglResignEl.value;
+    fields.alasanResign = efAlasanResignEl.value.trim();
+  }else if(newStatus === 'Tidak Jadi Join'){
+    // Alasan disimpan di kolom alasanResign yang sama (gak perlu kolom baru di Sheet);
+    // tglResign dikosongin biar gak kebaca sebagai resign.
+    fields.statusKaryawan = 'Tidak Jadi Join';
+    fields.tglResign = '';
     fields.alasanResign = efAlasanResignEl.value.trim();
   }else{
     fields.statusKaryawan = '';
@@ -5516,7 +5532,7 @@ function renderCandRow(c, rowNumber){
       </td>
       <td>
         <div class="table-actions-cell">
-          ${getStatusKaryawan(c) === 'Resign' ? renderResignBadge(c) : (onbStatus === 'In Progress'
+          ${isKaryawanNonActive(c) ? renderResignBadge(c) : (onbStatus === 'In Progress'
             ? `<button class="wa-remind-btn" data-id="${escapeAttr(c._id)}" data-type="module" title="Ingatkan modul induction yang belum selesai via WhatsApp">
             <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.004 3C9.377 3 4 8.377 4 15.004c0 2.386.7 4.61 1.91 6.48L4 29l7.69-1.87a11.94 11.94 0 0 0 4.314.81h.005C22.628 27.94 28 22.564 28 15.937 28 9.31 22.628 3.93 16.004 3zm0 21.86h-.004a9.9 9.9 0 0 1-5.05-1.38l-.362-.215-4.566 1.11 1.22-4.45-.236-.457a9.86 9.86 0 0 1-1.51-5.26c0-5.46 4.446-9.9 9.913-9.9 2.648 0 5.136 1.032 7.007 2.905a9.83 9.83 0 0 1 2.9 6.997c0 5.46-4.446 9.65-9.312 9.65zm5.43-7.41c-.297-.148-1.758-.868-2.03-.967-.272-.099-.47-.148-.668.148-.198.297-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.148-1.253-.462-2.386-1.472-.882-.787-1.478-1.76-1.65-2.058-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.148-.173.198-.297.297-.495.099-.198.05-.372-.025-.52-.074-.148-.668-1.61-.915-2.204-.24-.579-.485-.5-.668-.51-.173-.008-.372-.01-.57-.01a1.093 1.093 0 0 0-.792.372c-.272.297-1.04 1.017-1.04 2.48s1.065 2.876 1.213 3.074c.148.198 2.096 3.2 5.08 4.487.71.306 1.263.489 1.694.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
           </button>`
@@ -5526,7 +5542,7 @@ function renderCandRow(c, rowNumber){
           <button class="edit" data-id="${escapeAttr(c._id)}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="del" data-id="${escapeAttr(c._id)}" title="Hapus">
+          ${isKaryawanNonActive(c) ? '' : `<button class="del" data-id="${escapeAttr(c._id)}" title="Hapus">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7h10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>`}
         </div>
@@ -5774,8 +5790,8 @@ function buildExcelDetailSheet(list){
       c.nama || '',
       c.pic || '',
       effectiveKehadiran(c) || 'Belum',
-      getStatusKaryawan(c) === 'Resign'
-        ? 'Resign'
+      getStatusKaryawan(c) !== 'Active'
+        ? getStatusKaryawan(c)
         : (onbStatus === 'In Progress' ? 'Reminder Modul' : 'Reminder Induction'),
       onbStatus,
       c.atasan || '',
@@ -6298,7 +6314,7 @@ function openChartModal(group, pic, date){
         </div>
         <div class="cand-card-actions-row">
           <button class="edit" data-id="${escapeAttr(c._id)}">✏️ Edit</button>
-          ${getStatusKaryawan(c) === 'Resign' ? '' : `<button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>`}
+          ${isKaryawanNonActive(c) ? '' : `<button class="del" data-id="${escapeAttr(c._id)}">🗑 Hapus</button>`}
         </div>
       </div>`;
   });
@@ -6397,7 +6413,7 @@ const INDSTAT_STATUSES = [
 function getInductionStatusPeserta(){
   return candidates.filter(c => {
     if(!isInSelectedMonth(c) || isInductionAfterSelectedMonth(c)) return false;
-    if(getStatusKaryawan(c) === 'Resign') return false;
+    if(getStatusKaryawan(c) !== 'Active') return false;
     if(c.kehadiran === 'Hadir') return true;
     const d = daysSinceOnboarding(c);
     return d !== null && d >= 0;
@@ -6647,7 +6663,8 @@ function renderDeptChart(){
   // (Produksi -> Sales -> Support -> Lainnya) biar warna bar-nya konsisten antar render.
   // Klik bar -> breakdown Departemen di divisi itu (atau step assign kalau "Lainnya"),
   // lihat openDivisiChartSegmentClick().
-  const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth);
+  // Tidak Jadi Join gak dihitung di chart sebaran (mereka gak pernah gabung); tetap muncul di tabel Detail.
+  const candidatesInSelectedMonth = candidates.filter(isInSelectedMonth).filter(c => getStatusKaryawan(c) !== 'Tidak Jadi Join');
   const divisiGroups = computeDivisiGroups(candidatesInSelectedMonth); // [{divisi, list}], urut DIVISI_DISPLAY_ORDER
 
   if(divisiGroups.length === 0){
@@ -6855,7 +6872,7 @@ function renderDeptChartDeptStep(divisi, group){
 // designation yang baru di-assign, listnya otomatis update tanpa perlu tutup-buka modal.
 function renderDeptChartLainnyaStep(){
   chartModalLainnyaCtx = { type: 'main' };
-  const monthList = candidates.filter(isInSelectedMonth);
+  const monthList = candidates.filter(isInSelectedMonth).filter(c => getStatusKaryawan(c) !== 'Tidak Jadi Join');
   const group = monthList.filter(c => getDivisiForDesignation(c.designation) === 'Lainnya');
   const modalTitleEl = document.getElementById('chartModalTitle');
   const modalBodyEl = document.getElementById('chartModalBody');
@@ -7361,12 +7378,12 @@ function renderJourneyChecklistHtml(c){
   // kosong/nggaknya (cuma muncul kalau status kandidat belum Completed). Kalau
   // kandidatnya udah Resign, renderWaButton() balikin badge "🔴 Resign" (bukan
   // tombol WA), jadi label di sebelahnya juga disesuaikan.
-  const isResignKaryawan = getStatusKaryawan(c) === 'Resign';
+  const isResignKaryawan = isKaryawanNonActive(c);
   const waHtml = renderWaButton(c);
   // Label di sebelah tombol WA ngikutin status: "Not Started" -> ngingetin jadwal
   // induction-nya, "In Progress" -> ngingetin modul yang belum selesai.
   const waLabel = isResignKaryawan
-    ? 'Karyawan ini sudah resign'
+    ? (getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Kandidat ini tidak jadi join' : 'Karyawan ini sudah resign')
     : (dummyOnboardingStatus(c) === 'In Progress'
       ? 'Ingatkan modul yang belum selesai via WhatsApp'
       : 'Ingatkan jadwal induction via WhatsApp');
@@ -7994,8 +8011,9 @@ function levenshteinDistance(a, b){
 }
 
 // Kandidat dianggap sudah resign kalau punya tanggal resign ATAU statusnya sudah "Resign".
+// (Tidak Jadi Join ikut dianggap "non-aktif" biar import gak nyentuh barisnya juga.)
 function isCandidateResigned(c){
-  return !!String(c.tglResign || '').trim() || c.statusKaryawan === 'Resign';
+  return !!String(c.tglResign || '').trim() || c.statusKaryawan === 'Resign' || c.statusKaryawan === 'Tidak Jadi Join';
 }
 
 // Cari kandidat berdasarkan nama dari file LMS/E-Training.
@@ -8330,14 +8348,25 @@ async function submitLmsReviewMatches(){
 // Kolom "Status Karyawan" sendiri udah dihapus dari tabel -- infonya udah terwakilkan
 // lewat badge "🔴 Resign" yang gantiin tombol WA di kolom Aksi & semua popup card
 // (lihat renderResignBadge() & renderWaButton()).
+// 3 status: 'Active' (default) | 'Resign' | 'Tidak Jadi Join' (kandidat batal bergabung,
+// jadi gak dihitung sebagai peserta induction maupun resign/turnover).
 function getStatusKaryawan(c){
-  return c.statusKaryawan === 'Resign' ? 'Resign' : 'Active';
+  if(c.statusKaryawan === 'Resign') return 'Resign';
+  if(c.statusKaryawan === 'Tidak Jadi Join') return 'Tidak Jadi Join';
+  return 'Active';
 }
+// Resign & Tidak Jadi Join sama-sama "keluar dari tracking" (gak ada WA reminder, gak
+// dihitung di Completed/In Progress/chart, tombol Hapus disembunyiin).
+function isKaryawanNonActive(c){ return getStatusKaryawan(c) !== 'Active'; }
 
 // Badge "🔴 Resign" -- gantiin tombol WA (di kolom aksi tabel & semua popup card)
 // buat kandidat yang udah resign. Hover atau klik badge-nya nunjukin tanggal resign
 // lewat toast, konsisten di semua tempat badge ini dipakai.
 function renderResignBadge(c){
+  if(getStatusKaryawan(c) === 'Tidak Jadi Join'){
+    const label = escapeAttr('Tidak jadi join' + (c.alasanResign ? (' \u00b7 ' + c.alasanResign) : ''));
+    return `<span class="status-badge status-karyawan-resign status-karyawan-tjj" data-resign-label="${label}" onmouseenter="showResignTooltip(event)" onmouseleave="hideResignTooltip()" onclick="toggleResignTooltip(event)">⚪ Tidak Jadi Join</span>`;
+  }
   const tglLabel = c.tglResign ? fmtShortID(c.tglResign) : 'tanggal tidak diketahui';
   const alasanLabel = c.alasanResign ? (' \u00b7 ' + c.alasanResign) : '';
   const label = escapeAttr('Resign: ' + tglLabel + alasanLabel);
