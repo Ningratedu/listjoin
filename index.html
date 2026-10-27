@@ -1125,6 +1125,23 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .journey-wa-row .wa-remind-btn{width:26px;height:26px;flex-shrink:0;}
   .journey-wa-row .wa-remind-btn svg{width:14px;height:14px;}
   .journey-wa-label{font-size:10.5px;color:var(--text-dim);font-weight:600;}
+  /* Status Karyawan (Active / Resign / Tidak Jadi Join) -- badge bisa diklik buat ubah status */
+  .journey-status-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .journey-status-label{font-size:10.5px;color:var(--text-dim);font-weight:600;}
+  .journey-status-chip{font:inherit;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;cursor:pointer;border:1px solid transparent;line-height:1.4;}
+  .journey-status-chip.is-active{background:rgba(23,185,120,.14);color:#0e9d74;border-color:rgba(23,185,120,.4);}
+  .journey-status-chip.is-resign{background:rgba(224,87,74,.14);color:#e0574a;border-color:rgba(224,87,74,.4);}
+  .journey-status-chip.is-tjj{background:rgba(154,165,171,.18);color:var(--text-dim);border-color:rgba(154,165,171,.45);}
+  .journey-status-hint{font-size:10px;color:var(--text-dim);}
+  .journey-status-panel{margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2);display:none;flex-direction:column;gap:8px;}
+  .journey-status-panel.open{display:flex;}
+  .journey-status-panel label{display:block;font-size:10.5px;font-weight:700;color:var(--text-dim);margin-bottom:3px;}
+  .journey-status-panel select,.journey-status-panel input{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:transparent;color:var(--text);font:inherit;font-size:12px;}
+  .journey-status-note{font-size:10.5px;color:var(--text-dim);line-height:1.45;}
+  .journey-status-actions{display:flex;justify-content:flex-end;gap:8px;}
+  .journey-status-actions button{font:inherit;font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text);}
+  .journey-status-actions button.primary{background:var(--accent,#4d6bff);border-color:transparent;color:#fff;}
+  .journey-status-actions button:disabled{opacity:.6;cursor:default;}
   .journey-group{margin-bottom:14px;}
   .journey-group-title{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
     color:var(--text-dim);margin:0 0 6px 2px;}
@@ -7354,6 +7371,112 @@ function openOnboardingJourneyModal(c){
   if(aiVerifyBtn){
     aiVerifyBtn.addEventListener('click', () => verifyEvidenceWithAI(c));
   }
+
+  bindJourneyStatusPanel(c);
+}
+
+// ==== Status Karyawan di popup Journey Induction ====
+// Badge status (Active / Resign / Tidak Jadi Join) yang bisa diklik -> buka panel kecil
+// buat ubah status langsung dari popup ini (tanpa buka form Edit). Logika simpannya
+// sama kayak field Status Karyawan di form Edit.
+function renderJourneyStatusHtml(c){
+  const st = getStatusKaryawan(c);
+  const tgl = String(c.tglResign || '').slice(0, 10);
+  const chipCls = st === 'Resign' ? 'is-resign' : (st === 'Tidak Jadi Join' ? 'is-tjj' : 'is-active');
+  const chipLabel = st === 'Resign'
+    ? `🔴 Resign${tgl ? ' · ' + escapeHtml(fmtShortID(tgl)) : ''}`
+    : (st === 'Tidak Jadi Join' ? '⚪ Tidak Jadi Join' : '🟢 Active');
+  const hint = st === 'Active' ? '' : (c.alasanResign ? `<span class="journey-status-hint">${escapeHtml(c.alasanResign)}</span>` : '');
+  return `
+    <div class="journey-status-row">
+      <span class="journey-status-label">Status Karyawan</span>
+      <button type="button" class="journey-status-chip ${chipCls}" id="journeyStatusChip" title="Klik untuk ubah status">${chipLabel} ▾</button>
+      ${hint}
+    </div>
+    <div class="journey-status-panel" id="journeyStatusPanel">
+      <div>
+        <label for="journeyStatusSelect">Ubah status (konfirmasi Tim Induction Training)</label>
+        <select id="journeyStatusSelect">
+          <option value="Active"${st === 'Active' ? ' selected' : ''}>🟢 Active</option>
+          <option value="Resign"${st === 'Resign' ? ' selected' : ''}>🔴 Resign</option>
+          <option value="Tidak Jadi Join"${st === 'Tidak Jadi Join' ? ' selected' : ''}>⚪ Tidak Jadi Join</option>
+        </select>
+      </div>
+      <div id="journeyStatusTglWrap">
+        <label for="journeyStatusTgl">Tgl Resign</label>
+        <input type="date" id="journeyStatusTgl" value="${escapeAttr(tgl)}">
+      </div>
+      <div id="journeyStatusAlasanWrap">
+        <label for="journeyStatusAlasan" id="journeyStatusAlasanLabel">Alasan Resign</label>
+        <input type="text" id="journeyStatusAlasan" value="${escapeAttr(c.alasanResign || '')}" placeholder="Opsional">
+      </div>
+      <div class="journey-status-note" id="journeyStatusNote"></div>
+      <div class="journey-status-actions">
+        <button type="button" id="journeyStatusCancel">Batal</button>
+        <button type="button" class="primary" id="journeyStatusSave">💾 Simpan</button>
+      </div>
+    </div>`;
+}
+
+function bindJourneyStatusPanel(c){
+  const chip = document.getElementById('journeyStatusChip');
+  const panel = document.getElementById('journeyStatusPanel');
+  if(!chip || !panel) return;
+  const sel = document.getElementById('journeyStatusSelect');
+  const tglWrap = document.getElementById('journeyStatusTglWrap');
+  const tglEl = document.getElementById('journeyStatusTgl');
+  const alasanWrap = document.getElementById('journeyStatusAlasanWrap');
+  const alasanLabel = document.getElementById('journeyStatusAlasanLabel');
+  const noteEl = document.getElementById('journeyStatusNote');
+  const saveBtn = document.getElementById('journeyStatusSave');
+
+  const sync = () => {
+    const v = sel.value;
+    tglWrap.style.display = v === 'Resign' ? '' : 'none';
+    alasanWrap.style.display = v === 'Active' ? 'none' : '';
+    alasanLabel.textContent = v === 'Tidak Jadi Join' ? 'Alasan Tidak Jadi Join' : 'Alasan Resign';
+    noteEl.textContent = v === 'Resign'
+      ? 'Pakai ini kalau peserta resign saat induction tapi belum diinput resignation di sistem HR utama. Peserta Resign tidak lagi dihitung di Completed / In Progress.'
+      : (v === 'Tidak Jadi Join'
+        ? 'Kandidat batal bergabung: tidak dihitung sebagai peserta induction maupun resign, dan tidak dapat reminder WhatsApp.'
+        : 'Active: kandidat dihitung normal sebagai peserta induction.');
+  };
+  sel.addEventListener('change', () => {
+    if(sel.value === 'Resign' && !tglEl.value) tglEl.value = todayISO();
+    sync();
+  });
+  sync();
+
+  chip.addEventListener('click', () => panel.classList.toggle('open'));
+  document.getElementById('journeyStatusCancel').addEventListener('click', () => panel.classList.remove('open'));
+
+  saveBtn.addEventListener('click', async () => {
+    const v = sel.value;
+    const alasan = (document.getElementById('journeyStatusAlasan').value || '').trim();
+    let fields;
+    if(v === 'Resign'){
+      if(!tglEl.value){ showToast('Tgl Resign wajib diisi kalau status Resign', true); return; }
+      const join = String(c.tglJoin || '').slice(0, 10);
+      if(join && tglEl.value < join){ showToast('Tgl Resign tidak boleh sebelum Tgl Join', true); return; }
+      fields = { statusKaryawan: 'Resign', tglResign: tglEl.value, alasanResign: alasan };
+    }else if(v === 'Tidak Jadi Join'){
+      fields = { statusKaryawan: 'Tidak Jadi Join', tglResign: '', alasanResign: alasan };
+    }else{
+      fields = { statusKaryawan: '', tglResign: '', alasanResign: '' };
+    }
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Menyimpan...';
+    const ok = await updateCandidate(c._id, fields);
+    if(ok){
+      showToast('Status karyawan diperbarui');
+      await loadCandidates();
+      const fresh = candidates.find(x => x._id === c._id);
+      if(fresh) openOnboardingJourneyModal(fresh);
+    }else{
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Simpan';
+    }
+  });
 }
 
 // Susun HTML checklist journey onboarding kandidat, dikelompokin per grup (PIC
@@ -7400,7 +7523,8 @@ function renderJourneyChecklistHtml(c){
       ${staleBannerHtml}
       <div class="journey-progress-label"><b>${done}/${total} modul selesai</b>${skippedNote}<span>${pct}%</span></div>
       <div class="journey-progress-bar"><div class="journey-progress-fill" style="width:${pct}%"></div></div>
-      ${waHtml ? `<div class="journey-wa-row">${waHtml}<span class="journey-wa-label">${waLabel}</span></div>` : ''}
+      ${renderJourneyStatusHtml(c)}
+      ${(waHtml && !isResignKaryawan) ? `<div class="journey-wa-row">${waHtml}<span class="journey-wa-label">${waLabel}</span></div>` : ''}
     </div>`;
 
   groupOrder.forEach(group => {
