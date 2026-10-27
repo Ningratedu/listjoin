@@ -2262,11 +2262,11 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
         </div>
       </div>
     </h2>
-    <div id="indStatEmptyState" class="empty-state" style="display:none;">Belum ada peserta induction di bulan ini.</div>
+    <div id="indStatEmptyState" class="empty-state" style="display:none;">Belum ada kandidat induction di bulan ini.</div>
     <div id="indStatBody">
-      <div class="chart-hint">💡 Setiap batang = 1 sesi induction · klik segmen status untuk lihat daftar pesertanya</div>
+      <div class="chart-hint">💡 Setiap batang = 1 sesi induction · klik segmen status untuk lihat daftar kandidatnya</div>
       <div id="indStatGrid"></div>
-      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih · hanya peserta berstatus Hadir &amp; masih Active (sama seperti card Completed/In Progress).</div>
+      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih · hanya yang masih Active. <b>Not Started</b> = belum Hadir (belum diverifikasi / Tidak Hadir) atau Hadir tapi belum ada modul selesai; sesi yang belum berlangsung tidak dihitung. Total di sini bisa lebih besar dari card Completed/In Progress karena ikut menghitung yang belum Hadir.</div>
     </div>
   </div>
 
@@ -6374,20 +6374,34 @@ let indStatCharts = [];
 const INDSTAT_DIVISI = ['Sales', 'Support', 'Produksi'];
 // Completed dipecah 2: yang semua nilai post test-nya lulus (>=80) vs yang ada nilai kurang
 // (<80, sama dengan aturan badge merah di status induction -> getFailedPostTests()).
+// Status dasar buat chart ini: cuma yang kehadirannya "Hadir" yang dinilai dari progres modul.
+// Yang belum diverifikasi / Tidak Hadir otomatis "Not Started" (belum mulai induction sama sekali),
+// jadi karyawan yang gak ikut induction tetap kelihatan di chart.
+function indStatBaseStatus(c){
+  return c.kehadiran === 'Hadir' ? dummyOnboardingStatus(c) : 'Not Started';
+}
 const INDSTAT_STATUSES = [
   { key:'Completed',                label:'Completed',                 color:'#17b978',
-    match: c => dummyOnboardingStatus(c) === 'Completed' && getFailedPostTests(c).length === 0 },
+    match: c => indStatBaseStatus(c) === 'Completed' && getFailedPostTests(c).length === 0 },
   { key:'Completed (nilai < 80)',   label:'Completed (ada nilai < 80)', color:'#e05a4e',
-    match: c => dummyOnboardingStatus(c) === 'Completed' && getFailedPostTests(c).length > 0 },
+    match: c => indStatBaseStatus(c) === 'Completed' && getFailedPostTests(c).length > 0 },
   { key:'In Progress',              label:'In Progress',               color:'#f6a04d',
-    match: c => dummyOnboardingStatus(c) === 'In Progress' },
+    match: c => indStatBaseStatus(c) === 'In Progress' },
   { key:'Not Started',              label:'Not Started',               color:'#9aa5ab',
-    match: c => dummyOnboardingStatus(c) === 'Not Started' }
+    match: c => indStatBaseStatus(c) === 'Not Started' }
 ];
 
+// Peserta chart ini = yang Hadir + yang BELUM Hadir tapi sesi induction-nya udah berlangsung
+// (hari ini / lewat) -> mereka masuk "Not Started". Sesi yang belum terjadi gak dihitung.
+// NOTE: sengaja beda dari "Total Peserta Induction" (cuma Hadir), jadi totalnya bisa lebih besar.
 function getInductionStatusPeserta(){
-  return candidates.filter(c => isInSelectedMonth(c) && !isInductionAfterSelectedMonth(c) &&
-    c.kehadiran === 'Hadir' && getStatusKaryawan(c) !== 'Resign');
+  return candidates.filter(c => {
+    if(!isInSelectedMonth(c) || isInductionAfterSelectedMonth(c)) return false;
+    if(getStatusKaryawan(c) === 'Resign') return false;
+    if(c.kehadiran === 'Hadir') return true;
+    const d = daysSinceOnboarding(c);
+    return d !== null && d >= 0;
+  });
 }
 
 function destroyIndStatCharts(){
@@ -6431,8 +6445,8 @@ function buildIndStatChart(canvas, sessions, divisi){
         legend: { display: false },
         tooltip: { callbacks: {
           title: items => { const i = items[0] && items[0].dataIndex; return i == null ? '' : `Sesi ${i+1} · ${labels[i]}`; },
-          label: ctx => `${ctx.dataset.label}: ${ctx.raw} peserta`,
-          footer: items => { const i = items[0] && items[0].dataIndex; return i == null ? '' : `Total sesi: ${sessions[i][1].length} peserta · klik segmen untuk daftar peserta`; }
+          label: ctx => `${ctx.dataset.label}: ${ctx.raw} kandidat`,
+          footer: items => { const i = items[0] && items[0].dataIndex; return i == null ? '' : `Total sesi: ${sessions[i][1].length} kandidat · klik segmen untuk daftar kandidat`; }
         } }
       },
       scales: {
@@ -6492,14 +6506,14 @@ function renderInductionStatusSessionChart(){
   if(!peserta.length){
     if(bodyEl) bodyEl.style.display = 'none';
     if(emptyEl) emptyEl.style.display = 'block';
-    if(subEl) subEl.textContent = `Tidak ada peserta induction divisi Sales/Support/Produksi pada ${currentMonthLabel()}`;
+    if(subEl) subEl.textContent = `Tidak ada kandidat induction divisi Sales/Support/Produksi pada ${currentMonthLabel()}`;
     return;
   }
   if(bodyEl) bodyEl.style.display = '';
   if(emptyEl) emptyEl.style.display = 'none';
 
   const sessionSet = new Set(peserta.map(c => String(c.tglOnboarding).slice(0,10)));
-  if(subEl) subEl.textContent = `Sales · Support · Produksi · ${sessionSet.size} sesi · ${peserta.length} peserta · ${currentMonthLabel()}`;
+  if(subEl) subEl.textContent = `Sales · Support · Produksi · ${sessionSet.size} sesi · ${peserta.length} kandidat · ${currentMonthLabel()}`;
 
   gridEl.innerHTML = INDSTAT_DIVISI.map((divisi, i) => {
     const list = peserta.filter(c => getDivisiForDesignation(c.designation) === divisi);
@@ -6508,13 +6522,13 @@ function renderInductionStatusSessionChart(){
       <div class="indstat-section" data-divisi="${escapeAttr(divisi)}">
         <div class="indstat-head">
           <span class="indstat-title">${emoji} Divisi ${escapeHtml(divisi)}</span>
-          <span class="indstat-count">${list.length} peserta</span>
+          <span class="indstat-count">${list.length} kandidat</span>
           ${list.length ? `<span class="indstat-count indstat-count-sesi">🗓️ ${new Set(list.map(c => String(c.tglOnboarding).slice(0,10))).size} sesi</span>` : ''}
         </div>
         ${list.length
           ? `<div class="indstat-legend">${INDSTAT_STATUSES.map(st => `<span><i style="background:${st.color}"></i>${escapeHtml(st.label)}</span>`).join('')}</div>
           <div class="indstat-wrap"><canvas id="indStatChart-${i}"></canvas></div>`
-          : `<div class="indstat-empty">Belum ada peserta induction divisi ${escapeHtml(divisi)} bulan ini.</div>`}
+          : `<div class="indstat-empty">Belum ada kandidat induction divisi ${escapeHtml(divisi)} bulan ini.</div>`}
       </div>`;
   }).join('');
 
