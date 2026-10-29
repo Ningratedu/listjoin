@@ -8207,6 +8207,57 @@ function isCandidateResigned(c){
   return !!String(c.tglResign || '').trim() || c.statusKaryawan === 'Resign' || c.statusKaryawan === 'Tidak Jadi Join';
 }
 
+// Tgl Join & Tgl Resign dari 1 baris export LMS, format ISO 'YYYY-MM-DD'.
+// Kosong atau "-" -> '' (belum ada / masih Active).
+function getLmsRowCycle(row, header){
+  const read = idx => {
+    if(idx == null || idx < 0) return '';
+    const raw = row[idx];
+    const str = String(raw == null ? '' : raw).trim();
+    if(!str || str === '-') return '';
+    return lmsCellToISODate(raw);
+  };
+  return { join: read(header.iJoin), resign: read(header.iResign) };
+}
+
+// Pilih kandidat dari beberapa record yang namanya sama persis, berdasarkan Tgl Join &
+// Tgl Resign di baris LMS -- BUKAN cuma "yang belum resign". 1 nama bisa punya >1 siklus
+// join (resign lalu join lagi, akun e-training beda), dan tiap siklus harus nempel ke
+// record-nya sendiri, bukan ketuker ke siklus lain.
+//  - Tgl Join baris LMS = Tgl Join record -> itu record-nya. Kalau record itu sudah
+//    Resign/Tidak Jadi Join, baris DILEWATI (return null), JANGAN dilempar ke record lain.
+//  - Baris LMS ada Tgl Resign: record dgn Tgl Resign sama dipilih dulu; record yang
+//    belum ditandai resign tapi Tgl Join-nya cocok boleh dipilih (dia yang bakal dapat
+//    tgl resign). Baris LMS Active (tanpa tgl resign): cuma record yang belum resign.
+//  - Gak ada Tgl Join yang cocok: baris dari akun LAMA (bukan Tgl Join terbaru di file)
+//    dilewati kalau namanya dipakai >1 akun di file; selain itu pakai aturan lama
+//    (yang belum resign, kalau >1 ambil Tgl Join terbaru).
+function pickExactMatchByCycle(list, cycle){
+  const J = (cycle && cycle.join) || '';
+  const R = (cycle && cycle.resign) || '';
+  const cj = c => String(c.tglJoin || '').slice(0, 10);
+  const cr = c => String(c.tglResign || '').slice(0, 10);
+  if(J){
+    const sameJoin = list.filter(c => cj(c) === J);
+    if(sameJoin.length){
+      const score = c => {
+        const resigned = isCandidateResigned(c);
+        if(R) return cr(c) === R ? 2 : (!resigned ? 1 : 0);
+        return !resigned ? 2 : 0;
+      };
+      const best = sameJoin.slice().sort((a, b) => score(b) - score(a))[0];
+      if(score(best) === 0 || isCandidateResigned(best)) return null;
+      return best;
+    }
+    if(R && list.some(c => isCandidateResigned(c) && cr(c) === R)) return null;
+    if(cycle && cycle.shared && cycle.latestJoin && J !== cycle.latestJoin) return null;
+  }
+  const notResigned = list.filter(c => !isCandidateResigned(c));
+  if(!notResigned.length) return null;
+  if(notResigned.length === 1) return notResigned[0];
+  return notResigned.slice().sort((a, b) => cj(b).localeCompare(cj(a)))[0];
+}
+
 // Cari kandidat berdasarkan nama dari file LMS/E-Training.
 // 1) Exact match (setelah normalisasi) selalu jadi prioritas & gak pernah dilaporkan --
 //    ini jalur normal buat mayoritas baris.
@@ -8221,7 +8272,7 @@ function isCandidateResigned(c){
 //
 // reportLog (opsional): { fuzzy: Map, review: Map }, dipakai kumpulin detail pencocokan
 // selama 1 kali proses import biar bisa ditampilin ke user di akhir (bukan cuma angka).
-function resolveCandidateByLmsName(namaLms, reportLog){
+function resolveCandidateByLmsName(namaLms, reportLog, lmsCycle){
   const inputNorm = normalizeLmsText(namaLms);
   if(!inputNorm) return null;
 
@@ -8233,15 +8284,12 @@ function resolveCandidateByLmsName(namaLms, reportLog){
   //  - >=2 cocok, ada yang belum resign -> pakai yang belum resign (kalau yang belum
   //    resign-nya juga >1, ambil yang Tgl Join-nya paling baru).
   //  - >=2 cocok & semuanya sudah resign -> return null (gak ada yang diupdate).
+  // Update: sebelum milih, CEK Tgl Join & Tgl Resign baris LMS vs tiap record (lihat
+  // pickExactMatchByCycle) -- berlaku kalau record kembar di tracker (>=2) ATAU nama itu
+  // dipakai >1 akun e-training di file yang sama (lmsCycle.shared).
   const exactMatches = candidates.filter(c => normalizeLmsText(c.nama) === inputNorm);
-  if(exactMatches.length === 1) return exactMatches[0];
-  if(exactMatches.length > 1){
-    const notResigned = exactMatches.filter(c => !isCandidateResigned(c));
-    if(!notResigned.length) return null;
-    if(notResigned.length === 1) return notResigned[0];
-    return notResigned.slice().sort((a, b) =>
-      String(b.tglJoin || '').slice(0, 10).localeCompare(String(a.tglJoin || '').slice(0, 10)))[0];
-  }
+  if(exactMatches.length === 1 && !(lmsCycle && lmsCycle.shared)) return exactMatches[0];
+  if(exactMatches.length >= 1) return pickExactMatchByCycle(exactMatches, lmsCycle);
 
   let best = null, bestDist = Infinity, secondBestDist = Infinity;
   const nearMatches = []; // kandidat yang "cukup mirip" buat dicatat di laporan
@@ -8744,6 +8792,21 @@ function processLmsRow(row, header, c, maps, counters){
     }
   }
 
+  // Penjaga siklus lain: kandidat yang masih aktif tapi sudah punya username, lalu baris
+  // LMS-nya username BEDA dan Tgl Join-nya juga beda -> itu akun siklus join lain dari
+  // orang yang namanya sama. Username (dan data lain di baris itu) JANGAN ditimpa.
+  if(c && header.iUser > -1 && header.iJoin > -1){
+    const rowUsername2 = String(row[header.iUser] == null ? '' : row[header.iUser]).trim();
+    if(rowUsername2 && c.username && rowUsername2 !== c.username){
+      const rowJoin = getLmsRowCycle(row, header).join;
+      const candJoin = String(c.tglJoin || '').slice(0, 10);
+      if(rowJoin && candJoin && rowJoin !== candJoin){
+        counters.skippedOtherCycle = (counters.skippedOtherCycle || 0) + 1;
+        return;
+      }
+    }
+  }
+
   // Tangkap Username dari file export duluan, independen dari status Lulus/Tidak Lulus
   // ataupun Resign -- asal namanya cocok ke salah satu kandidat di list. Kolom ini
   // TIDAK bisa diisi manual, cuma keupdate lewat upload exported e-training ini.
@@ -8969,6 +9032,8 @@ async function handleLmsImportUpload(e){
     // biar gak numpuk data siklus training yang udah basi ke kandidat yang sekarang aktif.
     let dataRows = dataRowsRaw;
     let oldRejoinRowsSkipped = 0, oldRejoinNamesSkipped = 0;
+    // norm nama -> Tgl Join terbaru, buat nama yang dipakai >1 akun e-training di file ini.
+    const lmsSharedNames = new Map();
     if(header.iUser > -1 && header.iJoin > -1){
       const byName = new Map(); // norm nama -> Map(username -> { rows:[], joinIso:'' })
       const noUsernameRows = []; // baris tanpa username/nama -- gak bisa dikelompokkan, tetap dipertahankan apa adanya
@@ -8989,7 +9054,7 @@ async function handleLmsImportUpload(e){
       });
 
       const keptRows = noUsernameRows.slice();
-      byName.forEach(byUser => {
+      byName.forEach((byUser, normKey) => {
         if(byUser.size <= 1){
           byUser.forEach(entry => keptRows.push(...entry.rows));
           return;
@@ -9006,8 +9071,14 @@ async function handleLmsImportUpload(e){
           return;
         }
         oldRejoinNamesSkipped++;
+        lmsSharedNames.set(normKey, latestJoin);
         byUser.forEach((entry, username) => {
           if(username === latestUsername) keptRows.push(...entry.rows);
+          // Akun lama tetap diproses kalau ada record di tracker (nama sama) yang Tgl Join-nya
+          // persis sama -> itu siklus lamanya (mis. buat nandain resign). Pencocokan per baris
+          // di resolveCandidateByLmsName yang jaga biar gak ketuker ke record siklus baru.
+          else if(entry.joinIso && candidates.some(cc => normalizeLmsText(cc.nama) === normKey
+                    && String(cc.tglJoin || '').slice(0, 10) === entry.joinIso)) keptRows.push(...entry.rows);
           else oldRejoinRowsSkipped += entry.rows.length;
         });
       });
@@ -9028,12 +9099,19 @@ async function handleLmsImportUpload(e){
                                          // biar nama yg sama gak dihitung ulang jarak
                                          // editnya tiap baris (1 kandidat bisa muncul di
                                          // puluhan baris training berbeda).
-    function resolveCached(namaLms){
+    function resolveCached(namaLms, row){
       const norm = normalizeLmsText(namaLms);
       if(!norm) return null;
-      if(nameResolveCache.has(norm)) return nameResolveCache.get(norm);
-      const result = resolveCandidateByLmsName(namaLms, importMatchLog);
-      nameResolveCache.set(norm, result);
+      // Kunci cache = nama + Tgl Join + Tgl Resign baris LMS: nama yang sama bisa punya
+      // beberapa siklus join, tiap siklus harus di-resolve sendiri-sendiri.
+      const cyc = row ? getLmsRowCycle(row, header) : { join:'', resign:'' };
+      const cacheKey = norm + '|' + cyc.join + '|' + cyc.resign;
+      if(nameResolveCache.has(cacheKey)) return nameResolveCache.get(cacheKey);
+      const result = resolveCandidateByLmsName(namaLms, importMatchLog, {
+        join: cyc.join, resign: cyc.resign,
+        shared: lmsSharedNames.has(norm), latestJoin: lmsSharedNames.get(norm) || ''
+      });
+      nameResolveCache.set(cacheKey, result);
       return result;
     }
 
@@ -9058,7 +9136,7 @@ async function handleLmsImportUpload(e){
         if(!rowsByNorm.has(norm)) rowsByNorm.set(norm, []);
         rowsByNorm.get(norm).push(row);
       }
-      const c = resolveCached(namaKey);
+      const c = resolveCached(namaKey, row);
       processLmsRow(row, header, c, maps, counters);
     });
 
@@ -9127,8 +9205,9 @@ async function handleLmsImportUpload(e){
     const fuzzyNote = fuzzyCount ? `, ${fuzzyCount} nama auto-dicocokin (mirip/typo)` : '';
     const reviewNote = reviewCount ? `, ⚠️ ${reviewCount} nama mirip perlu dicek manual` : '';
     const skippedAccountNote = counters.skippedResignedOtherAccount ? `, ⏭️ ${counters.skippedResignedOtherAccount} baris dilewati: akun e-training baru (username beda) tapi kandidat yang cocok sudah Resign - input dulu kandidat barunya` : '';
+    const otherCycleNote = counters.skippedOtherCycle ? `, ⏭️ ${counters.skippedOtherCycle} baris dilewati: Tgl Join & username beda dari record kandidat (siklus join lain, nama sama)` : '';
     const rejoinNote = oldRejoinRowsSkipped ? `, 🔁 ${oldRejoinRowsSkipped} baris data lama diabaikan (${oldRejoinNamesSkipped} nama resign & join ulang)` : '';
-    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${profileNote}${nameFixNote}${fuzzyNote}${reviewNote}${rejoinNote}${skippedAccountNote}${skippedNote}`);
+    showToast(`Import E-Training selesai: ${matchedRows} baris cocok → ${savedCount} kandidat terupdate${resignNote}${usernameNote}${profileNote}${nameFixNote}${fuzzyNote}${reviewNote}${rejoinNote}${skippedAccountNote}${otherCycleNote}${skippedNote}`);
   }catch(err){
     lmsImportStatusEl.textContent = '';
     showToast('Gagal membaca file E-Training: ' + err.message, true);
