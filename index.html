@@ -4131,6 +4131,7 @@ function renderRoleLine(c){
 }
 // (bukan cuma nampilin nilainya doang), dipakai konsisten di semua popup card.
 function renderKehadiranBadge(c){
+  if(getStatusKaryawan(c) === 'Tidak Jadi Join') return `<span class="status-badge status-karyawan-tjj">⚪ Kehadiran: Tidak Jadi Join</span>`;
   return `<span class="status-badge ${kehadiranBadgeClass(c.kehadiran||'')}">${kehadiranEmoji(c.kehadiran||'')} Kehadiran: ${escapeHtml(c.kehadiran || 'Belum diverifikasi')}</span>`;
 }
 
@@ -4162,6 +4163,11 @@ function failedPostTestTooltip(c){
 // checklist 14 modul Orientasi Awal HR -> sama persis kayak yang di kolom
 // "Status Onboarding" pada tabel utama.
 function renderOnboardingStatusBadge(c){
+  // Kandidat Tidak Jadi Join gak pernah ikut induction -> badge-nya ikut berubah jadi
+  // "Tidak Jadi Join", bukan Not Started / In Progress.
+  if(getStatusKaryawan(c) === 'Tidak Jadi Join'){
+    return `<span class="status-badge status-karyawan-tjj">⚪ Induction: Tidak Jadi Join</span>`;
+  }
   const status = dummyOnboardingStatus(c);
   const failTip = failedPostTestTooltip(c);
   const failAttr = failTip ? ` title="${escapeAttr(failTip)}"` : '';
@@ -5236,16 +5242,19 @@ const TABLE_COLUMNS = [
     sortValue: c => (c.pic||'').toLowerCase(),
     filterValue: c => c.pic || '', filterLabel: v => v || '(Belum diisi)' },
   { key:'kehadiran', label:'Kehadiran', sortable:true, filterable:true,
-    sortValue: c => effectiveKehadiran(c).toLowerCase(),
-    filterValue: c => effectiveKehadiran(c),
-    filterLabel: v => v === 'Hadir' ? '✅ Hadir' : v === 'Tidak Hadir' ? '❌ Tidak Hadir' : '⏳ Belum' },
+    // Tidak Jadi Join punya nilai kehadiran sendiri (kehadirannya gak relevan: batal gabung).
+    sortValue: c => (getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Tidak Jadi Join' : effectiveKehadiran(c)).toLowerCase(),
+    filterValue: c => getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Tidak Jadi Join' : effectiveKehadiran(c),
+    filterLabel: v => v === 'Hadir' ? '✅ Hadir' : v === 'Tidak Hadir' ? '❌ Tidak Hadir' : v === 'Tidak Jadi Join' ? '⚪ Tidak Jadi Join' : '⏳ Belum' },
   { key:'aksi', label:'Aksi', sortable:false, filterable:false },
   { key:'onboardingStatus', label:'Status Induction', sortable:true, filterable:true,
     // NOTE: masih data dummy sementara -> diturunin dari kehadiran (Hadir = Completed,
     // selain itu = Not Started). Nanti diganti pas journey onboarding beneran udah ada.
-    sortValue: c => dummyOnboardingStatus(c),
-    filterValue: c => dummyOnboardingStatus(c),
-    filterLabel: v => v === 'Completed' ? '✅ Completed' : '⏳ Not Started' },
+    // Tidak Jadi Join punya nilai sendiri (sama kayak badge di popup & preview).
+    sortValue: c => getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Tidak Jadi Join' : dummyOnboardingStatus(c),
+    filterValue: c => getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Tidak Jadi Join' : dummyOnboardingStatus(c),
+    filterLabel: v => v === 'Completed' ? '✅ Completed'
+      : (v === 'In Progress' ? '🔄 In Progress' : (v === 'Tidak Jadi Join' ? '⚪ Tidak Jadi Join' : '⏳ Not Started')) },
   { key:'atasan', label:'Atasan', sortable:true, filterable:true,
     sortValue: c => (c.atasan||'').toLowerCase(),
     filterValue: c => c.atasan || '', filterLabel: v => v || '(Kosong)' },
@@ -5583,13 +5592,15 @@ function renderCandRow(c, rowNumber){
       <td class="wrap" title="Username otomatis dari upload data e-training, gak bisa diisi manual">${escapeHtml(c.username||'-')}</td>
       <td>${escapeHtml(c.pic||'(Belum diisi)')}</td>
       <td>
-        <div class="verify-row">
+        ${getStatusKaryawan(c) === 'Tidak Jadi Join'
+          ? `<div class="verify-row"><span class="status-badge status-karyawan-tjj">⚪ Tidak Jadi Join</span></div>`
+          : `<div class="verify-row">
           <select class="verify-select ${kehadiran==='Hadir'?'val-hadir':kehadiran==='Tidak Hadir'?'val-tidak':''}" data-id="${escapeAttr(c._id)}" title="Kehadiran otomatis dari upload data e-training, gak bisa diubah manual" disabled>
             <option value="" ${kehadiran===''?'selected':''}>⏳ Belum</option>
             <option value="Hadir" ${kehadiran==='Hadir'?'selected':''}>✅ Hadir</option>
             <option value="Tidak Hadir" ${kehadiran==='Tidak Hadir'?'selected':''}>❌ Tidak Hadir</option>
           </select>
-        </div>
+        </div>`}
       </td>
       <td>
         <div class="table-actions-cell">
@@ -5610,7 +5621,9 @@ function renderCandRow(c, rowNumber){
       </td>
       <td>
         <button type="button" class="onboarding-status-btn" data-id="${escapeAttr(c._id)}" title="${failTip ? escapeAttr(failTip) : 'Lihat journey induction'}">
-          ${onbStatus==='Completed'
+          ${getStatusKaryawan(c)==='Tidak Jadi Join'
+            ? `<span class="status-badge status-karyawan-tjj">⚪ Tidak Jadi Join</span>`
+            : onbStatus==='Completed'
             ? `<span class="status-badge ${failTip ? 'status-gagal' : 'status-sudah'}"${failAttr}>✅ Completed${failTip ? ' ⚠️' : ''}</span>`
             : onbStatus==='In Progress'
             ? `<span class="status-badge ${failTip ? 'status-gagal' : 'status-progress'}"${failAttr}>🔄 In Progress (${onboardingProgressPct(c)}%)${failTip ? ' ⚠️' : ''}</span>`
@@ -5859,11 +5872,11 @@ function buildExcelDetailSheet(list){
       i + 1,
       c.nama || '',
       c.pic || '',
-      effectiveKehadiran(c) || 'Belum',
+      getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Tidak Jadi Join' : (effectiveKehadiran(c) || 'Belum'),
       getStatusKaryawan(c) !== 'Active'
         ? getStatusKaryawan(c)
         : (onbStatus === 'In Progress' ? 'Reminder Modul' : 'Reminder Induction'),
-      onbStatus,
+      getStatusKaryawan(c) === 'Tidak Jadi Join' ? 'Tidak Jadi Join' : onbStatus,
       c.atasan || '',
       c.designation || '',
       c.departemen || '',
@@ -9364,7 +9377,10 @@ function buildText(){
       if(c.tglJoin) lines.push(`* Tgl Join: ${fmtID(c.tglJoin)}`);
       if(c.statusAktivasi) lines.push(`* Status Aktivasi: *${c.statusAktivasi}*`);
       if(c.noHp) lines.push(`* No HP: ${c.noHp}`);
-      if(isAttendanceCountable(c)){
+      if(getStatusKaryawan(c) === 'Tidak Jadi Join'){
+        // Batal gabung -> gak ada kehadiran yang relevan, tampilin statusnya aja.
+        lines.push(`* Kehadiran: ⚪ *Tidak Jadi Join*`);
+      }else if(isAttendanceCountable(c)){
         lines.push(`* Kehadiran: ${kehadiranEmoji(c.kehadiran||'')} *${c.kehadiran || 'Belum diverifikasi'}*`);
       }else{
         lines.push(`* Kehadiran: - *(Belum Induction)*`);
