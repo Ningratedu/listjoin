@@ -2081,6 +2081,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
         <button type="button" class="preview-tab-btn active" id="previewTabSemua" data-tab="semua" role="tab">📋 Semua <span class="preview-tab-count" id="previewTabSemuaCount">0</span></button>
         <button type="button" class="preview-tab-btn" id="previewTabHadir" data-tab="hadir" role="tab">✅ Hadir <span class="preview-tab-count" id="previewTabHadirCount">0</span></button>
         <button type="button" class="preview-tab-btn" id="previewTabBelum" data-tab="belum" role="tab">⏳ Belum Hadir <span class="preview-tab-count" id="previewTabBelumCount">0</span></button>
+        <button type="button" class="preview-tab-btn" id="previewTabTjj" data-tab="tjj" role="tab" style="display:none;">⚪ Tidak Jadi Join <span class="preview-tab-count" id="previewTabTjjCount">0</span></button>
       </div>
       <div class="chart-hint" id="previewFilterHint" style="align-self:flex-start;margin:10px 16px 14px;">💡 Filter di atas untuk memilih jadwal induction (tanggal) yang ditampilkan di preview pesan</div>
       <div class="chat-body">
@@ -2684,7 +2685,7 @@ const tglOnboardingEl = document.getElementById('tglOnboarding');
 const statusAktivasiEl = document.getElementById('statusAktivasi');
 const onbHintEl = document.getElementById('onbHint');
 const previewEl = document.getElementById('preview');
-let previewAttendanceTab = 'semua'; // tab aktif di preview pesan: 'semua' | 'hadir' | 'belum' (belum = semua selain Hadir)
+let previewAttendanceTab = 'semua'; // tab aktif di preview pesan: 'semua' | 'hadir' | 'belum' (belum = semua selain Hadir & Tidak Jadi Join) | 'tjj' (Tidak Jadi Join)
 const onboardingFilterEl = document.getElementById('onboardingFilter');
 const globalMonthFilterEl = document.getElementById('globalMonthFilter');
 const screenshotInputEl = document.getElementById('screenshotInput');
@@ -9311,7 +9312,7 @@ function buildText(){
   // PIC yang masih ada kandidat belum/tidak hadir ditaruh di atas, biar langsung
   // kelihatan siapa yang perlu di-follow-up -- PIC yang semua pesertanya udah
   // Hadir digeser ke bawah.
-  const hasBelumHadir = pic => groups[pic].some(c => (c.kehadiran||'') !== 'Hadir');
+  const hasBelumHadir = pic => groups[pic].some(c => getStatusKaryawan(c) !== 'Tidak Jadi Join' && (c.kehadiran||'') !== 'Hadir');
   order.sort((a, b) => {
     const aBelum = hasBelumHadir(a), bBelum = hasBelumHadir(b);
     if(aBelum === bBelum) return 0;
@@ -9394,31 +9395,47 @@ function buildText(){
 
 function isInPreviewTab(c){
   if(previewAttendanceTab === 'semua') return true;
+  // Tidak Jadi Join punya tab sendiri -- gak ikut tab Hadir / Belum Hadir (mereka batal
+  // gabung, jadi bukan "belum hadir" yang perlu di-follow-up).
+  const tjj = getStatusKaryawan(c) === 'Tidak Jadi Join';
+  if(previewAttendanceTab === 'tjj') return tjj;
+  if(tjj) return false;
   const hadir = (c.kehadiran || '') === 'Hadir';
   return previewAttendanceTab === 'hadir' ? hadir : !hadir;
 }
 
 function updatePreviewTabs(){
   const all = getFilteredCandidates();
-  const hadirCount = all.filter(c => (c.kehadiran || '') === 'Hadir').length;
+  const isTjj = c => getStatusKaryawan(c) === 'Tidak Jadi Join';
+  const tjjCount = all.filter(isTjj).length;
+  const hadirCount = all.filter(c => !isTjj(c) && (c.kehadiran || '') === 'Hadir').length;
+  const belumCount = all.length - hadirCount - tjjCount;
   const semuaTabEl = document.getElementById('previewTabSemua');
   const hadirTabEl = document.getElementById('previewTabHadir');
   const belumTabEl = document.getElementById('previewTabBelum');
-  if(!semuaTabEl || !hadirTabEl || !belumTabEl) return;
+  const tjjTabEl = document.getElementById('previewTabTjj');
+  if(!semuaTabEl || !hadirTabEl || !belumTabEl || !tjjTabEl) return;
+  // Tab Tidak Jadi Join cuma muncul kalau di jadwal ini memang ada; kalau lagi aktif tapi
+  // isinya udah kosong (ganti jadwal/filter), balik ke tab Semua.
+  if(previewAttendanceTab === 'tjj' && !tjjCount) previewAttendanceTab = 'semua';
+  tjjTabEl.style.display = tjjCount ? '' : 'none';
   document.getElementById('previewTabSemuaCount').textContent = all.length;
   document.getElementById('previewTabHadirCount').textContent = hadirCount;
-  document.getElementById('previewTabBelumCount').textContent = all.length - hadirCount;
+  document.getElementById('previewTabBelumCount').textContent = belumCount;
+  document.getElementById('previewTabTjjCount').textContent = tjjCount;
   semuaTabEl.classList.toggle('active', previewAttendanceTab === 'semua');
   hadirTabEl.classList.toggle('active', previewAttendanceTab === 'hadir');
   belumTabEl.classList.toggle('active', previewAttendanceTab === 'belum');
+  tjjTabEl.classList.toggle('active', previewAttendanceTab === 'tjj');
   semuaTabEl.setAttribute('aria-selected', previewAttendanceTab === 'semua');
   hadirTabEl.setAttribute('aria-selected', previewAttendanceTab === 'hadir');
   belumTabEl.setAttribute('aria-selected', previewAttendanceTab === 'belum');
+  tjjTabEl.setAttribute('aria-selected', previewAttendanceTab === 'tjj');
 }
 
 document.querySelectorAll('#previewTabs .preview-tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    previewAttendanceTab = (btn.dataset.tab === 'belum' || btn.dataset.tab === 'hadir') ? btn.dataset.tab : 'semua';
+    previewAttendanceTab = (btn.dataset.tab === 'belum' || btn.dataset.tab === 'hadir' || btn.dataset.tab === 'tjj') ? btn.dataset.tab : 'semua';
     renderPreview();
     const body = previewEl.closest('.chat-body');
     if(body) body.scrollTop = 0;
@@ -9431,7 +9448,7 @@ function renderPreview(){
   if(!text){
     const hasAny = getFilteredCandidates().length > 0;
     previewEl.innerHTML = hasAny
-      ? `<span class="empty">${previewAttendanceTab === 'hadir' ? 'Belum ada kandidat yang Hadir di jadwal ini...' : 'Semua kandidat di jadwal ini sudah Hadir 🎉'}</span>`
+      ? `<span class="empty">${previewAttendanceTab === 'hadir' ? 'Belum ada kandidat yang Hadir di jadwal ini...' : (previewAttendanceTab === 'tjj' ? 'Tidak ada kandidat yang tidak jadi join di jadwal ini' : 'Semua kandidat di jadwal ini sudah Hadir 🎉')}</span>`
       : '<span class="empty">Belum ada data...</span>';
     return;
   }
