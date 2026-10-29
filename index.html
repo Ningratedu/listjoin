@@ -332,6 +332,10 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     header .brand{left:50%;right:auto;transform:translateX(-50%);max-width:calc(100% - 40px);width:max-content;margin-left:-6px;}
     header .brand-spacer{display:block;width:34px;flex-shrink:0;}
   }
+  /* Baris card status induction: 6 card (Total, Completed, In Progress, Resign saat, Resign setelah, Tidak Jadi Join) */
+  .stats-row.stats-row-6{grid-template-columns:repeat(3, 1fr);}
+  @media (max-width:860px){ .stats-row.stats-row-6{grid-template-columns:repeat(2, 1fr);} }
+  @media (max-width:520px){ .stats-row.stats-row-6{grid-template-columns:1fr;} }
   .stat-tile{
     display:flex;
     align-items:stretch;
@@ -2245,7 +2249,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   <!-- CARD STATUS ONBOARDING (Total Peserta / Completed / In Progress / Peserta Resign) -- ditaruh
        DI LUAR panel "Detail & Kelola Kandidat", persis di atasnya, biar gak numpang jadi bagian
        dari panel tabel (tapi urutan tampilannya tetap sama kayak sebelumnya). -->
-  <div class="stats-row" id="onboardingStatsRow"></div>
+  <div class="stats-row stats-row-6" id="onboardingStatsRow"></div>
 
   <div class="list-panel chart-panel insight-panel collapsed" id="inductionInsightPanel">
     <h2>
@@ -2281,7 +2285,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
         <span class="h2-icon">📈</span>
         <div class="chart-heading-text">
           <span>Status Induction per Divisi per Sesi</span>
-          <span class="chart-sub" id="indStatSub">Divisi Sales, Support &amp; Produksi · Completed / In Progress / Not Started tiap sesi induction</span>
+          <span class="chart-sub" id="indStatSub">Divisi Sales, Support &amp; Produksi · Completed / In Progress / Not Started / Resign (saat &amp; setelah induction) / Tidak Jadi Join tiap sesi induction</span>
         </div>
       </div>
     </h2>
@@ -2289,7 +2293,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     <div id="indStatBody">
       <div class="chart-hint">💡 Setiap batang = 1 sesi induction · klik segmen status untuk lihat daftar kandidatnya</div>
       <div id="indStatGrid"></div>
-      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih · hanya yang masih Active. <b>Not Started</b> = belum Hadir (belum diverifikasi / Tidak Hadir) atau Hadir tapi belum ada modul selesai; sesi yang belum berlangsung tidak dihitung. Total di sini bisa lebih besar dari card Completed/In Progress karena ikut menghitung yang belum Hadir.</div>
+      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih. <b>Resign saat induction</b> = tgl resign ≤5 hari dari tgl induction (atau sebelumnya), <b>Resign setelah induction</b> = lebih dari 5 hari. Keduanya &amp; <b>Tidak Jadi Join</b> jadi status sendiri (tanpa lihat kehadiran), jadi tidak dobel masuk Not Started / In Progress. <b>Not Started</b> = belum Hadir (belum diverifikasi / Tidak Hadir) atau Hadir tapi belum ada modul selesai; sesi yang belum berlangsung tidak dihitung. Total di sini bisa lebih besar dari card Completed/In Progress karena ikut menghitung yang belum Hadir, Resign, dan Tidak Jadi Join.</div>
     </div>
   </div>
 
@@ -3542,9 +3546,21 @@ function renderOnboardingStats(){
   // relatif ke peserta yang beneran hadir induction.
   const resignList = candidatesInSelectedMonth.filter(c => getStatusKaryawan(c) === 'Resign');
   const pctResign = total ? Math.round(resignList.length / total * 100) : 0;
+  // Resign dipecah: SAAT induction (<=5 hari dari tgl induction) vs SETELAH induction.
+  const resignDuringList = resignList.filter(isResignDuringInduction);
+  const resignAfterList = resignList.filter(c => !isResignDuringInduction(c));
+  const pctResignDuring = total ? Math.round(resignDuringList.length / total * 100) : 0;
+  const pctResignAfter = total ? Math.round(resignAfterList.length / total * 100) : 0;
+
+  // "Tidak Jadi Join" -- kandidat bulan terpilih yang batal gabung (gak pernah jadi peserta).
+  // Persentase relatif ke SEMUA kandidat bulan itu (bukan cuma yang Hadir), soalnya mereka
+  // memang gak pernah ikut induction.
+  const tjjList = candidatesInSelectedMonth.filter(c => getStatusKaryawan(c) === 'Tidak Jadi Join');
+  const totalKandidat = candidatesInSelectedMonth.length;
+  const pctTjj = totalKandidat ? Math.round(tjjList.length / totalKandidat * 100) : 0;
 
   statDetailsCache.onboardingStatus = {
-    peserta: pesertaList, completed: completedList, inProgress: inProgressList, resign: resignList
+    peserta: pesertaList, completed: completedList, inProgress: inProgressList, resign: resignList, resignDuring: resignDuringList, resignAfter: resignAfterList, tjj: tjjList
   };
 
   const tiles = [
@@ -3567,10 +3583,22 @@ function renderOnboardingStats(){
       title: 'Induction In Progress', sub: `${inProgressList.length}/${totalActive} peserta aktif`
     },
     {
-      type: 'onbResign', variant: 'ring',
-      pct: pctResign, badgeBg: 'var(--navy-2)', ringColor: 'var(--danger)',
-      icon: '🔴', iconBg: 'rgba(224,90,78,0.12)', iconColor: 'var(--danger)',
-      title: 'Peserta Resign', sub: `${resignList.length}/${total} peserta hadir`
+      type: 'onbResignDuring', variant: 'ring',
+      pct: pctResignDuring, badgeBg: 'var(--navy-2)', ringColor: '#c0264b',
+      icon: '🔴', iconBg: 'rgba(192,38,75,0.12)', iconColor: '#c0264b',
+      title: 'Resign saat Induction', sub: `${resignDuringList.length}/${total} peserta hadir · ≤5 hari dari induction`
+    },
+    {
+      type: 'onbResignAfter', variant: 'ring',
+      pct: pctResignAfter, badgeBg: 'var(--navy-2)', ringColor: '#5b1a2b',
+      icon: '🟤', iconBg: 'rgba(91,26,43,0.12)', iconColor: '#5b1a2b',
+      title: 'Resign setelah Induction', sub: `${resignAfterList.length}/${total} peserta hadir · >5 hari dari induction`
+    },
+    {
+      type: 'onbTjj', variant: 'ring',
+      pct: pctTjj, badgeBg: 'var(--navy)', ringColor: '#64748b',
+      icon: '⚪', iconBg: 'rgba(100,116,139,0.14)', iconColor: '#64748b',
+      title: 'Tidak Jadi Join', sub: `${tjjList.length}/${totalKandidat} kandidat bulan ini`
     }
   ];
 
@@ -4197,6 +4225,11 @@ function renderCandMiniCard(c, context){
       ${diff !== null ? `<span class="meta-item">⏱️ <b>Selisih</b> ${Math.abs(diff)} hari dari induction</span>` : ''}
       ${c.alasanResign ? `<span class="meta-item">📝 <b>Alasan</b> ${escapeHtml(c.alasanResign)}</span>` : ''}
       <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
+  } else if(context === 'tjj'){
+    metaHtml = `
+      <span class="meta-item">🎯 <b>Induction</b> ${escapeHtml(c.tglOnboarding ? fmtShortID(c.tglOnboarding) : '-')}</span>
+      ${c.alasanResign ? `<span class="meta-item">📝 <b>Alasan</b> ${escapeHtml(c.alasanResign)}</span>` : ''}
+      <span class="meta-item">👤 <b>PIC</b> ${escapeHtml(c.pic || '-')}</span>`;
   } else { // 'total' (default)
     metaHtml = `
       <span class="meta-item">📆 <b>Join</b> ${escapeHtml(c.tglJoin ? fmtShortID(c.tglJoin) : '-')}</span>
@@ -4759,9 +4792,15 @@ function bindStatTileEvents(){
       }else if(type === 'onbInProgress'){
         const list = statDetailsCache.onboardingStatus.inProgress;
         openStatModal(`Induction In Progress — ${currentMonthLabel()} (${list.length})`, renderDivisiSummaryHtml(list, 'onboarding-inprogress'), {icon:'🔄', accent:'onboarding'});
-      }else if(type === 'onbResign'){
-        const list = statDetailsCache.onboardingStatus.resign;
-        openStatModal(`Peserta Resign — ${currentMonthLabel()} (${list.length})`, renderDivisiSummaryHtml(list, 'resign'), {icon:'🔴', accent:'onboarding'});
+      }else if(type === 'onbResignDuring'){
+        const list = statDetailsCache.onboardingStatus.resignDuring;
+        openStatModal(`Resign saat Induction — ${currentMonthLabel()} (${list.length})`, renderDivisiSummaryHtml(list, 'resign'), {icon:'🔴', accent:'onboarding'});
+      }else if(type === 'onbResignAfter'){
+        const list = statDetailsCache.onboardingStatus.resignAfter;
+        openStatModal(`Resign setelah Induction — ${currentMonthLabel()} (${list.length})`, renderDivisiSummaryHtml(list, 'resign'), {icon:'🟤', accent:'onboarding'});
+      }else if(type === 'onbTjj'){
+        const list = statDetailsCache.onboardingStatus.tjj;
+        openStatModal(`Tidak Jadi Join — ${currentMonthLabel()} (${list.length})`, renderDivisiSummaryHtml(list, 'tjj'), {icon:'⚪', accent:'onboarding'});
       }
     });
   });
@@ -5768,15 +5807,20 @@ function getExcelExportCandidates(){
 
 // Baris summary (dipakai di atas tabel detail sheet "Detail Kandidat").
 function buildExcelSummaryRows(){
-  const summary = statDetailsCache.onboardingStatus || { peserta:[], completed:[], inProgress:[], resign:[] };
+  const summary = statDetailsCache.onboardingStatus || { peserta:[], completed:[], inProgress:[], resign:[], tjj:[] };
   const total = summary.peserta ? summary.peserta.length : 0;
   const completed = summary.completed ? summary.completed.length : 0;
   const inProgress = summary.inProgress ? summary.inProgress.length : 0;
   const resign = summary.resign ? summary.resign.length : 0;
+  const tjj = summary.tjj ? summary.tjj.length : 0;
+  const resignDuring = summary.resignDuring ? summary.resignDuring.length : 0;
+  const resignAfter = summary.resignAfter ? summary.resignAfter.length : 0;
   const totalActive = completed + inProgress;
   const pctCompleted = totalActive ? Math.round(completed / totalActive * 100) : 0;
   const pctInProgress = totalActive ? Math.round(inProgress / totalActive * 100) : 0;
   const pctResign = total ? Math.round(resign / total * 100) : 0;
+  const totalKandidatBulan = candidates.filter(isInSelectedMonth).length;
+  const pctTjj = totalKandidatBulan ? Math.round(tjj / totalKandidatBulan * 100) : 0;
 
   return [
     ['SUMMARY STATUS INDUCTION', ''],
@@ -5788,13 +5832,17 @@ function buildExcelSummaryRows(){
     ['Induction In Progress (%)', pctInProgress + '%'],
     ['Peserta Resign', resign],
     ['Peserta Resign (%)', pctResign + '%'],
+    ['Resign saat Induction (<=5 hari dari tgl induction)', resignDuring],
+    ['Resign setelah Induction (>5 hari dari tgl induction)', resignAfter],
+    ['Tidak Jadi Join', tjj],
+    ['Tidak Jadi Join (% dari kandidat bulan ini)', pctTjj + '%'],
     []
   ];
 }
 
-// Sheet "Detail Kandidat": summary di baris 1-9, baris kosong di 10, header di baris 11,
-// data detail kandidat mulai baris 12 (index array: header di index 10).
-const EXCEL_DETAIL_HEADER_ROW_INDEX = 10; // 0-based; = baris 11 di Excel
+// Sheet "Detail Kandidat": summary di baris 1-13, baris kosong di 14, header di baris 15,
+// data detail kandidat mulai baris 16 (index array: header di index 14).
+const EXCEL_DETAIL_HEADER_ROW_INDEX = 14; // 0-based; = baris 15 di Excel
 
 function buildExcelDetailSheet(list){
   const rows = buildExcelSummaryRows();
@@ -6416,6 +6464,11 @@ const INDSTAT_DIVISI = ['Sales', 'Support', 'Produksi'];
 // Yang belum diverifikasi / Tidak Hadir otomatis "Not Started" (belum mulai induction sama sekali),
 // jadi karyawan yang gak ikut induction tetap kelihatan di chart.
 function indStatBaseStatus(c){
+  // Resign & Tidak Jadi Join punya status sendiri di chart (tanpa peduli kehadiran), jadi
+  // gak ikut dihitung sebagai Not Started / In Progress / Completed.
+  const st = getStatusKaryawan(c);
+  if(st === 'Resign') return isResignDuringInduction(c) ? 'Resign saat induction' : 'Resign setelah induction';
+  if(st === 'Tidak Jadi Join') return 'Tidak Jadi Join';
   return c.kehadiran === 'Hadir' ? dummyOnboardingStatus(c) : 'Not Started';
 }
 const INDSTAT_STATUSES = [
@@ -6426,7 +6479,13 @@ const INDSTAT_STATUSES = [
   { key:'In Progress',              label:'In Progress',               color:'#f6a04d',
     match: c => indStatBaseStatus(c) === 'In Progress' },
   { key:'Not Started',              label:'Not Started',               color:'#9aa5ab',
-    match: c => indStatBaseStatus(c) === 'Not Started' }
+    match: c => indStatBaseStatus(c) === 'Not Started' },
+  { key:'Resign saat induction',    label:'Resign saat induction',     color:'#c0264b',
+    match: c => indStatBaseStatus(c) === 'Resign saat induction' },
+  { key:'Resign setelah induction', label:'Resign setelah induction',  color:'#5b1a2b',
+    match: c => indStatBaseStatus(c) === 'Resign setelah induction' },
+  { key:'Tidak Jadi Join',          label:'Tidak Jadi Join',           color:'#475569',
+    match: c => indStatBaseStatus(c) === 'Tidak Jadi Join' }
 ];
 
 // Peserta chart ini = yang Hadir + yang BELUM Hadir tapi sesi induction-nya udah berlangsung
@@ -6435,7 +6494,9 @@ const INDSTAT_STATUSES = [
 function getInductionStatusPeserta(){
   return candidates.filter(c => {
     if(!isInSelectedMonth(c) || isInductionAfterSelectedMonth(c)) return false;
-    if(getStatusKaryawan(c) !== 'Active') return false;
+    // Resign & Tidak Jadi Join ikut masuk chart sebagai status sendiri (kehadiran & sesi
+    // udah lewat/belum gak dicek, biar jumlahnya sama dengan card Resign / Tidak Jadi Join).
+    if(getStatusKaryawan(c) !== 'Active') return true;
     if(c.kehadiran === 'Hadir') return true;
     const d = daysSinceOnboarding(c);
     return d !== null && d >= 0;
@@ -6468,12 +6529,13 @@ function buildIndStatChart(canvas, sessions, divisi){
         const ds = chart.data.datasets[el.datasetIndex];
         const group = ds._groups[el.index] || [];
         if(!group.length) return;
-        const context = ds.label === 'In Progress' ? 'onboarding-inprogress' : 'onboarding';
+        const context = ds.label === 'In Progress' ? 'onboarding-inprogress'
+          : (ds.label.startsWith('Resign') ? 'resign' : (ds.label === 'Tidak Jadi Join' ? 'tjj' : 'onboarding'));
         // Chart ini udah dipisah per divisi, jadi layer "Summary per Divisi" di-skip:
         // langsung tampil chart Departemen untuk divisi + sesi yang diklik.
         openStatModal(`${ds.label} · ${divisi} — Sesi ${labels[el.index]} (${group.length})`,
           '',
-          { icon: ds.label === 'Completed' ? '✅' : (ds.label.startsWith('Completed') ? '⚠️' : (ds.label === 'In Progress' ? '🔄' : '⏳')), accent: 'onboarding' });
+          { icon: ds.label === 'Completed' ? '✅' : (ds.label.startsWith('Completed') ? '⚠️' : (ds.label === 'In Progress' ? '🔄' : (ds.label === 'Resign saat induction' ? '🔴' : (ds.label === 'Resign setelah induction' ? '🟤' : (ds.label === 'Tidak Jadi Join' ? '⚪' : '⏳'))))), accent: 'onboarding' });
         currentDivisiDrilldownList = group;
         currentDivisiDrilldownContext = context;
         renderDivisiDeptChartStep(divisi, { noBack: true });
@@ -8577,6 +8639,17 @@ window.addEventListener('resize', hideResignTooltip);
 // Selisih hari antara tgl Resign & tgl Rencana Induction (bisa minus kalau resign-nya
 // sebelum jadwal induction). Balikin null kalau salah satu tanggal belum lengkap ->
 // dipakai buat ngelompokin card "Peserta Resign" jadi "≤5 hari" vs ">5 hari" dari induction.
+// Batas "masa induction": resign dihitung SAAT induction kalau tgl resign <= 5 hari dari tgl
+// induction (termasuk yang resign sebelum jadwal induction), selebihnya SETELAH induction.
+// Angka 5 hari disamain dengan pengelompokan card Peserta Resign & flag In Progress yang
+// udah ada. Kalau tgl resign/induction belum lengkap -> ikut status journey: belum Completed
+// dianggap masih masa induction.
+function getMasaInductionHari(){ return 5; }
+function isResignDuringInduction(c){
+  const d = getResignDaysDiff(c);
+  if(d === null) return dummyOnboardingStatus(c) !== 'Completed';
+  return d <= getMasaInductionHari();
+}
 function getResignDaysDiff(c){
   if(!c.tglResign || !c.tglOnboarding) return null;
   const dResign = new Date(String(c.tglResign).slice(0,10) + 'T00:00:00');
