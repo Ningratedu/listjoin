@@ -4956,13 +4956,13 @@ const SALES_SUPERVISOR_ONBOARDING_MODULES = [
   { id:'sv16', label:'Critical Control Point (CCP)', group:'PIC: OD' }
 ];
 
-// Kandidat dengan designation PERSIS "Sales" atau "Sales Counter" (exact match, gak
+// Kandidat dengan designation PERSIS "Sales", "Sales Counter" atau "Commercial Marketing" (exact match, gak
 // case sensitive, trim whitespace) pakai journey SALES_ONBOARDING_MODULES; designation
 // lain -- termasuk yang cuma MENGANDUNG kata "sales" kayak "Sales Supervisor", "Sales
 // Manager", dst -- tetap pakai ONBOARDING_MODULES (checklist Orientasi Awal HR standar).
 function isSalesDesignation(c){
-  const d = (c.designation || '').trim().toLowerCase();
-  return d === 'sales' || d === 'sales counter';
+  const d = (c.designation || '').trim().replace(/\s+/g,' ').toLowerCase();
+  return d === 'sales' || d === 'sales counter' || d === 'commercial marketing';
 }
 
 // Kandidat dengan designation PERSIS "Sales Supervisor", "PJS Sales Supervisor", atau
