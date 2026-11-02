@@ -4979,6 +4979,22 @@ function isSalesSupervisorDesignation(c){
   return SALES_SUPERVISOR_DESIGNATIONS.includes(d);
 }
 
+// Branch Manager & PJS Branch Manager: journey-nya TETAP journey umum (ONBOARDING_MODULES),
+// cuma modul Product Knowledge-nya disamakan dengan Sales Supervisor -- yaitu "Product
+// Knowledge RSP" (soal e-training /exam/13/1), BUKAN "Product Knowledge Unit Bisnis" /
+// Non Sales (M25070701). ID modul tetap 'm05' biar checklist lama & export Gol 1 gak rusak.
+const BRANCH_MANAGER_DESIGNATIONS = [
+  'branch manager',
+  'pjs branch manager'
+];
+function isBranchManagerDesignation(c){
+  const d = (c.designation || '').trim().replace(/\s+/g,' ').toLowerCase();
+  return BRANCH_MANAGER_DESIGNATIONS.includes(d);
+}
+const BRANCH_MANAGER_ONBOARDING_MODULES = ONBOARDING_MODULES.map(m => m.id === 'm05'
+  ? { ...m, label:'Product Knowledge RSP', lmsAliases:['Product Knowledge RSP','Product Knowledge'], examUrl:'https://trusmicorp.com/e-training/question/exam/13/1' }
+  : m);
+
 // Cari modul "auto e-training" (modul yang punya lmsAliases -- artinya bisa keupdate
 // otomatis dari import export LMS, kayak "Be A Great Employee", "Company Profile",
 // "Peraturan Perusahaan", dst, TERGANTUNG journey kandidat) yang statusnya udah done di
@@ -5139,6 +5155,7 @@ window.debugAutoMarkTidakHadir = autoMarkTidakHadirIfStale;
 
 function getOnboardingModules(c){
   if(isSalesSupervisorDesignation(c)) return SALES_SUPERVISOR_ONBOARDING_MODULES;
+  if(isBranchManagerDesignation(c)) return BRANCH_MANAGER_ONBOARDING_MODULES;
   return isSalesDesignation(c) ? SALES_ONBOARDING_MODULES : ONBOARDING_MODULES;
 }
 
@@ -5720,9 +5737,17 @@ const WA_JOURNEY_TUTORIAL = [
   "https://youtu.be/jeFTPj72VcQ?si=nNcux5Wn0oVpiajK"
 ];
 
+// Versi Non Sales buat Branch Manager: baris Product Knowledge diganti ke Product Knowledge RSP
+// (sama kayak SPV Sales), sisanya identik.
+const WA_JOURNEY_BRANCH_MANAGER = WA_JOURNEY_NON_SALES.map(l =>
+  l.startsWith('4. Product Knowledge Non Sales RSP')
+    ? '4. Product Knowledge RSP : https://trusmicorp.com/e-training/question/exam/13/1'
+    : l);
+
 function getWaJourneyLines(c){
   if(isSalesSupervisorDesignation(c)) return WA_JOURNEY_SPV_SALES;
   if(isSalesDesignation(c)) return WA_JOURNEY_SALES;
+  if(isBranchManagerDesignation(c)) return WA_JOURNEY_BRANCH_MANAGER;
   return WA_JOURNEY_NON_SALES;
 }
 
