@@ -150,6 +150,21 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   @media (max-width:640px){
     .theme-toggle-btn{top:10px; left:10px; width:36px; height:36px; font-size:16px;}
   }
+  .jc-section{margin-bottom:16px;}
+  .jc-section h4{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--text);}
+  .jc-note{font-size:11px;color:var(--text-dim);line-height:1.5;}
+  .jc-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:10px;background:var(--panel);}
+  .jc-card b{font-size:12px;color:var(--text);}
+  .jc-card span{display:block;font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .jc-btn{border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .jc-btn:hover{border-color:var(--accent);}
+  .jc-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .jc-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
+  .jc-field{display:block;width:100%;box-sizing:border-box;margin:4px 0 10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:12px;font-family:inherit;}
+  .jc-label{font-size:11px;font-weight:600;color:var(--text-dim);}
+  .jc-group{margin:8px 0 4px;font-size:10.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px;}
+  .jc-mod{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:12px;color:var(--text);cursor:pointer;}
+  .jc-mod input{margin-top:2px;}
   body{
     margin:0;
     font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -2319,6 +2334,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
       <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Induction dari E-Training">📥 Upload Exported E-Training</button>
       <button type="button" class="upload-btn upload-btn-compact" id="tableRefreshBtn" title="Refresh data kandidat terbaru dari server">🔄 Refresh</button>
       <button type="button" class="upload-btn upload-btn-compact" id="tableExcelDownloadBtn" title="Download detail kandidat & summary dalam Excel">📊 Download Excel</button>
+      <button type="button" class="upload-btn upload-btn-compact" id="journeyConfigBtn" title="Atur journey & modul induction per designation">🧩 Atur Modul</button>
       <span class="upload-status" id="lmsImportStatus"></span>
     </div>
     <div id="tableEmptyState" class="empty-state" style="display:none;">Belum ada kandidat di list bersama.</div>
@@ -2331,6 +2347,23 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   </div>
   </div>
   <!-- /tab-page onboarding (bagian 2) -->
+</div>
+
+<!-- POPUP ATUR MODUL INDUCTION -->
+<div class="modal-overlay" id="journeyConfigOverlay">
+  <div class="modal-panel stat-modal-panel" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <span class="modal-header-icon">🧩</span>
+        <div class="modal-header-text">
+          <h3>Atur Modul Induction</h3>
+          <div class="modal-header-subtitle">Pilih journey &amp; modul per designation</div>
+        </div>
+      </div>
+      <button class="modal-close" id="journeyConfigClose">✕</button>
+    </div>
+    <div class="modal-body stat-modal-body" id="journeyConfigBody"></div>
+  </div>
 </div>
 
 <!-- POPUP DETAIL GELEMBUNG CHART -->
@@ -4960,7 +4993,7 @@ const SALES_SUPERVISOR_ONBOARDING_MODULES = [
 // case sensitive, trim whitespace) pakai journey SALES_ONBOARDING_MODULES; designation
 // lain -- termasuk yang cuma MENGANDUNG kata "sales" kayak "Sales Supervisor", "Sales
 // Manager", dst -- tetap pakai ONBOARDING_MODULES (checklist Orientasi Awal HR standar).
-function isSalesDesignation(c){
+function isBuiltinSalesDesignation(c){
   const d = (c.designation || '').trim().replace(/\s+/g,' ').toLowerCase();
   return d === 'sales' || d === 'sales counter' || d === 'commercial marketing';
 }
@@ -4974,7 +5007,7 @@ const SALES_SUPERVISOR_DESIGNATIONS = [
   'pjs sales supervisor',
   'commercial marketing supervisor'
 ];
-function isSalesSupervisorDesignation(c){
+function isBuiltinSalesSupervisorDesignation(c){
   const d = (c.designation || '').trim().replace(/\s+/g,' ').toLowerCase();
   return SALES_SUPERVISOR_DESIGNATIONS.includes(d);
 }
@@ -4994,6 +5027,108 @@ function isBranchManagerDesignation(c){
 const BRANCH_MANAGER_ONBOARDING_MODULES = ONBOARDING_MODULES.map(m => m.id === 'm05'
   ? { ...m, label:'Product Knowledge RSP', lmsAliases:['Product Knowledge RSP','Product Knowledge'], examUrl:'https://trusmicorp.com/e-training/question/exam/13/1' }
   : m);
+
+// ============================================================================
+// ATUR MODUL INDUCTION (override per designation, bisa diatur lewat UI)
+// ----------------------------------------------------------------------------
+// Aturan BAWAAN (hardcode di atas) tetap jalan kalau designation belum punya override.
+// Kalau designation punya override -> override MENANG: pilih journey dasar (Umum / Sales /
+// Sales Supervisor) + modul mana aja yang DIKELUARKAN dari journey itu. Tersimpan permanen
+// di sheet "JourneyOverride" backend Apps Script (action journeyOverrideList / Set / Delete),
+// kebaca semua orang; localStorage cuma cache lokal. Lihat apps-script-journey-override.gs.
+// Catatan: modul yang dikeluarkan cuma disembunyikan (data checklist-nya gak dihapus), jadi
+// aman kalau nanti dikembalikan.
+// ============================================================================
+const JOURNEY_DEFS = {
+  umum:  { label:'Umum (Gol 1)',                  modules: ONBOARDING_MODULES },
+  sales: { label:'Sales / Sales Counter (Gol 2)', modules: SALES_ONBOARDING_MODULES },
+  spv:   { label:'Sales Supervisor (Gol 3)',      modules: SALES_SUPERVISOR_ONBOARDING_MODULES }
+};
+const JOURNEY_OVERRIDE_CACHE_KEY = 'induction_journey_overrides_cache_v1';
+function readJourneyOverrideCache(){
+  try{
+    const parsed = JSON.parse(localStorage.getItem(JOURNEY_OVERRIDE_CACHE_KEY) || '{}');
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  }catch(e){ return {}; }
+}
+let journeyOverrides = readJourneyOverrideCache(); // { [normDesignationKey]: { designation, journey, exclude:[moduleId] } }
+function writeJourneyOverrideCache(){
+  try{ localStorage.setItem(JOURNEY_OVERRIDE_CACHE_KEY, JSON.stringify(journeyOverrides)); }catch(e){ /* gak fatal */ }
+}
+function getJourneyOverride(c){
+  const o = journeyOverrides[normDesignationKey(c && c.designation)];
+  return (o && JOURNEY_DEFS[o.journey]) ? o : null;
+}
+function builtinJourneyKey(c){
+  if(isBuiltinSalesSupervisorDesignation(c)) return 'spv';
+  if(isBuiltinSalesDesignation(c)) return 'sales';
+  return 'umum';
+}
+function getJourneyKey(c){
+  const o = getJourneyOverride(c);
+  return o ? o.journey : builtinJourneyKey(c);
+}
+// Dua helper lama dipertahankan namanya (dipakai banyak tempat), sekarang ngikutin override.
+function isSalesDesignation(c){ return getJourneyKey(c) === 'sales'; }
+function isSalesSupervisorDesignation(c){ return getJourneyKey(c) === 'spv'; }
+
+function parseJourneyExclude(v){
+  if(Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+  return String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+}
+function applyJourneyOverrideRows(rows){
+  const map = {};
+  (rows || []).forEach(r => {
+    const key = normDesignationKey(r.designation);
+    if(key && JOURNEY_DEFS[r.journey]){
+      map[key] = { designation: String(r.designation).trim(), journey: r.journey, exclude: parseJourneyExclude(r.exclude) };
+    }
+  });
+  journeyOverrides = map;
+  writeJourneyOverrideCache();
+}
+async function loadJourneyOverridesFromServer(){
+  try{
+    const res = await fetch(API_URL + '?action=journeyOverrideList');
+    const json = await res.json();
+    if(!json || !json.success) return; // backend belum di-update -> pakai cache/bawaan
+    const before = JSON.stringify(journeyOverrides);
+    applyJourneyOverrideRows(json.data);
+    if(JSON.stringify(journeyOverrides) !== before && candidates.length){
+      applyCandidates(candidates);
+    }
+  }catch(e){ /* offline / backend belum siap -> diem2 */ }
+}
+async function postJourneyOverride(payload){
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  });
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || 'unknown error');
+}
+async function saveJourneyOverride(designation, journey, exclude){
+  const key = normDesignationKey(designation);
+  if(!key || !JOURNEY_DEFS[journey]) return { success:false, error:'Data tidak valid' };
+  try{
+    await postJourneyOverride({ action:'journeyOverrideSet', designation: designation.trim(), journey, exclude: exclude.join(',') });
+    journeyOverrides[key] = { designation: designation.trim(), journey, exclude: exclude.slice() };
+    writeJourneyOverrideCache();
+    if(candidates.length) applyCandidates(candidates);
+    return { success:true };
+  }catch(err){ return { success:false, error: err.message }; }
+}
+async function deleteJourneyOverride(designation){
+  const key = normDesignationKey(designation);
+  try{
+    await postJourneyOverride({ action:'journeyOverrideDelete', designation });
+    delete journeyOverrides[key];
+    writeJourneyOverrideCache();
+    if(candidates.length) applyCandidates(candidates);
+    return { success:true };
+  }catch(err){ return { success:false, error: err.message }; }
+}
 
 // Cari modul "auto e-training" (modul yang punya lmsAliases -- artinya bisa keupdate
 // otomatis dari import export LMS, kayak "Be A Great Employee", "Company Profile",
@@ -5154,9 +5289,14 @@ async function autoMarkTidakHadirIfStale(){
 window.debugAutoMarkTidakHadir = autoMarkTidakHadirIfStale;
 
 function getOnboardingModules(c){
-  if(isSalesSupervisorDesignation(c)) return SALES_SUPERVISOR_ONBOARDING_MODULES;
-  if(isBranchManagerDesignation(c)) return BRANCH_MANAGER_ONBOARDING_MODULES;
-  return isSalesDesignation(c) ? SALES_ONBOARDING_MODULES : ONBOARDING_MODULES;
+  const ov = getJourneyOverride(c);
+  const key = getJourneyKey(c);
+  let mods;
+  if(key === 'spv') mods = SALES_SUPERVISOR_ONBOARDING_MODULES;
+  else if(key === 'sales') mods = SALES_ONBOARDING_MODULES;
+  else mods = (!ov && isBranchManagerDesignation(c)) ? BRANCH_MANAGER_ONBOARDING_MODULES : ONBOARDING_MODULES;
+  if(ov && ov.exclude.length) mods = mods.filter(m => ov.exclude.indexOf(m.id) === -1);
+  return mods;
 }
 
 // checklist kandidat disimpen sebagai JSON string di field onboardingChecklist:
@@ -5745,10 +5885,19 @@ const WA_JOURNEY_BRANCH_MANAGER = WA_JOURNEY_NON_SALES.map(l =>
     : l);
 
 function getWaJourneyLines(c){
-  if(isSalesSupervisorDesignation(c)) return WA_JOURNEY_SPV_SALES;
-  if(isSalesDesignation(c)) return WA_JOURNEY_SALES;
-  if(isBranchManagerDesignation(c)) return WA_JOURNEY_BRANCH_MANAGER;
-  return WA_JOURNEY_NON_SALES;
+  const ov = getJourneyOverride(c);
+  const key = getJourneyKey(c);
+  let lines;
+  if(key === 'spv') lines = WA_JOURNEY_SPV_SALES;
+  else if(key === 'sales') lines = WA_JOURNEY_SALES;
+  else lines = (!ov && isBranchManagerDesignation(c)) ? WA_JOURNEY_BRANCH_MANAGER : WA_JOURNEY_NON_SALES;
+  if(!ov || !ov.exclude.length) return lines;
+  // Buang baris e-training yang modulnya dikeluarkan (dicocokin lewat examUrl), lalu nomorin ulang.
+  const base = key === 'spv' ? SALES_SUPERVISOR_ONBOARDING_MODULES : key === 'sales' ? SALES_ONBOARDING_MODULES : ONBOARDING_MODULES;
+  const urls = base.filter(m => ov.exclude.indexOf(m.id) !== -1 && m.examUrl).map(m => m.examUrl);
+  let n = 0;
+  return lines.filter(l => !urls.some(u => l.indexOf(u) !== -1))
+              .map(l => /^\d+\. /.test(l) ? (++n) + '. ' + l.replace(/^\d+\. /, '') : l);
 }
 
 function buildOnboardingReminderText(c){
@@ -10929,8 +11078,157 @@ populateGlobalMonthFilter();
 initDateOverlays();
 setDefaultOnboarding();
 lastOnboardingPic = picNameEl.value.trim();
+
+// ----------------------------------------------------------------------------
+// UI "Atur Modul Induction" (popup dari tombol 🧩 di kiri atas)
+// ----------------------------------------------------------------------------
+let jcDraft = { designation:'', journey:'umum', exclude:[] };
+
+function jcModulesHtml(journey, excludeArr){
+  const mods = JOURNEY_DEFS[journey].modules;
+  let html = '', lastGroup = null;
+  mods.forEach(m => {
+    if(m.group !== lastGroup){ html += `<div class="jc-group">${escapeHtml(m.group)}</div>`; lastGroup = m.group; }
+    const checked = excludeArr.indexOf(m.id) === -1 ? 'checked' : '';
+    html += `<label class="jc-mod"><input type="checkbox" data-jc-mod="${m.id}" ${checked}><span>${escapeHtml(m.label)}</span></label>`;
+  });
+  return html;
+}
+function jcHintHtml(designation){
+  if(!normDesignationKey(designation)) return '';
+  const fake = { designation };
+  const ov = getJourneyOverride(fake);
+  if(ov) return `Sekarang: <b>override aktif</b> (${escapeHtml(JOURNEY_DEFS[ov.journey].label)}${ov.exclude.length ? ', ' + ov.exclude.length + ' modul dikeluarkan' : ''}).`;
+  const k = builtinJourneyKey(fake);
+  let t = `Sekarang pakai aturan bawaan: ${escapeHtml(JOURNEY_DEFS[k].label)}`;
+  if(isBranchManagerDesignation(fake)) t += ' dengan Product Knowledge RSP';
+  return t + '.';
+}
+function renderJourneyConfig(){
+  const rows = Object.keys(journeyOverrides).sort().map(k => journeyOverrides[k]);
+  const list = rows.length ? rows.map(o => `
+    <div class="jc-card">
+      <div><b>${escapeHtml(o.designation)}</b><span>${escapeHtml(JOURNEY_DEFS[o.journey].label)}${o.exclude.length ? ' · ' + o.exclude.length + ' modul dikeluarkan' : ' · semua modul'}</span></div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button type="button" class="jc-btn" data-jc-edit="${escapeHtml(normDesignationKey(o.designation))}">Ubah</button>
+        <button type="button" class="jc-btn danger" data-jc-del="${escapeHtml(normDesignationKey(o.designation))}">Hapus</button>
+      </div>
+    </div>`).join('') : `<div class="jc-note">Belum ada override. Semua designation masih pakai aturan bawaan.</div>`;
+
+  document.getElementById('journeyConfigBody').innerHTML = `
+    <div class="jc-section">
+      <h4>Override aktif</h4>
+      ${list}
+    </div>
+    <div class="jc-section">
+      <h4>Tambah / ubah override</h4>
+      <label class="jc-label" for="jcDesignation">Designation</label>
+      <input class="jc-field" id="jcDesignation" list="designationOptions" placeholder="Cari atau ketik designation" autocomplete="off" value="${escapeHtml(jcDraft.designation)}" style="margin-bottom:4px;">
+      <div class="jc-note" id="jcHint" style="margin-bottom:10px;">${jcHintHtml(jcDraft.designation)}</div>
+      <label class="jc-label" for="jcJourney">Journey dasar</label>
+      <select class="jc-field" id="jcJourney">
+        ${Object.keys(JOURNEY_DEFS).map(k => `<option value="${k}" ${k === jcDraft.journey ? 'selected' : ''}>${escapeHtml(JOURNEY_DEFS[k].label)}</option>`).join('')}
+      </select>
+      <div class="jc-label">Modul yang dipakai (hilangkan centang buat mengeluarkan modul)</div>
+      <div id="jcModules">${jcModulesHtml(jcDraft.journey, jcDraft.exclude)}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button type="button" class="jc-btn primary" id="jcSave">Simpan</button>
+        <button type="button" class="jc-btn" id="jcReset">Kosongkan form</button>
+      </div>
+    </div>
+    <div class="jc-section">
+      <h4>Aturan bawaan (kalau tanpa override)</h4>
+      <div class="jc-note">
+        Sales, Sales Counter, Commercial Marketing → Sales (Gol 2).<br>
+        Sales Supervisor, PJS Sales Supervisor, Commercial Marketing Supervisor → Sales Supervisor (Gol 3).<br>
+        Branch Manager, PJS Branch Manager → Umum (Gol 1) dengan Product Knowledge RSP.<br>
+        Designation lainnya → Umum (Gol 1).<br>
+        Modul yang dikeluarkan cuma disembunyikan, data centang lama tidak dihapus.
+      </div>
+    </div>`;
+}
+function jcReadDraftFromForm(){
+  const des = document.getElementById('jcDesignation');
+  const jr = document.getElementById('jcJourney');
+  if(!des || !jr) return;
+  jcDraft.designation = des.value;
+  jcDraft.journey = jr.value;
+  jcDraft.exclude = Array.from(document.querySelectorAll('#jcModules input[data-jc-mod]'))
+    .filter(i => !i.checked).map(i => i.getAttribute('data-jc-mod'));
+}
+function openJourneyConfig(){
+  renderJourneyConfig();
+  document.getElementById('journeyConfigOverlay').classList.add('show');
+}
+function closeJourneyConfig(){
+  document.getElementById('journeyConfigOverlay').classList.remove('show');
+}
+(function initJourneyConfigUi(){
+  const overlay = document.getElementById('journeyConfigOverlay');
+  const body = document.getElementById('journeyConfigBody');
+  document.getElementById('journeyConfigBtn').addEventListener('click', openJourneyConfig);
+  document.getElementById('journeyConfigClose').addEventListener('click', closeJourneyConfig);
+  overlay.addEventListener('click', e => { if(e.target.id === 'journeyConfigOverlay') closeJourneyConfig(); });
+
+  body.addEventListener('input', e => {
+    if(e.target.id === 'jcDesignation'){
+      document.getElementById('jcHint').innerHTML = jcHintHtml(e.target.value);
+    }
+  });
+  body.addEventListener('change', e => {
+    if(e.target.id === 'jcJourney'){
+      // ganti journey dasar -> daftar modul beda, jadi semua modul dicentang lagi
+      jcDraft.designation = document.getElementById('jcDesignation').value;
+      jcDraft.journey = e.target.value;
+      jcDraft.exclude = [];
+      document.getElementById('jcModules').innerHTML = jcModulesHtml(jcDraft.journey, jcDraft.exclude);
+    }
+  });
+  body.addEventListener('click', async e => {
+    const edit = e.target.closest('[data-jc-edit]');
+    if(edit){
+      const o = journeyOverrides[edit.getAttribute('data-jc-edit')];
+      if(o){ jcDraft = { designation:o.designation, journey:o.journey, exclude:o.exclude.slice() }; renderJourneyConfig(); }
+      return;
+    }
+    const del = e.target.closest('[data-jc-del]');
+    if(del){
+      const o = journeyOverrides[del.getAttribute('data-jc-del')];
+      if(!o) return;
+      if(!confirm(`Hapus override untuk "${o.designation}"? Designation ini balik ke aturan bawaan.`)) return;
+      const r = await deleteJourneyOverride(o.designation);
+      if(r.success){ showToast('Override dihapus'); renderJourneyConfig(); }
+      else showToast('Gagal hapus: ' + r.error, true);
+      return;
+    }
+    if(e.target.id === 'jcReset'){
+      jcDraft = { designation:'', journey:'umum', exclude:[] };
+      renderJourneyConfig();
+      return;
+    }
+    if(e.target.id === 'jcSave'){
+      jcReadDraftFromForm();
+      if(!normDesignationKey(jcDraft.designation)){ showToast('Isi designation dulu', true); return; }
+      if(jcDraft.exclude.length >= JOURNEY_DEFS[jcDraft.journey].modules.length){
+        showToast('Minimal 1 modul harus dipakai', true); return;
+      }
+      const btn = e.target; btn.disabled = true;
+      const r = await saveJourneyOverride(jcDraft.designation, jcDraft.journey, jcDraft.exclude);
+      btn.disabled = false;
+      if(r.success){
+        showToast('Override tersimpan');
+        jcDraft = { designation:'', journey:'umum', exclude:[] };
+        renderJourneyConfig();
+      }else{
+        showToast('Gagal simpan: ' + r.error, true);
+      }
+    }
+  });
+})();
+
 loadCandidates();
 loadDesignationDivisiOverridesFromServer();
+loadJourneyOverridesFromServer();
 initCultureQuiz();
 
 // Balikin ke tab terakhir yang dipilih user di browser ini (default: Info Join & Onboarding).
