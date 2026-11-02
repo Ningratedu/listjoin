@@ -3567,11 +3567,16 @@ function renderOnboardingStats(){
   // & popup detail "Total Peserta Induction". candidatesInSelectedMonth di atas sudah
   // disaring berdasarkan tgl Rencana Induction (tglOnboarding) aja, jadi konsisten sama
   // tabel "Detail & Kelola Kandidat" di bawahnya.
-  const pesertaList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
+  // Card "Total Peserta Induction" = SEMUA kandidat bulan terpilih tanpa kecuali (Hadir, Tidak
+  // Hadir, Terjadwal, sampai Tidak Jadi Join). Sedangkan hadirList (yang beneran Hadir) tetap
+  // jadi dasar Completed/In Progress & pembagi persentase resign.
+  const pesertaList = candidatesInSelectedMonth;
   const total = pesertaList.length;
+  const hadirList = candidatesInSelectedMonth.filter(c => c.kehadiran === 'Hadir' && !isInductionAfterSelectedMonth(c));
+  const totalHadir = hadirList.length;
   // Peserta aktif = subset dari pesertaList yang masih Active (belum resign), dipakai
   // khusus buat itung Completed/In Progress karena journey-nya masih relevan ditracking.
-  const activeList = pesertaList.filter(c => getStatusKaryawan(c) === 'Active');
+  const activeList = hadirList.filter(c => getStatusKaryawan(c) === 'Active');
   const totalActive = activeList.length;
   const completedList = activeList.filter(c => dummyOnboardingStatus(c) === 'Completed');
   const inProgressList = activeList.filter(c => dummyOnboardingStatus(c) === 'In Progress');
@@ -3583,12 +3588,12 @@ function renderOnboardingStats(){
   // dari total semua kandidat bulan itu -- biar persentasenya nunjukkin proporsi resign
   // relatif ke peserta yang beneran hadir induction.
   const resignList = candidatesInSelectedMonth.filter(c => getStatusKaryawan(c) === 'Resign');
-  const pctResign = total ? Math.round(resignList.length / total * 100) : 0;
+  const pctResign = totalHadir ? Math.round(resignList.length / totalHadir * 100) : 0;
   // Resign dipecah: SAAT induction (<=5 hari dari tgl induction) vs SETELAH induction.
   const resignDuringList = resignList.filter(isResignDuringInduction);
   const resignAfterList = resignList.filter(c => !isResignDuringInduction(c));
-  const pctResignDuring = total ? Math.round(resignDuringList.length / total * 100) : 0;
-  const pctResignAfter = total ? Math.round(resignAfterList.length / total * 100) : 0;
+  const pctResignDuring = totalHadir ? Math.round(resignDuringList.length / totalHadir * 100) : 0;
+  const pctResignAfter = totalHadir ? Math.round(resignAfterList.length / totalHadir * 100) : 0;
 
   // "Tidak Jadi Join" -- kandidat bulan terpilih yang batal gabung (gak pernah jadi peserta).
   // Persentase relatif ke SEMUA kandidat bulan itu (bukan cuma yang Hadir), soalnya mereka
@@ -3598,7 +3603,7 @@ function renderOnboardingStats(){
   const pctTjj = totalKandidat ? Math.round(tjjList.length / totalKandidat * 100) : 0;
 
   statDetailsCache.onboardingStatus = {
-    peserta: pesertaList, completed: completedList, inProgress: inProgressList, resign: resignList, resignDuring: resignDuringList, resignAfter: resignAfterList, tjj: tjjList
+    peserta: pesertaList, hadir: hadirList, completed: completedList, inProgress: inProgressList, resign: resignList, resignDuring: resignDuringList, resignAfter: resignAfterList, tjj: tjjList
   };
 
   const tiles = [
@@ -3606,7 +3611,7 @@ function renderOnboardingStats(){
       type: 'onbTotal', variant: 'number',
       badge: String(total), badgeBg: 'var(--navy)',
       icon: '🎓', iconBg: 'rgba(23,185,120,0.12)', iconColor: 'var(--accent)',
-      title: 'Total Peserta Induction', sub: `Kandidat yang sudah Hadir`
+      title: 'Total Peserta Induction', sub: `Semua kandidat bulan ini · ${totalHadir} sudah Hadir`
     },
     {
       type: 'onbCompleted', variant: 'ring',
@@ -3624,13 +3629,13 @@ function renderOnboardingStats(){
       type: 'onbResignDuring', variant: 'ring',
       pct: pctResignDuring, badgeBg: 'var(--navy-2)', ringColor: '#c0264b',
       icon: '🔴', iconBg: 'rgba(192,38,75,0.12)', iconColor: '#c0264b',
-      title: 'Resign saat Induction', sub: `${resignDuringList.length}/${total} peserta hadir · ≤5 hari dari induction`
+      title: 'Resign saat Induction', sub: `${resignDuringList.length}/${totalHadir} peserta hadir · ≤5 hari dari induction`
     },
     {
       type: 'onbResignAfter', variant: 'ring',
       pct: pctResignAfter, badgeBg: 'var(--navy-2)', ringColor: '#5b1a2b',
       icon: '🟤', iconBg: 'rgba(91,26,43,0.12)', iconColor: '#5b1a2b',
-      title: 'Resign setelah Induction', sub: `${resignAfterList.length}/${total} peserta hadir · >5 hari dari induction`
+      title: 'Resign setelah Induction', sub: `${resignAfterList.length}/${totalHadir} peserta hadir · >5 hari dari induction`
     },
     {
       type: 'onbTjj', variant: 'ring',
@@ -6036,7 +6041,8 @@ function buildExcelSummaryRows(){
   const totalActive = completed + inProgress;
   const pctCompleted = totalActive ? Math.round(completed / totalActive * 100) : 0;
   const pctInProgress = totalActive ? Math.round(inProgress / totalActive * 100) : 0;
-  const pctResign = total ? Math.round(resign / total * 100) : 0;
+  const totalHadirX = summary.hadir ? summary.hadir.length : 0;
+  const pctResign = totalHadirX ? Math.round(resign / totalHadirX * 100) : 0;
   const totalKandidatBulan = candidates.filter(isInSelectedMonth).length;
   const pctTjj = totalKandidatBulan ? Math.round(tjj / totalKandidatBulan * 100) : 0;
 
