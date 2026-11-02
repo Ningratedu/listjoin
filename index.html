@@ -165,6 +165,10 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
   .jc-group{margin:8px 0 4px;font-size:10.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px;}
   .jc-mod{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:12px;color:var(--text);cursor:pointer;}
   .jc-mod input{margin-top:2px;}
+  .jc-gol{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0 4px;padding:7px 10px;border-radius:8px;background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--accent);font-size:11.5px;font-weight:800;color:var(--text);}
+  .jc-gol:first-child{margin-top:6px;}
+  .jc-gol button{border:0;background:none;color:var(--accent);font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;}
+  .jc-gol button:hover{text-decoration:underline;}
   body{
     margin:0;
     font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -2309,7 +2313,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
     <div id="indStatBody">
       <div class="chart-hint">💡 Setiap batang = 1 sesi induction · klik segmen status untuk lihat daftar kandidatnya</div>
       <div id="indStatGrid"></div>
-      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih. <b>Resign saat induction</b> = tgl resign ≤5 hari dari tgl induction (atau sebelumnya), <b>Resign setelah induction</b> = lebih dari 5 hari. Keduanya &amp; <b>Tidak Jadi Join</b> jadi status sendiri (tanpa lihat kehadiran), jadi tidak dobel masuk Not Started / In Progress. <b>Not Started</b> = belum Hadir (belum diverifikasi / Tidak Hadir) atau Hadir tapi belum ada modul selesai; sesi yang belum berlangsung tidak dihitung. Total di sini bisa lebih besar dari card Completed/In Progress karena ikut menghitung yang belum Hadir, Resign, dan Tidak Jadi Join.</div>
+      <div class="session-chart-note">Basis sesi: <b>Tanggal Induction</b> bulan yang dipilih. <b>Resign saat induction</b> = tgl resign ≤5 hari dari tgl induction (atau sebelumnya), <b>Resign setelah induction</b> = lebih dari 5 hari. Keduanya &amp; <b>Tidak Jadi Join</b> jadi status sendiri (tanpa lihat kehadiran), jadi tidak dobel masuk Not Started / In Progress. <b>Not Started</b> = belum Hadir (belum diverifikasi / Tidak Hadir) atau Hadir tapi belum ada modul selesai; sesi yang belum berlangsung tampil sebagai <b>Terjadwal</b> (termasuk jadwal bulan-bulan berikutnya kalau bulan yang dipilih = bulan berjalan). Total di sini bisa lebih besar dari card Completed/In Progress karena ikut menghitung yang belum Hadir, Resign, dan Tidak Jadi Join.</div>
     </div>
   </div>
 
@@ -5039,10 +5043,22 @@ const BRANCH_MANAGER_ONBOARDING_MODULES = ONBOARDING_MODULES.map(m => m.id === '
 // Catatan: modul yang dikeluarkan cuma disembunyikan (data checklist-nya gak dihapus), jadi
 // aman kalau nanti dikembalikan.
 // ============================================================================
+// Journey "Custom": isinya SEMUA modul dari Gol 1, Gol 2 & Gol 3 (dipisah pembatas per
+// golongan di popup Atur Modul), dan PIC bebas ceklis modul mana aja yang dipakai.
+// Disimpan sama kayak override lain (modul yang tidak diceklis = masuk daftar exclude).
+const CUSTOM_GOLONGAN = [
+  { key:'umum',  short:'Gol 1', label:'Golongan 1 \u2014 Umum',                       modules: ONBOARDING_MODULES },
+  { key:'sales', short:'Gol 2', label:'Golongan 2 \u2014 Sales / Sales Counter',      modules: SALES_ONBOARDING_MODULES },
+  { key:'spv',   short:'Gol 3', label:'Golongan 3 \u2014 Sales Supervisor',           modules: SALES_SUPERVISOR_ONBOARDING_MODULES }
+];
+const CUSTOM_ALL_MODULES = [].concat(...CUSTOM_GOLONGAN.map(g => g.modules.map(m => ({
+  ...m, origGroup:m.group, group: g.short + ' \u00b7 ' + m.group, golKey:g.key, golShort:g.short
+}))));
 const JOURNEY_DEFS = {
   umum:  { label:'Umum (Gol 1)',                  modules: ONBOARDING_MODULES },
   sales: { label:'Sales / Sales Counter (Gol 2)', modules: SALES_ONBOARDING_MODULES },
-  spv:   { label:'Sales Supervisor (Gol 3)',      modules: SALES_SUPERVISOR_ONBOARDING_MODULES }
+  spv:   { label:'Sales Supervisor (Gol 3)',      modules: SALES_SUPERVISOR_ONBOARDING_MODULES },
+  custom:{ label:'Custom (pilih modul sendiri)',  modules: CUSTOM_ALL_MODULES }
 };
 const JOURNEY_OVERRIDE_CACHE_KEY = 'induction_journey_overrides_cache_v1';
 function readJourneyOverrideCache(){
@@ -5149,6 +5165,11 @@ function findDoneAutoTrainingModule(c, checklist){
 // autoMarkHadirFromChecklist()), karena praktiknya penjelasan Comben & Personalia sudah
 // pasti dilalui bareng sesi training pertama yang diikuti karyawan.
 function compbenModuleId(c){
+  if(getJourneyKey(c) === 'custom'){
+    // Custom: pakai modul Compben yang diceklis di journey kandidat (kalau ada)
+    const hit = getOnboardingModules(c).find(m => m.id === 'm01' || m.id === 's00' || m.id === 'sv00');
+    return hit ? hit.id : 'm01';
+  }
   if(isSalesSupervisorDesignation(c)) return 'sv00';
   return isSalesDesignation(c) ? 's00' : 'm01';
 }
@@ -5292,7 +5313,8 @@ function getOnboardingModules(c){
   const ov = getJourneyOverride(c);
   const key = getJourneyKey(c);
   let mods;
-  if(key === 'spv') mods = SALES_SUPERVISOR_ONBOARDING_MODULES;
+  if(key === 'custom') mods = CUSTOM_ALL_MODULES;
+  else if(key === 'spv') mods = SALES_SUPERVISOR_ONBOARDING_MODULES;
   else if(key === 'sales') mods = SALES_ONBOARDING_MODULES;
   else mods = (!ov && isBranchManagerDesignation(c)) ? BRANCH_MANAGER_ONBOARDING_MODULES : ONBOARDING_MODULES;
   if(ov && ov.exclude.length) mods = mods.filter(m => ov.exclude.indexOf(m.id) === -1);
@@ -5887,6 +5909,14 @@ const WA_JOURNEY_BRANCH_MANAGER = WA_JOURNEY_NON_SALES.map(l =>
 function getWaJourneyLines(c){
   const ov = getJourneyOverride(c);
   const key = getJourneyKey(c);
+  if(key === 'custom'){
+    // Custom: bangun daftar e-training dari modul yang dipilih (link sama cuma ditulis sekali)
+    const seen = {};
+    const items = getOnboardingModules(c).filter(m => m.examUrl && !seen[m.examUrl] && (seen[m.examUrl] = true));
+    const out = ['*INDUCTION TRAINING KARYAWAN BARU*', '', 'E-training :'];
+    items.forEach((m, i) => out.push((i + 1) + '. ' + m.label + ' : ' + m.examUrl));
+    return out;
+  }
   let lines;
   if(key === 'spv') lines = WA_JOURNEY_SPV_SALES;
   else if(key === 'sales') lines = WA_JOURNEY_SALES;
@@ -6078,7 +6108,7 @@ const EXCEL_ONBOARDING_TRACKS = [
   {
     sheetName: 'Status Induction Gol 1',
     modules: ONBOARDING_MODULES,
-    match: c => !isSalesDesignation(c) && !isSalesSupervisorDesignation(c)
+    match: c => getJourneyKey(c) === 'umum'
   },
   {
     sheetName: 'Status Induction Gol 2',
@@ -6089,6 +6119,11 @@ const EXCEL_ONBOARDING_TRACKS = [
     sheetName: 'Status Induction Gol 3',
     modules: SALES_SUPERVISOR_ONBOARDING_MODULES,
     match: c => isSalesSupervisorDesignation(c)
+  },
+  {
+    sheetName: 'Status Induction Custom',
+    modules: CUSTOM_ALL_MODULES.map(m => ({ ...m, label: '[' + m.golShort + '] ' + m.label })),
+    match: c => getJourneyKey(c) === 'custom'
   }
 ];
 
@@ -6657,7 +6692,15 @@ function indStatBaseStatus(c){
   const st = getStatusKaryawan(c);
   if(st === 'Resign') return isResignDuringInduction(c) ? 'Resign saat induction' : 'Resign setelah induction';
   if(st === 'Tidak Jadi Join') return 'Tidak Jadi Join';
+  if(isUpcomingInductionSession(c)) return 'Terjadwal';
   return c.kehadiran === 'Hadir' ? dummyOnboardingStatus(c) : 'Not Started';
+}
+// Sesi induction yang BELUM berlangsung (tanggalnya setelah hari ini), kandidat masih Active
+// & belum Hadir -> ditampilin di chart sebagai "Terjadwal" (jadwal berikutnya).
+function isUpcomingInductionSession(c){
+  if(getStatusKaryawan(c) !== 'Active' || c.kehadiran === 'Hadir') return false;
+  const d = daysSinceOnboarding(c);
+  return d !== null && d < 0;
 }
 const INDSTAT_STATUSES = [
   { key:'Completed',                label:'Completed',                 color:'#17b978',
@@ -6668,6 +6711,8 @@ const INDSTAT_STATUSES = [
     match: c => indStatBaseStatus(c) === 'In Progress' },
   { key:'Not Started',              label:'Not Started',               color:'#9aa5ab',
     match: c => indStatBaseStatus(c) === 'Not Started' },
+  { key:'Terjadwal',                label:'Terjadwal (belum berlangsung)', color:'#4d9de0',
+    match: c => indStatBaseStatus(c) === 'Terjadwal' },
   { key:'Resign saat induction',    label:'Resign saat induction',     color:'#c0264b',
     match: c => indStatBaseStatus(c) === 'Resign saat induction' },
   { key:'Resign setelah induction', label:'Resign setelah induction',  color:'#5b1a2b',
@@ -6680,8 +6725,15 @@ const INDSTAT_STATUSES = [
 // (hari ini / lewat) -> mereka masuk "Not Started". Sesi yang belum terjadi gak dihitung.
 // NOTE: sengaja beda dari "Total Peserta Induction" (cuma Hadir), jadi totalnya bisa lebih besar.
 function getInductionStatusPeserta(){
+  // Kalau bulan yang dipilih = bulan berjalan, sesi di bulan-bulan berikutnya (jadwal
+  // berikutnya) ikut ditampilkan sebagai "Terjadwal". Bulan lampau tetap murni bulannya.
+  const now = new Date();
+  const viewingNow = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
   return candidates.filter(c => {
+    if(viewingNow && isInductionAfterSelectedMonth(c)) return isUpcomingInductionSession(c);
     if(!isInSelectedMonth(c) || isInductionAfterSelectedMonth(c)) return false;
+    // Sesi yang belum berlangsung (Active & belum Hadir) ikut masuk sebagai "Terjadwal".
+    if(isUpcomingInductionSession(c)) return true;
     // Resign & Tidak Jadi Join ikut masuk chart sebagai status sendiri (kehadiran & sesi
     // udah lewat/belum gak dicek, biar jumlahnya sama dengan card Resign / Tidak Jadi Join).
     if(getStatusKaryawan(c) !== 'Active') return true;
@@ -6723,7 +6775,7 @@ function buildIndStatChart(canvas, sessions, divisi){
         // langsung tampil chart Departemen untuk divisi + sesi yang diklik.
         openStatModal(`${ds.label} · ${divisi} — Sesi ${labels[el.index]} (${group.length})`,
           '',
-          { icon: ds.label === 'Completed' ? '✅' : (ds.label.startsWith('Completed') ? '⚠️' : (ds.label === 'In Progress' ? '🔄' : (ds.label === 'Resign saat induction' ? '🔴' : (ds.label === 'Resign setelah induction' ? '🟤' : (ds.label === 'Tidak Jadi Join' ? '⚪' : '⏳'))))), accent: 'onboarding' });
+          { icon: ds.label === 'Completed' ? '✅' : (ds.label.startsWith('Completed') ? '⚠️' : (ds.label === 'In Progress' ? '🔄' : (ds.label === 'Resign saat induction' ? '🔴' : (ds.label === 'Resign setelah induction' ? '🟤' : (ds.label === 'Tidak Jadi Join' ? '⚪' : (ds.label.startsWith('Terjadwal') ? '📅' : '⏳')))))), accent: 'onboarding' });
         currentDivisiDrilldownList = group;
         currentDivisiDrilldownContext = context;
         renderDivisiDeptChartStep(divisi, { noBack: true });
@@ -6801,7 +6853,7 @@ function renderInductionStatusSessionChart(){
   if(emptyEl) emptyEl.style.display = 'none';
 
   const sessionSet = new Set(peserta.map(c => String(c.tglOnboarding).slice(0,10)));
-  if(subEl) subEl.textContent = `Sales · Support · Produksi · ${sessionSet.size} sesi · ${peserta.length} kandidat · ${currentMonthLabel()}`;
+  if(subEl) subEl.textContent = `Sales · Support · Produksi · ${sessionSet.size} sesi · ${peserta.length} kandidat · ${currentMonthLabel()} + jadwal berikutnya`;
 
   gridEl.innerHTML = INDSTAT_DIVISI.map((divisi, i) => {
     const list = peserta.filter(c => getDivisiForDesignation(c.designation) === divisi);
@@ -6814,7 +6866,7 @@ function renderInductionStatusSessionChart(){
           ${list.length ? `<span class="indstat-count indstat-count-sesi">🗓️ ${new Set(list.map(c => String(c.tglOnboarding).slice(0,10))).size} sesi</span>` : ''}
         </div>
         ${list.length
-          ? `<div class="indstat-legend">${INDSTAT_STATUSES.map(st => `<span><i style="background:${st.color}"></i>${escapeHtml(st.label)}</span>`).join('')}</div>
+          ? `<div class="indstat-legend">${INDSTAT_STATUSES.slice().sort((a, b) => (b.key === 'Terjadwal') - (a.key === 'Terjadwal')).map(st => `<span><i style="background:${st.color}"></i>${escapeHtml(st.label)}</span>`).join('')}</div>
           <div class="indstat-wrap"><canvas id="indStatChart-${i}"></canvas></div>`
           : `<div class="indstat-empty">Belum ada kandidat induction divisi ${escapeHtml(divisi)} bulan ini.</div>`}
       </div>`;
@@ -11085,6 +11137,20 @@ lastOnboardingPic = picNameEl.value.trim();
 let jcDraft = { designation:'', journey:'umum', exclude:[] };
 
 function jcModulesHtml(journey, excludeArr){
+  if(journey === 'custom'){
+    let h = '', lastGol = null, lastG = null;
+    CUSTOM_ALL_MODULES.forEach(m => {
+      if(m.golKey !== lastGol){
+        const gol = CUSTOM_GOLONGAN.find(g => g.key === m.golKey);
+        h += `<div class="jc-gol"><span>${escapeHtml(gol.label)}</span><button type="button" data-jc-gol="${gol.key}">Pilih / kosongkan semua</button></div>`;
+        lastGol = m.golKey; lastG = null;
+      }
+      if(m.origGroup !== lastG){ h += `<div class="jc-group">${escapeHtml(m.origGroup)}</div>`; lastG = m.origGroup; }
+      const checked = excludeArr.indexOf(m.id) === -1 ? 'checked' : '';
+      h += `<label class="jc-mod"><input type="checkbox" data-jc-mod="${m.id}" data-jc-golkey="${m.golKey}" ${checked}><span>${escapeHtml(m.label)}</span></label>`;
+    });
+    return h;
+  }
   const mods = JOURNEY_DEFS[journey].modules;
   let html = '', lastGroup = null;
   mods.forEach(m => {
@@ -11098,7 +11164,7 @@ function jcHintHtml(designation){
   if(!normDesignationKey(designation)) return '';
   const fake = { designation };
   const ov = getJourneyOverride(fake);
-  if(ov) return `Sekarang: <b>override aktif</b> (${escapeHtml(JOURNEY_DEFS[ov.journey].label)}${ov.exclude.length ? ', ' + ov.exclude.length + ' modul dikeluarkan' : ''}).`;
+  if(ov) return `Sekarang: <b>override aktif</b> (${escapeHtml(JOURNEY_DEFS[ov.journey].label)}${ov.journey === 'custom' ? ', ' + (CUSTOM_ALL_MODULES.length - ov.exclude.length) + ' modul dipilih' : (ov.exclude.length ? ', ' + ov.exclude.length + ' modul dikeluarkan' : '')}).`;
   const k = builtinJourneyKey(fake);
   let t = `Sekarang pakai aturan bawaan: ${escapeHtml(JOURNEY_DEFS[k].label)}`;
   if(isBranchManagerDesignation(fake)) t += ' dengan Product Knowledge RSP';
@@ -11108,7 +11174,7 @@ function renderJourneyConfig(){
   const rows = Object.keys(journeyOverrides).sort().map(k => journeyOverrides[k]);
   const list = rows.length ? rows.map(o => `
     <div class="jc-card">
-      <div><b>${escapeHtml(o.designation)}</b><span>${escapeHtml(JOURNEY_DEFS[o.journey].label)}${o.exclude.length ? ' · ' + o.exclude.length + ' modul dikeluarkan' : ' · semua modul'}</span></div>
+      <div><b>${escapeHtml(o.designation)}</b><span>${escapeHtml(JOURNEY_DEFS[o.journey].label)}${o.journey === 'custom' ? ' · ' + (CUSTOM_ALL_MODULES.length - o.exclude.length) + ' modul dipilih' : (o.exclude.length ? ' · ' + o.exclude.length + ' modul dikeluarkan' : ' · semua modul')}</span></div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
         <button type="button" class="jc-btn" data-jc-edit="${escapeHtml(normDesignationKey(o.designation))}">Ubah</button>
         <button type="button" class="jc-btn danger" data-jc-del="${escapeHtml(normDesignationKey(o.designation))}">Hapus</button>
@@ -11129,7 +11195,7 @@ function renderJourneyConfig(){
       <select class="jc-field" id="jcJourney">
         ${Object.keys(JOURNEY_DEFS).map(k => `<option value="${k}" ${k === jcDraft.journey ? 'selected' : ''}>${escapeHtml(JOURNEY_DEFS[k].label)}</option>`).join('')}
       </select>
-      <div class="jc-label">Modul yang dipakai (hilangkan centang buat mengeluarkan modul)</div>
+      <div class="jc-label" id="jcModulesLabel">${jcDraft.journey === 'custom' ? 'Ceklis modul yang dipakai (dari semua golongan)' : 'Modul yang dipakai (hilangkan centang buat mengeluarkan modul)'}</div>
       <div id="jcModules">${jcModulesHtml(jcDraft.journey, jcDraft.exclude)}</div>
       <div style="display:flex;gap:8px;margin-top:12px;">
         <button type="button" class="jc-btn primary" id="jcSave">Simpan</button>
@@ -11143,6 +11209,7 @@ function renderJourneyConfig(){
         Sales Supervisor, PJS Sales Supervisor, Commercial Marketing Supervisor → Sales Supervisor (Gol 3).<br>
         Branch Manager, PJS Branch Manager → Umum (Gol 1) dengan Product Knowledge RSP.<br>
         Designation lainnya → Umum (Gol 1).<br>
+        Custom → pilih sendiri modul dari semua golongan (Gol 1, 2 &amp; 3).<br>
         Modul yang dikeluarkan cuma disembunyikan, data centang lama tidak dihapus.
       </div>
     </div>`;
@@ -11180,8 +11247,11 @@ function closeJourneyConfig(){
       // ganti journey dasar -> daftar modul beda, jadi semua modul dicentang lagi
       jcDraft.designation = document.getElementById('jcDesignation').value;
       jcDraft.journey = e.target.value;
-      jcDraft.exclude = [];
+      // custom mulai dari kosong (PIC ceklis sendiri); journey lain mulai dari semua modul tercentang
+      jcDraft.exclude = jcDraft.journey === 'custom' ? CUSTOM_ALL_MODULES.map(m => m.id) : [];
       document.getElementById('jcModules').innerHTML = jcModulesHtml(jcDraft.journey, jcDraft.exclude);
+      const lbl = document.getElementById('jcModulesLabel');
+      if(lbl) lbl.textContent = jcDraft.journey === 'custom' ? 'Ceklis modul yang dipakai (dari semua golongan)' : 'Modul yang dipakai (hilangkan centang buat mengeluarkan modul)';
     }
   });
   body.addEventListener('click', async e => {
@@ -11201,6 +11271,13 @@ function closeJourneyConfig(){
       else showToast('Gagal hapus: ' + r.error, true);
       return;
     }
+    const golBtn = e.target.closest('[data-jc-gol]');
+    if(golBtn){
+      const boxes = Array.from(document.querySelectorAll('#jcModules input[data-jc-golkey="' + golBtn.getAttribute('data-jc-gol') + '"]'));
+      const allOn = boxes.every(b => b.checked);
+      boxes.forEach(b => { b.checked = !allOn; });
+      return;
+    }
     if(e.target.id === 'jcReset'){
       jcDraft = { designation:'', journey:'umum', exclude:[] };
       renderJourneyConfig();
@@ -11210,7 +11287,7 @@ function closeJourneyConfig(){
       jcReadDraftFromForm();
       if(!normDesignationKey(jcDraft.designation)){ showToast('Isi designation dulu', true); return; }
       if(jcDraft.exclude.length >= JOURNEY_DEFS[jcDraft.journey].modules.length){
-        showToast('Minimal 1 modul harus dipakai', true); return;
+        showToast(jcDraft.journey === 'custom' ? 'Ceklis minimal 1 modul dulu' : 'Minimal 1 modul harus dipakai', true); return;
       }
       const btn = e.target; btn.disabled = true;
       const r = await saveJourneyOverride(jcDraft.designation, jcDraft.journey, jcDraft.exclude);
