@@ -9028,31 +9028,100 @@ let lmsSyncLastAt = 0;
 
 function lmsSyncFieldStr(f){ return f ? (f.stringValue != null ? f.stringValue : (f.integerValue != null ? String(f.integerValue) : (f.doubleValue != null ? String(f.doubleValue) : ''))) : ''; }
 
-async function fetchLmsCompletions(){
-  const d = new Date(); d.setDate(d.getDate() - LMS_SYNC_FS.lookbackDays);
-  const cutoff = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+// ---- Cache + sync inkremental (hemat read Firestore, anti-429) ----
+// Dulu: tiap sync narik sampai 3000 dokumen -> quota harian Firestore cepat habis (HTTP 429).
+// Sekarang: event disimpan di localStorage (dibagi semua tab). Sync otomatis cuma narik dokumen
+// yang BERUBAH sejak sync terakhir (updatedAt), full-fetch hanya kalau cache kosong / > 7 hari.
+// Kalau kena 429: pakai cache + jeda (cooldown) 30 menit, bukan error ke user.
+const LMS_EV_CACHE_KEY = 'lms_sync_events_v2';
+const LMS_COOLDOWN_KEY = 'lms_sync_cooldown_until';
+const LMS_FRESH_MS = 15 * 60 * 1000;               // cache dianggap segar -> gak hit server
+const LMS_FULL_REFRESH_MS = 7 * 24 * 60 * 60 * 1000; // full-fetch ulang tiap 7 hari
+const LMS_COOLDOWN_MS = 30 * 60 * 1000;            // jeda setelah kena 429
+
+function lmsReadEvCache(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LMS_EV_CACHE_KEY) || 'null');
+    if(o && o.events && typeof o.events === 'object') return o;
+  }catch(e){}
+  return null;
+}
+function lmsWriteEvCache(o){ try{ localStorage.setItem(LMS_EV_CACHE_KEY, JSON.stringify(o)); }catch(e){} }
+
+function lmsParseDoc(doc){
+  const f = doc.fields || {};
+  return {
+    username: lmsSyncFieldStr(f.username).trim(),
+    nama: lmsSyncFieldStr(f.nama).trim(),
+    training: lmsSyncFieldStr(f.training).trim(),
+    tanggal: lmsSyncFieldStr(f.tanggal).slice(0,10),
+    nilai: (f.nilai && (f.nilai.integerValue != null || f.nilai.doubleValue != null)) ? Number(f.nilai.integerValue != null ? f.nilai.integerValue : f.nilai.doubleValue) : null,
+    _upd: f.updatedAt && f.updatedAt.timestampValue ? Date.parse(f.updatedAt.timestampValue) || 0 : 0
+  };
+}
+
+async function lmsRunQuery(where){
   const url = 'https://firestore.googleapis.com/v1/projects/' + LMS_SYNC_FS.projectId + '/databases/(default)/documents:runQuery?key=' + LMS_SYNC_FS.apiKey;
   const res = await fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ structuredQuery: {
-      from: [{ collectionId: LMS_SYNC_FS.collection }],
-      where: { fieldFilter: { field: { fieldPath: 'tanggal' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: cutoff } } },
-      limit: 3000
-    }})
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: LMS_SYNC_FS.collection }], where: where, limit: 3000 } })
   });
-  const json = await res.json();
-  if(!res.ok || (json && json.error)) throw new Error((json && json.error && json.error.message) || ('HTTP ' + res.status));
-  return (Array.isArray(json) ? json : []).filter(r => r.document && r.document.fields).map(r => {
-    const f = r.document.fields;
-    return {
-      username: lmsSyncFieldStr(f.username).trim(),
-      nama: lmsSyncFieldStr(f.nama).trim(),
-      training: lmsSyncFieldStr(f.training).trim(),
-      tanggal: lmsSyncFieldStr(f.tanggal).slice(0,10),
-      nilai: (f.nilai && (f.nilai.integerValue != null || f.nilai.doubleValue != null)) ? Number(f.nilai.integerValue != null ? f.nilai.integerValue : f.nilai.doubleValue) : null
-    };
-  });
+  let json = null;
+  try{ json = await res.json(); }catch(e){}
+  if(!res.ok || (json && json.error)){
+    const err = new Error((json && json.error && json.error.message) || ('HTTP ' + res.status));
+    err.status = res.status;
+    throw err;
+  }
+  return (Array.isArray(json) ? json : []).filter(r => r.document && r.document.fields).map(r => lmsParseDoc(r.document));
+}
+
+// opts.manual = true -> user klik tombol sync: abaikan cache-segar & cooldown (tetap incremental).
+async function fetchLmsCompletions(opts){
+  const manual = !!(opts && opts.manual);
+  const now = Date.now();
+  const d = new Date(); d.setDate(d.getDate() - LMS_SYNC_FS.lookbackDays);
+  const cutoff = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+
+  let cache = lmsReadEvCache();
+  const toList = () => Object.keys(cache.events).map(k => cache.events[k]).filter(e => e.tanggal >= cutoff);
+
+  if(cache && !manual){
+    let cooldownUntil = 0;
+    try{ cooldownUntil = Number(localStorage.getItem(LMS_COOLDOWN_KEY) || 0); }catch(e){}
+    if(now < cooldownUntil) return toList();                 // lagi cooldown pasca-429
+    if(now - (cache.fetchedAt || 0) < LMS_FRESH_MS) return toList(); // cache masih segar
+  }
+
+  const needFull = !cache || (now - (cache.fullAt || 0) > LMS_FULL_REFRESH_MS) || !cache.maxUpd;
+  try{
+    let rows;
+    if(needFull){
+      rows = await lmsRunQuery({ fieldFilter: { field: { fieldPath: 'tanggal' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: cutoff } } });
+      cache = { events: {}, maxUpd: 0, fetchedAt: now, fullAt: now };
+    } else {
+      rows = await lmsRunQuery({ fieldFilter: { field: { fieldPath: 'updatedAt' }, op: 'GREATER_THAN', value: { timestampValue: new Date(cache.maxUpd).toISOString() } } });
+    }
+    rows.forEach(e => {
+      cache.events[(e.username || e.nama).toLowerCase() + '__' + e.training] = e;
+      if(e._upd > cache.maxUpd) cache.maxUpd = e._upd;
+    });
+    cache.fetchedAt = now;
+    lmsWriteEvCache(cache);
+    try{ localStorage.removeItem(LMS_COOLDOWN_KEY); }catch(e){}
+    return toList();
+  }catch(err){
+    if(err && err.status === 429){
+      try{ localStorage.setItem(LMS_COOLDOWN_KEY, String(now + LMS_COOLDOWN_MS)); }catch(e){}
+      if(cache && cache.events && Object.keys(cache.events).length){
+        console.warn('[syncLmsCompletions] 429 dari Firestore, pakai cache lokal & cooldown 30 menit');
+        return toList();
+      }
+      err.message = 'Quota baca Firestore LMS lagi penuh (429). Coba lagi nanti / cek penggunaan di Firebase Console.';
+    }
+    throw err;
+  }
 }
 
 function lmsSyncShiftISO(iso, days){
@@ -9074,7 +9143,7 @@ async function syncLmsCompletions(opts){
   const btn = document.getElementById('lmsSyncBtn');
   if(btn){ btn.disabled = true; }
   try{
-    const events = await fetchLmsCompletions();
+    const events = await fetchLmsCompletions({ manual: !silent });
     const byUser = new Map(), byName = new Map();
     candidates.forEach(c => {
       if(isCandidateResigned(c)) return;
