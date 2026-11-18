@@ -2336,6 +2336,7 @@ window.__earlyDivisiOverrideFetch = fetch(API_URL + '?action=divisiOverrideList'
       </div>
       <input type="file" id="lmsImportInput" accept=".xlsx,.xls" style="display:none;">
       <button type="button" class="upload-btn upload-btn-compact" id="lmsImportBtn" title="Import Ceklis Otomatis Journey Induction dari E-Training">📥 Upload Exported E-Training</button>
+      <button type="button" class="upload-btn upload-btn-compact" id="lmsSyncBtn" title="Tarik penyelesaian training onboarding (post-test lulus) langsung dari LMS">🔗 Tarik dari LMS</button>
       <button type="button" class="upload-btn upload-btn-compact" id="tableRefreshBtn" title="Refresh data kandidat terbaru dari server">🔄 Refresh</button>
       <button type="button" class="upload-btn upload-btn-compact" id="tableExcelDownloadBtn" title="Download detail kandidat & summary dalam Excel">📊 Download Excel</button>
       <button type="button" class="upload-btn upload-btn-compact" id="journeyConfigBtn" title="Atur journey & modul induction per designation">🧩 Atur Modul</button>
@@ -3382,6 +3383,7 @@ async function loadCandidates(){
 
   // 2) Fetch data terbaru dari server (di-cache 60 detik di sisi Apps Script juga,
   //    jadi request yang beruntun dalam 1 menit bakal jauh lebih cepat).
+  window.__candidatesFreshOk = false; // true cuma kalau fetch list dari server BERHASIL (cegah sync nimpa checklist pakai data cache basi)
   try{
     let json;
     if(window.__earlyListFetch){
@@ -3406,6 +3408,7 @@ async function loadCandidates(){
       lastCandidatesRawStr = rawStr;
     }
     writeCandidatesCache(rawRows);
+    window.__candidatesFreshOk = true;
   }catch(e){
     if(!hasCachedView){
       showToast('Gagal memuat list', true);
@@ -3429,6 +3432,10 @@ async function loadCandidates(){
     hasRunKehadiranAutoMark = true;
     autoMarkTidakHadirIfStale();
   }
+
+  // 5) Tarik penyelesaian training onboarding dari LMS (post-test lulus) -> ceklis journey.
+  //    Throttle + guard ada di dalam syncLmsCompletions().
+  syncLmsCompletions({ silent:true });
 }
 
 function initHeaderChip(){
@@ -9000,6 +9007,132 @@ if(lmsImportBtnEl && lmsImportInputEl){
   lmsImportBtnEl.addEventListener('click', () => lmsImportInputEl.click());
   lmsImportInputEl.addEventListener('change', handleLmsImportUpload);
 }
+
+
+// ==== Sinkron otomatis dari LMS (post-test onboarding lulus) ====
+// LMS nulis 1 dokumen per (username, course) ke Firestore collection "inductionCompletions"
+// begitu peserta LULUS post-test course onboarding. Di sini dokumen itu ditarik lewat
+// Firestore REST (butuh rules: read terbuka untuk collection ini), dicocokin ke kandidat,
+// lalu diproses lewat jalur yang SAMA kayak upload exported e-training: findModuleByLmsTraining()
+// (lmsAliases) + commitLmsChanges() -> batchUpdate. Hanya modul yang BELUM done yang diisi,
+// jadi data dari upload Excel / centang manual tidak pernah ditimpa.
+const LMS_SYNC_FS = {
+  projectId: 'booking-ruang-training',
+  apiKey: 'AIzaSyAdNlDuqIbpoZvb1f1_u6SC2zcFcXbB8DM',   // web API key Firebase LMS (publik by design)
+  collection: 'inductionCompletions',
+  lookbackDays: 90,                                     // event yang lebih lama dari ini diabaikan
+  minIntervalMs: 30000                                  // throttle auto-sync
+};
+let lmsSyncRunning = false;
+let lmsSyncLastAt = 0;
+
+function lmsSyncFieldStr(f){ return f ? (f.stringValue != null ? f.stringValue : (f.integerValue != null ? String(f.integerValue) : (f.doubleValue != null ? String(f.doubleValue) : ''))) : ''; }
+
+async function fetchLmsCompletions(){
+  const d = new Date(); d.setDate(d.getDate() - LMS_SYNC_FS.lookbackDays);
+  const cutoff = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const url = 'https://firestore.googleapis.com/v1/projects/' + LMS_SYNC_FS.projectId + '/databases/(default)/documents:runQuery?key=' + LMS_SYNC_FS.apiKey;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ structuredQuery: {
+      from: [{ collectionId: LMS_SYNC_FS.collection }],
+      where: { fieldFilter: { field: { fieldPath: 'tanggal' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: cutoff } } },
+      limit: 3000
+    }})
+  });
+  const json = await res.json();
+  if(!res.ok || (json && json.error)) throw new Error((json && json.error && json.error.message) || ('HTTP ' + res.status));
+  return (Array.isArray(json) ? json : []).filter(r => r.document && r.document.fields).map(r => {
+    const f = r.document.fields;
+    return {
+      username: lmsSyncFieldStr(f.username).trim(),
+      nama: lmsSyncFieldStr(f.nama).trim(),
+      training: lmsSyncFieldStr(f.training).trim(),
+      tanggal: lmsSyncFieldStr(f.tanggal).slice(0,10),
+      nilai: (f.nilai && (f.nilai.integerValue != null || f.nilai.doubleValue != null)) ? Number(f.nilai.integerValue != null ? f.nilai.integerValue : f.nilai.doubleValue) : null
+    };
+  });
+}
+
+function lmsSyncShiftISO(iso, days){
+  const p = String(iso || '').slice(0,10).split('-').map(Number);
+  if(p.length !== 3 || !p[0]) return '';
+  const d = new Date(Date.UTC(p[0], p[1]-1, p[2] + days));
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
+}
+
+async function syncLmsCompletions(opts){
+  opts = opts || {};
+  const silent = !!opts.silent;
+  if(lmsSyncRunning) return;
+  // Jangan pernah nulis checklist kalau list kandidat yang lagi ketampil bukan data fresh dari server
+  // (batchUpdate menimpa SELURUH checklist -> data cache basi bisa menghapus centang yang baru).
+  if(!window.__candidatesFreshOk){ if(!silent) showToast('Data kandidat belum termuat dari server, coba lagi sebentar', true); return; }
+  if(silent && Date.now() - lmsSyncLastAt < LMS_SYNC_FS.minIntervalMs) return;
+  lmsSyncRunning = true; lmsSyncLastAt = Date.now();
+  const btn = document.getElementById('lmsSyncBtn');
+  if(btn){ btn.disabled = true; }
+  try{
+    const events = await fetchLmsCompletions();
+    const byUser = new Map(), byName = new Map();
+    candidates.forEach(c => {
+      if(isCandidateResigned(c)) return;
+      const u = String(c.username || '').trim().toLowerCase();
+      if(u){ if(!byUser.has(u)) byUser.set(u, []); byUser.get(u).push(c); }
+      const n = normalizeLmsText(c.nama);
+      if(n){ if(!byName.has(n)) byName.set(n, []); byName.get(n).push(c); }
+    });
+
+    const changedCandidates = new Map(), changedUsername = new Map();
+    const cnt = { events: events.length, applied: 0, already: 0, unmatchedName: 0, ambiguous: 0, otherCycle: 0, unmatchedModule: 0 };
+
+    events.forEach(ev => {
+      let c = null;
+      const list = ev.username ? byUser.get(ev.username.toLowerCase()) : null;
+      if(list && list.length === 1) c = list[0];
+      else if(list && list.length > 1){ cnt.ambiguous++; return; }
+      else {
+        const nl = byName.get(normalizeLmsText(ev.nama)) || [];
+        if(nl.length === 1) c = nl[0];
+        else if(nl.length > 1){ cnt.ambiguous++; return; }
+      }
+      if(!c){ cnt.unmatchedName++; return; }
+      // Akun siklus join lain: username kandidat sudah ada & beda dari akun LMS ini.
+      if(c.username && ev.username && c.username.toLowerCase() !== ev.username.toLowerCase()){ cnt.otherCycle++; return; }
+      // Event lama dari siklus sebelum kandidat ini join (toleransi 3 hari).
+      if(c.tglJoin && ev.tanggal && ev.tanggal < lmsSyncShiftISO(c.tglJoin, -3)){ cnt.otherCycle++; return; }
+
+      const mod = findModuleByLmsTraining(getOnboardingModules(c), ev.training);
+      if(!mod){ cnt.unmatchedModule++; return; }
+
+      const entry = changedCandidates.get(c._id) || { c, checklist: { ...(c.onboardingChecklist || {}) } };
+      const cur = entry.checklist[mod.id];
+      if(cur && cur.done){ cnt.already++; return; }
+      entry.checklist[mod.id] = { done:true, tanggal: ev.tanggal || todayISO(), nilai: ev.nilai };
+      changedCandidates.set(c._id, entry);
+      cnt.applied++;
+
+      if(!c.username && ev.username && !changedUsername.has(c._id)) changedUsername.set(c._id, { c, username: ev.username });
+    });
+
+    if(changedCandidates.size){
+      await commitLmsChanges({ changedCandidates, changedResign: new Map(), changedUsername, changedProfile: new Map() }, new Map());
+      showToast('🔗 ' + cnt.applied + ' modul dari ' + changedCandidates.size + ' kandidat tersinkron dari LMS');
+    } else if(!silent){
+      showToast('Sinkron LMS: tidak ada modul baru (' + cnt.events + ' event, ' + cnt.already + ' sudah tercentang, ' + cnt.unmatchedName + ' nama tidak cocok, ' + cnt.unmatchedModule + ' judul tidak cocok modul)');
+    }
+    console.info('[syncLmsCompletions]', cnt);
+  }catch(err){
+    console.warn('[syncLmsCompletions] gagal', err);
+    if(!silent) showToast('Gagal tarik data dari LMS: ' + err.message, true);
+  }finally{
+    lmsSyncRunning = false;
+    if(btn){ btn.disabled = false; }
+  }
+}
+window.syncLmsCompletions = syncLmsCompletions;
+(function(){ const b = document.getElementById('lmsSyncBtn'); if(b) b.addEventListener('click', () => syncLmsCompletions({ silent:false })); })();
 
 const tableRefreshBtnEl = document.getElementById('tableRefreshBtn');
 if(tableRefreshBtnEl){
